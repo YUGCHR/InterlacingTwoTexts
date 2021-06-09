@@ -1,0 +1,78 @@
+
+@import '../../App.css';
+
+:root {
+    --border-5-emerald: 5px solid var(--emerald); /* изумрудный */
+}
+
+.allControlPanelPlace{
+    max-width: max-content;
+    /* min-width: min-content; */
+}
+
+.allControlPanel {
+    display: grid;
+    grid-template-rows: auto auto auto;
+    grid-template-columns: minmax(min-content, max-content) minmax(min-content, max-content);
+    grid-auto-flow: row;
+    border: var(--border-5-emerald); /* изумрудный */
+    color: var(--prussian-blue);
+    background-color: var(--olive-khaki); /* оливковый хаки */
+}
+
+.pageName {
+    grid-column: 1/2;
+    grid-row: 1/2;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+    font-size: larger;
+    text-align: center;
+    color: var(--mint-C0);
+    background-color: var(--olive-khaki); /* оливковый хаки */
+}
+
+.dbInfoButtonPlace {
+    grid-column: 2/3;
+    grid-row: 1/2;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+    color: var(--mint-77);
+    background-color: var(--olive-khaki); /* оливковый хаки */
+}
+
+.showDetailsPlace{
+    grid-column: 2/3;
+    grid-row: 2/3;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+}
+
+.selectFiles {
+    grid-column: 1/2;
+    grid-row: 2/3;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+    color: var(--tea-rose);
+    background-color: var(--olive-khaki); /* оливковый хаки */
+}
+
+.uploadFiles {
+    grid-column: 1/2;
+    grid-row: 3/4;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+    color: var(--apricot-color); /* абрикосовым */
+    background-color: var(--golden-olive); /* Золотисто-оливковый */
+}
+
+.freeSpaceOnUploadGrid{
+    grid-column: 2/3;
+    grid-row: 3/4;
+    padding: 10px;
+    border: var(--border-5-emerald); /* изумрудный */
+}
+
+.allButtonsBodies {
+    color: var(--gray-blue); /* серо-голубым */ 
+    background-color: var(--emerald); /* изумрудным */
+}

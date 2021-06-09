@@ -1,0 +1,28 @@
+.radioButtonResult{
+  background-color: cyan;
+  color: darkblue;
+  font-size: larger;
+  font-weight: bold;
+}
+
+.radioFormFields{
+  display: flex;
+  flex-direction: row;
+  background-color:#8D792C; /* Золотисто-оливковый */
+  grid-gap: 5px;
+  color: #114471; /* берлинской лазурью */
+}
+
+.header{
+  grid-area: h;
+  background-color:#8D792C; /* Золотисто-оливковый */
+}
+
+.formSummaryError
+{
+border: 5px solid red;
+padding: 5px;
+color: darkred;
+background-color: #8D792C; /* Золотисто-оливковый */
+}
+

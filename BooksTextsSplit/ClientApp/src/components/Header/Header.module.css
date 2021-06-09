@@ -1,0 +1,50 @@
+@import '../../App.css';
+
+.header{
+  /* grid-column: 1/3;
+  grid-row: 1/2; */
+  grid-area: h;  
+  padding: 10px;
+  border: 2px solid var(--prussian-blue);
+  background-color: var(--emerald);
+  }
+
+  .headerPartsPlace{
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas:
+        "pic pic prl prl prl prl prl prl lgn lgn lgn lgn";
+    align-items: center;
+  }
+
+  .logoPicture{
+    grid-area: pic;
+    height: 50px;
+    opacity: 0.5; 
+    background-color: var(--emerald);    
+  }
+  
+  .preloaderPlace{
+    grid-area: prl;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    max-height: 50px;
+    font-size: smaller;
+    font-weight: bold;
+    color: seagreen;
+  }
+  
+  .loginBlock{
+    grid-area: lgn;
+    font-size: smaller;
+    justify-self: end;
+    text-align: right;
+    color: var(--gray-blue);
+  }
+
+  .allButtonsBodies{
+    color: var(--gray-blue); /* серо-голубым */ 
+    background-color: var(--emerald); /* изумрудным */
+}
