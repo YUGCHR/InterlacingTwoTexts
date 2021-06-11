@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using BooksTextsSplit.Library.Helpers;
 using BooksTextsSplit.Library.Models;
 using Microsoft.AspNetCore.Http;
+using Shared.Library.Models;
+using Shared.Library.Services;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -55,7 +57,7 @@ namespace BooksTextsSplit.Library.Services
         private readonly ILogger<ControllerDataManager> _logger;
         private readonly IControllerCacheManager _cache;
         private readonly ISettingConstants _constant;
-
+        private readonly ISettingConstantsS _constants;
 
         private readonly IAccessCacheData _access;
         private readonly ICosmosDbService _context;
@@ -64,12 +66,14 @@ namespace BooksTextsSplit.Library.Services
             ILogger<ControllerDataManager> logger,
             IControllerCacheManager cache,
             ISettingConstants constant,
+            ISettingConstantsS constants,
             ICosmosDbService cosmosDbService,
             IAccessCacheData access)
         {
             _logger = logger;
             _cache = cache;
             _constant = constant;
+            _constants = constants;
             _access = access;
             _context = cosmosDbService; // TO REMOVE!
         }
@@ -198,7 +202,8 @@ namespace BooksTextsSplit.Library.Services
             // 5 диспетчер может упаковывать загрузки по две - с большой вероятностью попадая на два языка одной книги и потом отдавать пакет бэк-серверу
             // 6 дальше - после загрузки в кэш - диспетчер должен дать команду на синхронизацию с базой
 
-
+            // все проверки и ожидание внутри вызываемого метода, без констант не вернётся
+            ConstantsSet constantsSet = await _constants.ConstantInitializer(stoppingToken);
 
 
 
