@@ -6,12 +6,14 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using BooksTextsSplit.Library.Helpers;
 using BooksTextsSplit.Library.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace BooksTextsSplit.Library.Services
 {
     #region Declarations
     public interface IControllerDataManager
     {
+        public Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string guid);
         public Task<TaskUploadPercents> IsExistBackgroundUpdateKeys();
         public Task<bool> RemoveTotalCountWhereLanguageId(int languageId);
         public Task<int> TotalRecordsCountWhereLanguageId(int languageId);
@@ -71,6 +73,13 @@ namespace BooksTextsSplit.Library.Services
             _access = access;
             _context = cosmosDbService; // TO REMOVE!
         }
+
+        #endregion
+
+        #region Set Constants
+
+
+
 
         #endregion
 
@@ -179,6 +188,24 @@ namespace BooksTextsSplit.Library.Services
         #endregion
 
         #region Upload Book
+
+        public async Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string guid)
+        {
+            // 1 получить константы 
+            // 2 обработать форму и создать нужные константы для записи
+            // 3 подготовить текст и записать его во временный ключ
+            // 4 создать ключ для передачи задания на бэк-сервер (или диспетчеру серверов)
+            // 5 диспетчер может упаковывать загрузки по две - с большой вероятностью попадая на два языка одной книги и потом отдавать пакет бэк-серверу
+            // 6 дальше - после загрузки в кэш - диспетчер должен дать команду на синхронизацию с базой
+
+
+
+
+
+
+        }
+
+
 
         public async Task<TaskUploadPercents> IsExistBackgroundUpdateKeys()
         {

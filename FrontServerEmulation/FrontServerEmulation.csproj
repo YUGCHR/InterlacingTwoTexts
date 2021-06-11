@@ -13,9 +13,9 @@
 
 
   <ItemGroup>
-    <PackageReference Include="CachingFramework.Redis" Version="12.0.4" />
+    <PackageReference Include="CachingFramework.Redis" Version="12.0.5" />
     <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.2.7" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.7" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="5.0.0" />

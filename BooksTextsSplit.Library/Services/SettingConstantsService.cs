@@ -6,16 +6,16 @@ using Microsoft.Extensions.Configuration;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-namespace BackgroundTasksQueue.Services
+namespace BooksTextsSplit.Library.Services
 {
-    public interface ISettingConstants
+    public interface ISettingConstantsS
     {
         public bool IsExistUpdatedConstants();
         public void SubscribeOnBaseConstantEvent();
         public Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
     }
 
-    public class SettingConstantsService : ISettingConstants
+    public class SettingConstantsService : ISettingConstantsS
     {
         private readonly ICacheManageService _cache;
         private readonly ISharedDataAccess _data;
@@ -32,15 +32,6 @@ namespace BackgroundTasksQueue.Services
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<SettingConstantsService>();
-
-        // разделить инициализацию констант внутри на два метода - проверка базового ключа и получение констант с текущего ключа
-        // в первом проверить базовый ключ, если есть, взять из него текущий и сравнить его с предыдущим - если отличается, поставить признак необходимости обновления
-        // второй, если есть необходимость, получает свежие константы
-        // в универсальном обработчике вызываем инициализацию, а она сама разбирается с константами
-        // в сервере констант составить таблицу обращения к константам - в поле имя и в значении новое значение
-        // на ключ обновления констант подписка - в каком-то месте задержкой 1 сек, чтобы нельзя было слишком быстро менять
-        // потом обычный обработчик-диспетчер, запись новых констант и генерация нового ключа для потребителей
-        // оставить старые константы на поле legacy constants, а для ключа новых констант сделать новое поле
 
         public bool IsExistUpdatedConstants()
         {
@@ -83,7 +74,7 @@ namespace BackgroundTasksQueue.Services
 
             // регистрируем сервер на общем ключе серверов
             await _cache.WriteHashedAsync<string>(constantsSet.EventKeyBackReadiness.Value, backServerPrefixGuid, backServerGuid, constantsSet.EventKeyBackReadiness.LifeTime);
-            
+
             string prefixProcessAdd = constantsSet.PrefixProcessAdd.Value; // process:add
             string processAddPrefixGuid = $"{prefixProcessAdd}:{backServerGuid}"; // process:add:(this server guid)
             constantsSet.ProcessAddPrefixGuid.Value = processAddPrefixGuid;
@@ -102,6 +93,5 @@ namespace BackgroundTasksQueue.Services
             Logs.Here().Information("Server Guid was fetched and stored into EventKeyNames. \n {@S}", new { ServerId = backServerPrefixGuid });
             return constantsSet;
         }
-
     }
 }

@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30011.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BooksTextsSplit", "BooksTextsSplit\BooksTextsSplit.csproj", "{0F4FAD23-1843-4C5E-9572-09033A84AFEC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F42BC874-49C8-4DA2-AC4D-E491AFA37378} = {F42BC874-49C8-4DA2-AC4D-E491AFA37378}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BooksTextsSplitTests", "BooksTextsSplitTests\BooksTextsSplitTests.csproj", "{EFCDA751-08A0-490D-A489-F161A383824D}"
 EndProject
@@ -13,6 +16,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BooksTextsSplit.Library", "BooksTextsSplit.Library\BooksTextsSplit.Library.csproj", "{3BD7276A-50AE-432C-841E-70E091D43B5B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F42BC874-49C8-4DA2-AC4D-E491AFA37378} = {F42BC874-49C8-4DA2-AC4D-E491AFA37378}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BackgroundTasksQueue", "BackgroundTasksQueue\BackgroundTasksQueue.csproj", "{C5887A40-6B98-43B8-A462-63478BACE6A4}"
 	ProjectSection(ProjectDependencies) = postProject

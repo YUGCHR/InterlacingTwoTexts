@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Shared.Library.Models;
+using Shared.Library.Services;
 using BooksTextsSplit.Library.Models;
 using BooksTextsSplit.Library.Services;
 using System.Reflection;
@@ -155,8 +157,11 @@ namespace BooksTextsSplit.Controllers
         {            
             if (bookFile != null)
             {
-                // хорошо бы проверить, если запущены оба процесса, то не разрешать загружать или принудительно прекратить предыдущие процессы (если там давно ничего не меняется?)
-                string guid = Guid.NewGuid().ToString();                
+                string guid = Guid.NewGuid().ToString();
+
+                // вызвать метод из ControllerDataManager
+                _data.BookProcessing(bookFile, jsonBookDescription, guid);
+
                 _task2Queue.BackgroundRecordBookToDb(bookFile, jsonBookDescription, guid);
                 return Ok(guid);
             }

@@ -10,6 +10,8 @@ namespace BooksTextsSplit.Library.Services
     {
         private readonly ILogger<QueuedHostedService> _logger;
 
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<QueuedHostedService>();
+
         public QueuedHostedService(IBackgroundTaskQueue taskQueue,
             ILogger<QueuedHostedService> logger)
         {
@@ -21,10 +23,14 @@ namespace BooksTextsSplit.Library.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            Logs.Information("Queued Hosted Service was started.\n");
+
             _logger.LogInformation(
                 $"Queued Hosted Service is running with concurrent 3 Tasks.{Environment.NewLine}" +
                 $"{Environment.NewLine}Send get Worker to add a work item to the " +
                 $"background queue.{Environment.NewLine}");
+
+            // вызвать метод подготовки констант из ControllerDataManager
 
             await BackgroundProcessing(stoppingToken);
         }

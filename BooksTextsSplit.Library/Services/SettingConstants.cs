@@ -28,6 +28,8 @@ namespace BooksTextsSplit.Library.Services
         private readonly string _getKeyTaskPercents;
         private readonly string _getKeyIsTaskRunning;
 
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<SettingConstants>();
+
         public SettingConstants(IConfiguration configuration)
         {
             Configuration = configuration;
@@ -42,6 +44,8 @@ namespace BooksTextsSplit.Library.Services
             _getKeyBookIdAction = Configuration.GetSection("SettingConstants").GetSection("RedisKeys").GetSection("keyBookIdAction").Value;
             _getKeyTaskPercents = Configuration.GetSection("SettingConstants").GetSection("RedisKeys").GetSection("keyTaskPercents").Value;
             _getKeyIsTaskRunning = Configuration.GetSection("SettingConstants").GetSection("RedisKeys").GetSection("keyIsTaskRunning").Value;
+
+            Logs.Information("Setting Constants was started. {0} ", _getRecordActualityLevel);
 
         }
         private IConfiguration Configuration { get; }
