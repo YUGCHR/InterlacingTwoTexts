@@ -37,8 +37,7 @@ namespace BooksTextsSplit.Library.Services
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     //Console.WriteLine("Loop");
-                    var workItem =
-                        await TaskQueue.DequeueAsync(stoppingToken);
+                    var workItem = await TaskQueue.DequeueAsync(stoppingToken);
                     //Console.WriteLine("Dequeued a task");
                     try
                     {
