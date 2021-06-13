@@ -1,14 +1,27 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 using BooksTextsSplit.Library.Helpers;
 using BooksTextsSplit.Library.Models;
-using Microsoft.AspNetCore.Http;
 using Shared.Library.Models;
 using Shared.Library.Services;
+
+using System.IO;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Hosting;
+
+using CachingFramework.Redis;
+using CachingFramework.Redis.Contracts.Providers;
+using StackExchange.Redis;
+
+using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -58,7 +71,7 @@ namespace BooksTextsSplit.Library.Services
         private readonly IControllerCacheManager _cache;
         private readonly ISettingConstants _constant;
         private readonly ISettingConstantsS _constants;
-
+        private readonly CancellationToken _cancellationToken;
         private readonly IAccessCacheData _access;
         private readonly ICosmosDbService _context;
 
@@ -67,6 +80,7 @@ namespace BooksTextsSplit.Library.Services
             IControllerCacheManager cache,
             ISettingConstants constant,
             ISettingConstantsS constants,
+            IHostApplicationLifetime applicationLifetime,
             ICosmosDbService cosmosDbService,
             IAccessCacheData access)
         {
@@ -74,6 +88,7 @@ namespace BooksTextsSplit.Library.Services
             _cache = cache;
             _constant = constant;
             _constants = constants;
+            _cancellationToken = applicationLifetime.ApplicationStopping;
             _access = access;
             _context = cosmosDbService; // TO REMOVE!
         }
@@ -82,8 +97,21 @@ namespace BooksTextsSplit.Library.Services
 
         #region Set Constants
 
+        private static ConstantsSet constantsSet;
 
+        public async Task<ConstantsSet> ConstantInit()
+        {          
+            // первый раз вызвать из хостид?
+            constantsSet = await _constants.ConstantInitializer(_cancellationToken);
 
+            // все проверки и ожидание внутри вызываемого метода, без констант не вернётся
+            // можно разделить константы на группы по назначению - для каждого из серверов свои и небольшая группа общие (если класс констант станет слишком большим - правда, к нему добавятся ещё несколько)
+
+            // проверку обновлений тут или дальше?
+
+            return await _constants.ConstantInitializer(_cancellationToken);
+            
+        }
 
         #endregion
 
@@ -202,10 +230,25 @@ namespace BooksTextsSplit.Library.Services
             // 5 диспетчер может упаковывать загрузки по две - с большой вероятностью попадая на два языка одной книги и потом отдавать пакет бэк-серверу
             // 6 дальше - после загрузки в кэш - диспетчер должен дать команду на синхронизацию с базой
 
-            // все проверки и ожидание внутри вызываемого метода, без констант не вернётся
-            ConstantsSet constantsSet = await _constants.ConstantInitializer(stoppingToken);
+            ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
 
+            JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, };
+            TextSentence bookDescription = JsonSerializer.Deserialize<TextSentence>(jsonBookDescription, options);
 
+            int bookId = bookDescription.BookId;
+            int recordActualityLevel = bookDescription.RecordActualityLevel;
+            int uploadVersion = bookDescription.UploadVersion;
+            int languageId = bookDescription.LanguageId;
+            int desiredTextLanguage = bookDescription.LanguageId; // delete
+
+            // Define the cancellation token for Task.Delay
+            CancellationTokenSource source = new CancellationTokenSource();
+            CancellationToken tokenDelay = source.Token;
+
+            // move to FetchBookTextSentences?
+            string fileName = bookFile.FileName;
+            StreamReader reader = new StreamReader(bookFile.OpenReadStream());
+            string text = reader.ReadToEnd();
 
 
         }

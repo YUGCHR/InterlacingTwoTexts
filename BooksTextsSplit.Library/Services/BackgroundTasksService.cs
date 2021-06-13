@@ -125,6 +125,9 @@ namespace BooksTextsSplit.Library.Services
                         // поле = номер главы * язык * множитель сдвига
                         // по окончанию цикла всё готово, ничего больше делать не надо
 
+                        string bookPlainTextKeyPrefix = "bookPlainTexts:bookSplitGuid:";
+                        string bookTextFieldPrefix = "bookText:bookGuid:";
+
                         string bookTablesKeyPrefix = "bookTables:bookId:";
                         string textSentencesKeyPrefix1 = "textSentences:bookId:";
                         string textSentencesKeyPrefix2 = "uploadVersion:";

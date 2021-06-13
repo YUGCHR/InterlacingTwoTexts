@@ -19,6 +19,10 @@ namespace Shared.Library.Models
             {
                 Value = 0
             };
+            BookTextSplitGuid = new KeyType();
+            BookTextSplitPrefixGuid = new KeyType();
+            BookPlainTextKeyPrefixGuid = new KeyType();
+
             BackServerGuid = new KeyType();
             BackServerPrefixGuid = new KeyType();
             ProcessAddPrefixGuid = new KeyType();
@@ -33,6 +37,7 @@ namespace Shared.Library.Models
         public ConstantType BalanceOfTasksAndProcesses { get; set; }
         public ConstantType MaxProcessesCountOnServer { get; set; }
         public ConstantType MinBackProcessesServersCount { get; set; }
+        public ConstantType ChapterFieldsShiftFactor { get; set; } // shift chapter numbers of the second language (for example + 1 000 000)
 
         // KeysList
         public KeyType EventKeyFrom { get; init; }
@@ -55,6 +60,15 @@ namespace Shared.Library.Models
         public KeyType EventFieldBack { get; init; }
         public KeyType EventFieldFront { get; init; }
 
+        // KeysList - BookTextSplit
+
+        public KeyType BookPlainTextKeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
+        public KeyType PrefixBookTextSplit { get; set; } // BookTextSplit front server Prefix
+        public KeyType BookTextFieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server        
+        public KeyType BookTablesKeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
+        public KeyType TextSentencesKeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
+        public KeyType TextSentencesKeyPrefixVer { get; set; } // uploadVersion:
+
         // LaterAssigned
 
         public KeyEvent EventCmd { get; init; } 
@@ -66,6 +80,16 @@ namespace Shared.Library.Models
         public KeyType ProcessAddPrefixGuid { get; set; }
         public KeyType ProcessCancelPrefixGuid { get; set; }
         public KeyType ProcessCountPrefixGuid { get; set; }
+
+        // LaterAssigned - BookTextSplit
+
+        public KeyType BookTextSplitGuid { get; set; } // BookTextSplit front server Guid        
+        public KeyType BookTextSplitPrefixGuid { get; set; } // BookTextSplit front server Prefix:Guid        
+        public KeyType BookPlainTextKeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid
+        
+        
+
+
     }
 
     public class ConstantType

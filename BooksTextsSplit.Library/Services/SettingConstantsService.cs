@@ -43,6 +43,7 @@ namespace BooksTextsSplit.Library.Services
             _data.SubscribeOnBaseConstantEvent();
         }
 
+        // инициализация констант для BookTextSplit
         public async Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken)
         {
             // сюда попадаем перед каждым пакетом, основные варианты
@@ -66,31 +67,30 @@ namespace BooksTextsSplit.Library.Services
                 Logs.Here().Error("eventKeysSet CANNOT be Init.");
                 return null;
             }
+
+            
+
+            
+            
             // передать время ключа во все созданные константы backServer из префикса PrefixBackServer
-            string backServerGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
-            constantsSet.BackServerGuid.Value = backServerGuid;
-            string backServerPrefixGuid = $"{constantsSet.PrefixBackServer.Value}:{backServerGuid}";
-            constantsSet.BackServerPrefixGuid.Value = backServerPrefixGuid;
+            string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
+            constantsSet.BookTextSplitGuid.Value = bookTextSplitGuid;
 
-            // регистрируем сервер на общем ключе серверов
-            await _cache.WriteHashedAsync<string>(constantsSet.EventKeyBackReadiness.Value, backServerPrefixGuid, backServerGuid, constantsSet.EventKeyBackReadiness.LifeTime);
+            // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
+            string bookTextSplitPrefixGuid = $"{constantsSet.PrefixBookTextSplit.Value}:{bookTextSplitGuid}";
+            constantsSet.BookTextSplitPrefixGuid.Value = bookTextSplitPrefixGuid;
 
-            string prefixProcessAdd = constantsSet.PrefixProcessAdd.Value; // process:add
-            string processAddPrefixGuid = $"{prefixProcessAdd}:{backServerGuid}"; // process:add:(this server guid)
-            constantsSet.ProcessAddPrefixGuid.Value = processAddPrefixGuid;
+            // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
+            string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextKeyPrefix.Value}:{bookTextSplitGuid}";
+            constantsSet.BookPlainTextKeyPrefixGuid.Value = bookPlainTextKeyPrefixGuid;
 
-            string prefixProcessCancel = constantsSet.PrefixProcessCancel.Value; // process:cancel
-            string processCancelPrefixGuid = $"{prefixProcessCancel}:{backServerGuid}"; // process:cancel:(this server guid)
-            constantsSet.ProcessCancelPrefixGuid.Value = processCancelPrefixGuid;
+            // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально
 
-            string prefixProcessCount = constantsSet.PrefixProcessCount.Value; // process:count
-            string processCountPrefixGuid = $"{prefixProcessCount}:{backServerGuid}"; // process:count:(this server guid)
-            constantsSet.ProcessCountPrefixGuid.Value = processCountPrefixGuid;
 
-            // инициализовать поле общего количества процессов при подписке - можно перенести в инициализацию, set "CurrentProcessesCount" in constants
-            //await _cache.SetHashedAsync<int>(processAddPrefixGuid, eventFieldBack, 0, TimeSpan.FromDays(eventKeysSet.EventKeyBackReadinessTimeDays));
 
-            Logs.Here().Information("Server Guid was fetched and stored into EventKeyNames. \n {@S}", new { ServerId = backServerPrefixGuid });
+
+
+            Logs.Here().Information("BookTextSplit Server Guid was fetched and stored into EventKeyNames. \n {@S}", new { ServerId = bookTextSplitPrefixGuid });
             return constantsSet;
         }
     }
