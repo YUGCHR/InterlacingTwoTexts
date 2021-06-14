@@ -3,19 +3,24 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Shared.Library.Models;
 
 namespace BooksTextsSplit.Library.Services
 {
     public class QueuedHostedService : BackgroundService
     {
+        private readonly ISettingConstantsS _constants;
         private readonly ILogger<QueuedHostedService> _logger;
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<QueuedHostedService>();
 
-        public QueuedHostedService(IBackgroundTaskQueue taskQueue,
+        public QueuedHostedService(
+            IBackgroundTaskQueue taskQueue,
+            ISettingConstantsS constants,
             ILogger<QueuedHostedService> logger)
         {
             TaskQueue = taskQueue;
+            _constants = constants;
             _logger = logger;
         }
 
@@ -24,6 +29,8 @@ namespace BooksTextsSplit.Library.Services
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             Logs.Information("Queued Hosted Service was started.\n");
+
+            ConstantsSet constantsSet = await _constants.ConstantInitializer(stoppingToken);
 
             _logger.LogInformation(
                 $"Queued Hosted Service is running with concurrent 3 Tasks.{Environment.NewLine}" +

@@ -9,31 +9,29 @@ using Shared.Library.Services;
 namespace BooksTextsSplit.Library.Services
 {
     public interface ISettingConstantsS
-    {
-        public bool IsExistUpdatedConstants();
+    {        
         public void SubscribeOnBaseConstantEvent();
         public Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
     }
 
     public class SettingConstantsService : ISettingConstantsS
     {
-        private readonly ICacheManageService _cache;
         private readonly ISharedDataAccess _data;
         private readonly string _guid;
 
         public SettingConstantsService(
             GenerateThisInstanceGuidService thisGuid,
-            ISharedDataAccess data,
-            ICacheManageService cache)
+            ISharedDataAccess data)
         {
             _data = data;
-            _cache = cache;
             _guid = thisGuid.ThisBackServerGuid();
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<SettingConstantsService>();
+        private ConstantsSet constantsSet = new();
+        private bool isConstantsSet = false;
 
-        public bool IsExistUpdatedConstants()
+        private bool IsExistUpdatedConstants()
         {
             return _data.IsExistUpdatedConstants();
         }
@@ -46,51 +44,51 @@ namespace BooksTextsSplit.Library.Services
         // инициализация констант для BookTextSplit
         public async Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken)
         {
-            // сюда попадаем перед каждым пакетом, основные варианты
-            // 1. старт сервера, первоначальное получение констант
-            // 2. старт сервера, нет базового ключа констант
-            // 3. старт сервера, есть базовый ключ, но нет ключа обновления констант
-            // 4. новый пакет, нет обновления
-            // 5. новый пакет, есть обновление
-            // 6. новый пакет, пропал ключ обновления констант
-            // 7. новый пакет, пропал базовый ключ констант
+            Logs.Here().Information("ConstantInitializer started, isConstantsSet = {0}.", isConstantsSet);
 
-            ConstantsSet constantsSet = await _data.DeliveryOfUpdatedConstants(stoppingToken);
-
-            // здесь уже с константами
-            if (constantsSet != null)
+            if (IsExistUpdatedConstants())
             {
-                Logs.Here().Debug("EventKeyNames fetched constants in EventKeyNames - {@D}.", new { CycleDelay = constantsSet.TaskEmulatorDelayTimeInMilliseconds.LifeTime });
+                isConstantsSet = false;
             }
-            else
+            Logs.Here().Information("IsExistUpdatedConstants was chacked, isConstantsSet = {0}.", isConstantsSet);
+
+            if (!isConstantsSet)
             {
-                Logs.Here().Error("eventKeysSet CANNOT be Init.");
-                return null;
+                constantsSet = await _data.DeliveryOfUpdatedConstants(stoppingToken);
+
+                // здесь уже с константами
+                if (constantsSet != null)
+                {
+                    isConstantsSet = true;
+                    Logs.Here().Debug("EventKeyNames fetched constants in EventKeyNames - {@D}.", new { CycleDelay = constantsSet.TaskEmulatorDelayTimeInMilliseconds.LifeTime });
+                }
+                else
+                {
+                    Logs.Here().Error("eventKeysSet CANNOT be Init.");
+                    return null;
+                }
+
+                Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
+
+                // передать время ключа во все созданные константы backServer из префикса PrefixBackServer
+                string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
+                constantsSet.BookTextSplitGuid.Value = bookTextSplitGuid;
+                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BookTextSplitGuid.Value);
+
+                // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
+                string bookTextSplitPrefixGuid = $"{constantsSet.PrefixBookTextSplit.Value}:{bookTextSplitGuid}";
+                constantsSet.BookTextSplitPrefixGuid.Value = bookTextSplitPrefixGuid;
+                Logs.Here().Information("bookTextSplitPrefix = {0}, + Guid = {1}", constantsSet.PrefixBookTextSplit.Value, constantsSet.BookTextSplitPrefixGuid.Value);
+
+                // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
+                string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextKeyPrefix.Value}:{bookTextSplitGuid}";
+                constantsSet.BookPlainTextKeyPrefixGuid.Value = bookPlainTextKeyPrefixGuid;
+                Logs.Here().Information("bookPlainTextKeyPrefix = {0}, + Guid = {1}", constantsSet.BookPlainTextKeyPrefix.Value, constantsSet.BookPlainTextKeyPrefixGuid.Value);
+
+                // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально
+
             }
 
-            
-
-            
-            
-            // передать время ключа во все созданные константы backServer из префикса PrefixBackServer
-            string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
-            constantsSet.BookTextSplitGuid.Value = bookTextSplitGuid;
-
-            // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
-            string bookTextSplitPrefixGuid = $"{constantsSet.PrefixBookTextSplit.Value}:{bookTextSplitGuid}";
-            constantsSet.BookTextSplitPrefixGuid.Value = bookTextSplitPrefixGuid;
-
-            // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
-            string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextKeyPrefix.Value}:{bookTextSplitGuid}";
-            constantsSet.BookPlainTextKeyPrefixGuid.Value = bookPlainTextKeyPrefixGuid;
-
-            // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально
-
-
-
-
-
-            Logs.Here().Information("BookTextSplit Server Guid was fetched and stored into EventKeyNames. \n {@S}", new { ServerId = bookTextSplitPrefixGuid });
             return constantsSet;
         }
     }

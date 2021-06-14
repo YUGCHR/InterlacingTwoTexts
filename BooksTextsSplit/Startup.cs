@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Logging;
+using Shared.Library.Services;
 
 namespace BooksTextsSplit
 {
@@ -53,13 +54,7 @@ namespace BooksTextsSplit
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IResultDataService, ResultDataService>();
             services.AddScoped<BooksTextsSplit.Library.Models.UserData>(); // ?
-
-            // Consuming a scoped service in a background task
-            //services.AddSingleton<MonitorLoop>();
-            services.AddHostedService<QueuedHostedService>();
-            services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
-            services.AddScoped<IBackgroundTasksService, BackgroundTasksService>();
-
+            
             //CookieAuthenticationOptions
             services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
             {
@@ -93,6 +88,7 @@ namespace BooksTextsSplit
                 //muxer.GetDatabase().StringGet
                 //services.AddSingleton<RedisContext>(new RedisContext(muxer));
                 services.AddSingleton<ICacheProviderAsync>(new RedisContext(muxer).Cache);
+                services.AddSingleton<IKeyEventsProvider>(new RedisContext(muxer).KeyEvents);
             }
             catch (Exception ex)
             {
@@ -101,9 +97,19 @@ namespace BooksTextsSplit
                 throw;
             }
 
+            services.AddSingleton<ISettingConstantsS, SettingConstantsService>(); // new one
+            services.AddSingleton<GenerateThisInstanceGuidService>();
+            services.AddSingleton<ICacheManageService, CacheManageService>();
+            services.AddSingleton<ISharedDataAccess, SharedDataAccess>();
+
+            // Consuming a scoped service in a background task
+            //services.AddSingleton<MonitorLoop>();
+            services.AddHostedService<QueuedHostedService>();
+            services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+            services.AddScoped<IBackgroundTasksService, BackgroundTasksService>();
+
             //services.AddLocalization(op ;
-            //services.AddSingleton<IDatabase>(muxer.GetDatabase());
-            //services.AddSingleton<CachingFramework.Redis.Contracts.Providers.ICacheProvider>(muxer);
+            //services.AddSingleton<IDatabase>(muxer.GetDatabase());            
             services.AddScoped<IAccessCacheData, AccessCacheData>();
             services.AddScoped<IControllerDataManager, ControllerDataManager>();
             services.AddScoped<IControllerCacheManager, ControllerCacheManager>();

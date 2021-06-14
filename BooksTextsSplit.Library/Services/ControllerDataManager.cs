@@ -41,7 +41,7 @@ namespace BooksTextsSplit.Library.Services
         public Task<BookIdsListExistInDv> FetchBooksNamesVersionsProperties();
         public Task<BooksPairTextsFromDb> FetchBooksPairTexts(string where1, int where1Value, string where2, int where2Value);
         public Task<BookTable> CheckBookId(string bookTablesKeyPrefix, int bookId, int uploadVersion, int recordActualityLevel, string textSentencesKeyPrefix1, string textSentencesKeyPrefix2);
-        public Task AddChapter(string currentChapterKey, int languageId, TextSentence chapterContext);        
+        public Task AddChapter(string currentChapterKey, int languageId, TextSentence chapterContext);
     }
 
     static class Constants
@@ -97,20 +97,19 @@ namespace BooksTextsSplit.Library.Services
 
         #region Set Constants
 
-        private static ConstantsSet constantsSet;
 
-        public async Task<ConstantsSet> ConstantInit()
-        {          
+        public async Task<ConstantsSet> ConstantInit() // not used
+        {
             // первый раз вызвать из хостид?
-            constantsSet = await _constants.ConstantInitializer(_cancellationToken);
+            ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
 
             // все проверки и ожидание внутри вызываемого метода, без констант не вернётся
             // можно разделить константы на группы по назначению - для каждого из серверов свои и небольшая группа общие (если класс констант станет слишком большим - правда, к нему добавятся ещё несколько)
 
             // проверку обновлений тут или дальше?
 
-            return await _constants.ConstantInitializer(_cancellationToken);
-            
+            return constantsSet;
+
         }
 
         #endregion
@@ -250,6 +249,10 @@ namespace BooksTextsSplit.Library.Services
             StreamReader reader = new StreamReader(bookFile.OpenReadStream());
             string text = reader.ReadToEnd();
 
+            // достать нужные префиксы, ключи и поля из констант
+            // создать ключ/поле из префикса и гуид книги
+            // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
+            // а как передать BookGuid бэк-серверу?
 
         }
 
@@ -390,7 +393,7 @@ namespace BooksTextsSplit.Library.Services
             // нет, запишем ключ в конце - после возврата
             // нет, записать ключ немедленно
             await _cache.AddHashValue<BookTable>(bookTableKey, uploadVersion, bookTable);
-            return bookTable;            
+            return bookTable;
         }
 
         public async Task AddChapter(string currentChapterKey, int languageId, TextSentence chapterContext)
