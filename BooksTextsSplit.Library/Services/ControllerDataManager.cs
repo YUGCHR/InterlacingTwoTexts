@@ -93,6 +93,8 @@ namespace BooksTextsSplit.Library.Services
             _context = cosmosDbService; // TO REMOVE!
         }
 
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<ControllerDataManager>();
+
         #endregion
 
         #region Set Constants
@@ -220,7 +222,8 @@ namespace BooksTextsSplit.Library.Services
 
         #region Upload Book
 
-        public async Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string guid)
+
+        public async Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string bookGuid)
         {
             // 1 получить константы 
             // 2 обработать форму и создать нужные константы для записи
@@ -228,31 +231,26 @@ namespace BooksTextsSplit.Library.Services
             // 4 создать ключ для передачи задания на бэк-сервер (или диспетчеру серверов)
             // 5 диспетчер может упаковывать загрузки по две - с большой вероятностью попадая на два языка одной книги и потом отдавать пакет бэк-серверу
             // 6 дальше - после загрузки в кэш - диспетчер должен дать команду на синхронизацию с базой
+            // можно сообщать диспетчеру о выложенной книге дополнительным ключом
+            // а в диспетчере складывать поступившие ключи в лист, а потом его обрабатывать, обработанные - в другой лист?
+            // нужен ли конкурентный доступ?
+            // диспетчер может ждать 10 секунд или 10 книг (что раньше, из констант) и брать это количество из листа и отмечать, как обработанные, формировать пакет и отдавать бэк-серверу
+            // не лист, а ключ!
+            // держать переменную класса с текущим значением счётчика задач и while по истечению времени или нужного приращения этого счётчика
 
             ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
 
             JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, };
-            TextSentence bookDescription = JsonSerializer.Deserialize<TextSentence>(jsonBookDescription, options);
+            TextSentence bookPlainTextWithDescription = JsonSerializer.Deserialize<TextSentence>(jsonBookDescription, options);
 
-            int bookId = bookDescription.BookId;
-            int recordActualityLevel = bookDescription.RecordActualityLevel;
-            int uploadVersion = bookDescription.UploadVersion;
-            int languageId = bookDescription.LanguageId;
-            int desiredTextLanguage = bookDescription.LanguageId; // delete
-
-            // Define the cancellation token for Task.Delay
-            CancellationTokenSource source = new CancellationTokenSource();
-            CancellationToken tokenDelay = source.Token;
-
-            // move to FetchBookTextSentences?
             string fileName = bookFile.FileName;
             StreamReader reader = new StreamReader(bookFile.OpenReadStream());
             string text = reader.ReadToEnd();
+            bookPlainTextWithDescription.BookPlainText = text;
+            bookPlainTextWithDescription.BookGuid = bookGuid;
 
-            // достать нужные префиксы, ключи и поля из констант
-            // создать ключ/поле из префикса и гуид книги
-            // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
-            // а как передать BookGuid бэк-серверу?
+            await _cache.AddPainBookText(constantsSet, bookPlainTextWithDescription, bookGuid);
+            Logs.Here().Information("AddPainBookText was called = {@G}", new { BookGuid = bookGuid });
 
         }
 

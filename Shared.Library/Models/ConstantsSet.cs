@@ -19,6 +19,7 @@ namespace Shared.Library.Models
             {
                 Value = 0
             };
+
             BookTextSplitGuid = new KeyType();
             BookTextSplitPrefixGuid = new KeyType();
             BookPlainTextKeyPrefixGuid = new KeyType();
@@ -40,9 +41,9 @@ namespace Shared.Library.Models
         public ConstantType ChapterFieldsShiftFactor { get; set; } // shift chapter numbers of the second language (for example + 1 000 000)
 
         // KeysList
-        public KeyType EventKeyFrom { get; init; }
-        public KeyType EventKeyBackReadiness { get; init; }
-        public KeyType EventKeyFrontGivesTask { get; init; }
+        public KeyType EventKeyFrom { get; init; } // subscribeOnFrom - key to fetch task package from controller/emulator
+        public KeyType EventKeyBackReadiness { get; init; } // key-event-back-processes-servers-readiness-list - key for back-servers registration
+        public KeyType EventKeyFrontGivesTask { get; init; } // key-event-front-server-gives-task-package - key for tasks cafe
         public KeyType EventKeyUpdateConstants { get; init; }
         public KeyType EventKeyBacksTasksProceed { get; init; }
         public KeyType PrefixRequest { get; init; }
@@ -61,10 +62,10 @@ namespace Shared.Library.Models
         public KeyType EventFieldFront { get; init; }
 
         // KeysList - BookTextSplit
-
+        // добавить(под)классы BookTextSplit, BookPlainText, BookTables, TextSentences 
+        public KeyType BookTextSplitPrefix { get; set; } // BookTextSplit front server Prefix
         public KeyType BookPlainTextKeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
-        public KeyType PrefixBookTextSplit { get; set; } // BookTextSplit front server Prefix
-        public KeyType BookTextFieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server        
+        public KeyType BookPlainTextFieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server        
         public KeyType BookTablesKeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
         public KeyType TextSentencesKeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
         public KeyType TextSentencesKeyPrefixVer { get; set; } // uploadVersion:

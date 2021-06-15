@@ -59,6 +59,9 @@ namespace BooksTextsSplit.Controllers
             _authService = authService;
             _result = resultDataService;
         }
+
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<BookTextsController>();
+
         #endregion
 
         #region Auth
@@ -157,13 +160,15 @@ namespace BooksTextsSplit.Controllers
         {            
             if (bookFile != null)
             {
-                string guid = Guid.NewGuid().ToString();
+                string bookGuid = Guid.NewGuid().ToString();
 
                 // вызвать метод из ControllerDataManager
-                _data.BookProcessing(bookFile, jsonBookDescription, guid);
+                _data.BookProcessing(bookFile, jsonBookDescription, bookGuid);
+                Logs.Here().Information("BookProcessing was called = {@G}", new { BookGuid = bookGuid });
 
-                _task2Queue.BackgroundRecordBookToDb(bookFile, jsonBookDescription, guid);
-                return Ok(guid);
+                _task2Queue.BackgroundRecordBookToDb(bookFile, jsonBookDescription, bookGuid); // remove
+
+                return Ok(bookGuid);
             }
             return Problem("bad file");
         }

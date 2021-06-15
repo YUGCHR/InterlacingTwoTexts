@@ -28,6 +28,7 @@ namespace BooksTextsSplit.Library.Services
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<SettingConstantsService>();
+
         private ConstantsSet constantsSet = new();
         private bool isConstantsSet = false;
 
@@ -70,19 +71,20 @@ namespace BooksTextsSplit.Library.Services
 
                 Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
 
-                // передать время ключа во все созданные константы backServer из префикса PrefixBackServer
                 string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
                 constantsSet.BookTextSplitGuid.Value = bookTextSplitGuid;
                 Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BookTextSplitGuid.Value);
 
                 // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
-                string bookTextSplitPrefixGuid = $"{constantsSet.PrefixBookTextSplit.Value}:{bookTextSplitGuid}";
+                string bookTextSplitPrefixGuid = $"{constantsSet.BookTextSplitPrefix.Value}:{bookTextSplitGuid}";
                 constantsSet.BookTextSplitPrefixGuid.Value = bookTextSplitPrefixGuid;
-                Logs.Here().Information("bookTextSplitPrefix = {0}, + Guid = {1}", constantsSet.PrefixBookTextSplit.Value, constantsSet.BookTextSplitPrefixGuid.Value);
+                constantsSet.BookTextSplitPrefixGuid.LifeTime = constantsSet.BookTextSplitPrefix.LifeTime;
+                Logs.Here().Information("bookTextSplitPrefix = {0}, + Guid = {1}", constantsSet.BookTextSplitPrefix.Value, constantsSet.BookTextSplitPrefixGuid.Value);
 
                 // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
-                string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextKeyPrefix.Value}:{bookTextSplitGuid}";
+                string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextFieldPrefix.Value}:{bookTextSplitGuid}";
                 constantsSet.BookPlainTextKeyPrefixGuid.Value = bookPlainTextKeyPrefixGuid;
+                constantsSet.BookPlainTextKeyPrefixGuid.LifeTime = constantsSet.BookPlainTextFieldPrefix.LifeTime;
                 Logs.Here().Information("bookPlainTextKeyPrefix = {0}, + Guid = {1}", constantsSet.BookPlainTextKeyPrefix.Value, constantsSet.BookPlainTextKeyPrefixGuid.Value);
 
                 // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально

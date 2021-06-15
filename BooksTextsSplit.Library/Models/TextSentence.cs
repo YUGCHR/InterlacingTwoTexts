@@ -24,6 +24,12 @@ namespace BooksTextsSplit.Library.Models
         [JsonProperty(PropertyName = "bookId")]
         public int BookId { get; set; } // means BooksPairId - pair of English and Russian book
 
+        [JsonProperty(PropertyName = "bookGuid")]
+        public string BookGuid { get; set; }
+
+        [JsonProperty(PropertyName = "bookPlainText")]
+        public string BookPlainText { get; set; }
+
         [JsonProperty(PropertyName = "recordId")]
         public int RecordId { get; set; } //record number in languageId, in bookId, in uploadVersion (it likes as chapterId, but it is always started from 0) 
 

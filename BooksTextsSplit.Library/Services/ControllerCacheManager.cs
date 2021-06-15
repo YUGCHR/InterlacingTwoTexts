@@ -4,6 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BooksTextsSplit.Library.Helpers;
+using Shared.Library.Models;
+using Shared.Library.Services;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -16,6 +18,7 @@ namespace BooksTextsSplit.Library.Services
         public Task<bool> SetTaskGuidKeys(TaskUploadPercents uploadPercents, int keysExistingTimeFactor);
         public Task<BookTable> CheckBookId(string bookTablesKey, int uploadVersion);
         public Task AddHashValue<T>(string Key, int id, T context);
+        public Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid);
     }
 
     public class ControllerCacheManager : IControllerCacheManager
@@ -36,6 +39,8 @@ namespace BooksTextsSplit.Library.Services
             _db = db;
             _access = access;
         }
+
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<ControllerCacheManager>();
 
         public async Task<int[]> FetchAllBooksIds(string keyBooksIds, int languageId, string propName, int actualityLevel)
         {
@@ -120,5 +125,37 @@ namespace BooksTextsSplit.Library.Services
 
             await _access.WriteHashedAsync<int, T>(Key, id, context, chaptersExistingTime);
         }
+
+        public async Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
+        {
+            // достать нужные префиксы, ключи и поля из констант
+            string bookPlainTextKeyPrefixGuid = constantsSet.BookPlainTextKeyPrefixGuid.Value;
+            double keyExistingTime = constantsSet.BookPlainTextKeyPrefixGuid.LifeTime;
+
+            // создать ключ/поле из префикса и гуид книги
+            string bookPlainTextFieldPrefixGuid = $"{constantsSet.BookPlainTextFieldPrefix.Value}:{bookGuid}";
+
+            // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
+            // перенести весь _access в Shared.Library.Services CacheManageService
+            await _access.WriteHashedAsync<TextSentence>(bookPlainTextKeyPrefixGuid, bookPlainTextFieldPrefixGuid, bookPlainTextWithDescription, keyExistingTime);
+            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = bookPlainTextKeyPrefixGuid }, new { Field = bookPlainTextFieldPrefixGuid }, new { ValueOfBookId = bookPlainTextWithDescription.BookId });
+
+
+
+            // а как передать BookGuid бэк-серверу?
+            // 1 никак, будет искать по всем полям
+            // 2 через ключ оповещения подписки, поле сделать номером по синхронному счётчику, а в значении это самое поле книги
+            // тогда меньше операций с ключами на стороне бэк-сервера - не надо каждый раз вытаскивать все поля (со значениями, между прочим), а сразу взять нужное
+            // но как тогда синхронизировать счётчик?
+
+            // записываем то же самое поле в ключ subscribeOnFrom, а в значение (везде одинаковое) - ключ всех исходников книг
+            // на стороне диспетчера всё достать словарём и найти новое (если приедет много сразу из нескольких клиентов), уже обработанное поле сразу удалить, чтобы не накапливались
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value;
+            await _access.WriteHashedAsync<string>(eventKeyFrom, bookPlainTextFieldPrefixGuid, bookPlainTextKeyPrefixGuid, keyExistingTime);
+            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = eventKeyFrom }, new { Field = bookPlainTextFieldPrefixGuid }, new { Value = bookPlainTextKeyPrefixGuid });
+
+        }
+
+
     }
 }

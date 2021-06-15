@@ -61,7 +61,7 @@ namespace BooksTextsSplit.Library.Services
             });
         }
 
-        public void BackgroundRecordBookToDb(IFormFile bookFile, string jsonBookDescription, string guid)
+        public void BackgroundRecordBookToDb(IFormFile bookFile, string jsonBookDescription, string bookGuid)
         {
             JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, };
             TextSentence bookDescription = JsonSerializer.Deserialize<TextSentence>(jsonBookDescription, options);
@@ -90,9 +90,9 @@ namespace BooksTextsSplit.Library.Services
 
                 try
                 {
-                    _logger.LogInformation("Queued Background Task RecordFileToDb {Guid} is starting", guid);
+                    _logger.LogInformation("Queued Background Task RecordFileToDb {Guid} is starting", bookGuid);
 
-                    TaskUploadPercents uploadPercents = _data.CreateTaskGuidPercentsKeys(guid, bookDescription, textSentencesLength);
+                    TaskUploadPercents uploadPercents = _data.CreateTaskGuidPercentsKeys(bookGuid, bookDescription, textSentencesLength);
                     uploadPercents.IsTaskRunning = true;  //inform all the task is started
                     bool resultSetKey = await _data.SetTaskState(uploadPercents);
 
@@ -141,7 +141,7 @@ namespace BooksTextsSplit.Library.Services
                         BookTable bookTable = await _data.CheckBookId(bookTablesKeyPrefix, bookId, uploadVersion, recordActualityLevel, textSentencesKeyPrefix1, textSentencesKeyPrefix2);
                         string textSentenceKey = bookTable.TextSentencesKey;
 
-                        _logger.LogInformation($"Queued Background Task RecordFileToDb {guid} is running", guid);
+                        _logger.LogInformation($"Queued Background Task RecordFileToDb {bookGuid} is running", bookGuid);
 
                         for (int tsi = 0; tsi < textSentencesLength; tsi++)
                         {
@@ -168,19 +168,19 @@ namespace BooksTextsSplit.Library.Services
                         };
 
                         // ключ guid создавать через хэш
-                        bool removingResult = await UpdateKeysAfterRecording(desiredTextLanguage, guid);
+                        bool removingResult = await UpdateKeysAfterRecording(desiredTextLanguage, bookGuid);
 
                         // здесь проверить, что задание последнее и если да, то восстановить ключи данных
                         // to create sentenceCounts for current language
                         await _data.TotalRecordsCountWhereLanguageId(desiredTextLanguage);
                         //int totalLangSentences = await _data.FetchDataFromCache(desiredTextLanguage) ?? 0;
 
-                        _logger.LogInformation($"Queued Background Task RecordFileToDb {guid} recorded {textSentencesLength} records to DB");
+                        _logger.LogInformation($"Queued Background Task RecordFileToDb {bookGuid} recorded {textSentencesLength} records to DB");
                     }
                     catch (Exception ex)
                     {
-                        string message = $"Queued Background Task RecordFileToDb {guid} is crashed. \n {ex.Message} \n";
-                        _logger.LogInformation(message, guid, ex.Message);
+                        string message = $"Queued Background Task RecordFileToDb {bookGuid} is crashed. \n {ex.Message} \n";
+                        _logger.LogInformation(message, bookGuid, ex.Message);
                     }
                 }
                 catch (OperationCanceledException)
