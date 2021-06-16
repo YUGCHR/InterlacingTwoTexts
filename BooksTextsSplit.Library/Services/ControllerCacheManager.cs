@@ -155,7 +155,5 @@ namespace BooksTextsSplit.Library.Services
             Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = eventKeyFrom }, new { Field = bookPlainTextFieldPrefixGuid }, new { Value = bookPlainTextKeyPrefixGuid });
 
         }
-
-
     }
 }

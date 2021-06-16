@@ -11,6 +11,12 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Models\**" />
+    <Content Remove="Models\**" />
+    <EmbeddedResource Remove="Models\**" />
+    <None Remove="Models\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CachingFramework.Redis" Version="12.0.5" />
@@ -29,8 +35,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Shared.Library\Shared.Library.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
+  
 </Project>

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-namespace FrontServerEmulation.Services
+namespace BackgroundDispatcher.Services
 {
     public interface IFrontServerEmulationService
     {

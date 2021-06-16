@@ -6,11 +6,11 @@ using CachingFramework.Redis.Contracts;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using FrontServerEmulation.Services;
 using Shared.Library.Models;
 using Shared.Library.Services;
+using BackgroundDispatcher.Services;
 
-namespace FrontServerEmulation
+namespace BackgroundDispatcher
 {
     public class MonitorLoop
     {
@@ -22,7 +22,7 @@ namespace FrontServerEmulation
         private readonly string _guid;
 
         public MonitorLoop(
-            GenerateThisBackServerGuid thisGuid,
+            GenerateThisInstanceGuidService thisGuid,
             ILogger<MonitorLoop> logger,
             ISharedDataAccess data,
             ICacheManageService cache,
@@ -47,8 +47,21 @@ namespace FrontServerEmulation
 
         public async Task Monitor() // _logger = 100
         {
+            // диспетчер считает вызовы подписки и секунды
+            // как что-то наберётся, забирает накопленное и стирает поля
+            // то, что получилось стереть, идёт в работу - на формирование пакета задач
+            //
+            // 1 - диспетчер - формирование пакетов
+            // 2 - бэк - сервер - запись в кэш
+            // 3 - проверка версии в кэше
+            // 4 - чтение глав
+            //
+            // диспетчер проверяет запись отданных пакетов и затем отдаёт команду на синхронизацию с базой или даже по bookId, нет, ещё надо по версиям и языкам
+            // инспектор базы данных - удаляет произвольный ключ книги и смотрит, через сколько времени его восстановят
+
+            // use guid
             ConstantsSet constantsSet = await _data.DeliveryOfUpdatedConstants(_cancellationToken);
-            
+
 
             // на старте проверить наличие ключа с константами
             // в сервисе констант при старте удалять ключ и создавать новый
@@ -101,7 +114,7 @@ namespace FrontServerEmulation
             // сделать два сообщения в консоли - подсказки, как запустить эмулятор
             // To start tasks batch enter from Redis console the command - hset subscribeOnFrom tasks:count 30 (where 30 is tasks count - from 10 to 50)            
 
-            
+
             // тут необходимо очистить ключ EventKeyFrontGivesTask, может быть временно, для отладки
             string eventKeyFrontGivesTask = constantsSet.EventKeyFrontGivesTask.Value;
             _logger.LogInformation(1005, "Key eventKeyFrontGivesTask = {0} fetched from constants", eventKeyFrontGivesTask);

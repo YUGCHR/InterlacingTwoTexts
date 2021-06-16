@@ -1,9 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
@@ -11,17 +13,6 @@ using BooksTextsSplit.Library.Helpers;
 using BooksTextsSplit.Library.Models;
 using Shared.Library.Models;
 using Shared.Library.Services;
-
-using System.IO;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Hosting;
-
-using CachingFramework.Redis;
-using CachingFramework.Redis.Contracts.Providers;
-using StackExchange.Redis;
-
-using Microsoft.Extensions.Configuration;
-using System.Text.Json;
 
 namespace BooksTextsSplit.Library.Services
 {

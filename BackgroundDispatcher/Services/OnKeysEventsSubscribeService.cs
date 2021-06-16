@@ -6,17 +6,17 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-namespace FrontServerEmulation.Services
+namespace BackgroundDispatcher.Services
 {
     public interface IOnKeysEventsSubscribeService
     {
         public Task<string> FetchGuidFieldTaskRun(string eventKeyRun, string eventFieldRun, double ttl);
-        public void SubscribeOnEventFrom(ConstantsSet constantsSet);        
+        public void SubscribeOnEventFrom(ConstantsSet constantsSet);
     }
 
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
     {
-        
+
         private readonly ILogger<OnKeysEventsSubscribeService> _logger;
         private readonly ICacheManageService _cache;
         private readonly IKeyEventsProvider _keyEvents;
@@ -50,7 +50,7 @@ namespace FrontServerEmulation.Services
             string eventKey = constantsSet.EventKeyFrom.Value;
             KeyEvent eventCmd = constantsSet.EventCmd;
 
-            _keyEvents.Subscribe(eventKey, async (string key, KeyEvent cmd) =>
+            _keyEvents.Subscribe(eventKey, async (key, cmd) =>
             {
                 if (cmd == eventCmd)
                 {

@@ -6,16 +6,16 @@ using Microsoft.Extensions.Hosting;
 using CachingFramework.Redis;
 using CachingFramework.Redis.Contracts.Providers;
 using StackExchange.Redis;
-using FrontServerEmulation.Services;
 using Microsoft.Extensions.Configuration;
 using Shared.Library.Services;
+using BackgroundDispatcher.Services;
 
-namespace FrontServerEmulation
+namespace BackgroundDispatcher
 {
     public class Program
     {
         public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)            
+            Host.CreateDefaultBuilder(args)
             .UseContentRoot(Directory.GetCurrentDirectory())
             .ConfigureAppConfiguration((hostContext, config) =>
             {
@@ -42,7 +42,7 @@ namespace FrontServerEmulation
                         //ConnectionMultiplexer muxer = ConnectionMultiplexer.Connect("redis");
                         ConnectionMultiplexer muxer = ConnectionMultiplexer.Connect("localhost");
                         services.AddSingleton<ICacheProviderAsync>(new RedisContext(muxer).Cache);
-                        services.AddSingleton<IKeyEventsProvider>(new RedisContext(muxer).KeyEvents);
+                        services.AddSingleton(new RedisContext(muxer).KeyEvents);
                     }
                     catch (Exception ex)
                     {
@@ -51,13 +51,10 @@ namespace FrontServerEmulation
                         throw;
                     }
 
-                    services.AddSingleton<GenerateThisBackServerGuid>();
-                    services.AddSingleton<ICacheManageService, CacheManageService>();
-                    services.AddSingleton<ISharedDataAccess, SharedDataAccess>();
-                    //services.AddHostedService<QueuedHostedService>();
-                    //services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
                     services.AddSingleton<MonitorLoop>();
-                    //services.AddSingleton<IBackgroundTasksService, BackgroundTasksService>();
+                    services.AddSingleton<GenerateThisInstanceGuidService>();
+                    services.AddSingleton<ICacheManageService, CacheManageService>();
+                    services.AddSingleton<ISharedDataAccess, SharedDataAccess>();                    
                     services.AddSingleton<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     services.AddSingleton<IFrontServerEmulationService, FrontServerEmulationService>();
 
@@ -81,20 +78,20 @@ namespace FrontServerEmulation
     // потом - с задержкой, когда счётчик будет стоять больше определенного времени, он создаст стандартный ключ с полями - гуид
     // и все запросившие гуид будут их разбирать таким же способом, как и пакеты задач
 
-    public class GenerateThisBackServerGuid
-    {
-        private readonly string _thisBackServerGuid;
+    //public class GenerateThisBackServerGuid
+    //{
+    //    private readonly string _thisBackServerGuid;
 
-        public GenerateThisBackServerGuid()
-        {
-            _thisBackServerGuid = Guid.NewGuid().ToString();
-        }
+    //    public GenerateThisBackServerGuid()
+    //    {
+    //        _thisBackServerGuid = Guid.NewGuid().ToString();
+    //    }
 
-        public string ThisBackServerGuid()
-        {
-            return _thisBackServerGuid;
-        }
-    }
+    //    public string ThisBackServerGuid()
+    //    {
+    //        return _thisBackServerGuid;
+    //    }
+    //}
 }
 
 // appsettings sharing between many solutions
