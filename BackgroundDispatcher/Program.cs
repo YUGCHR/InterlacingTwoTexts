@@ -1,5 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
@@ -7,6 +11,10 @@ using CachingFramework.Redis;
 using CachingFramework.Redis.Contracts.Providers;
 using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
 using Shared.Library.Services;
 using BackgroundDispatcher.Services;
 
@@ -14,6 +22,8 @@ namespace BackgroundDispatcher
 {
     public class Program
     {
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<Program>();
+
         public static IHostBuilder CreateHostBuilder(string[] args) =>
             Host.CreateDefaultBuilder(args)
             .UseContentRoot(Directory.GetCurrentDirectory())
@@ -33,7 +43,34 @@ namespace BackgroundDispatcher
 
                 config.AddEnvironmentVariables();
             })
-            .ConfigureLogging((ctx, log) => { /* elided for brevity */ })
+            .ConfigureLogging((ctx, sLog) =>
+            {
+                //var seriLog = new LoggerConfiguration()
+                //    .WriteTo.Console()
+                //    .CreateLogger();
+
+                //var outputTemplate = "{Timestamp:HH:mm} [{Level:u3}] ({ThreadId}) {Message}{NewLine}{Exception}";
+                //var outputTemplate = "[{Timestamp:HH:mm:ss} {Level}] {SourceContext}{NewLine}{Message}{NewLine}in method {MemberName} at {FilePath}:{LineNumber}{NewLine}{Exception}{NewLine}";
+                string outputTemplate = "{NewLine}[{Timestamp:HH:mm:ss} {Level:u3} ({ThreadId}) {SourceContext}.{MemberName} - {LineNumber}] {NewLine} {Message} {NewLine} {Exception}";
+
+                //seriLog.Information("Hello, Serilog!");
+
+                //Log.Logger = seriLog;
+                // попробовать менять уровень вывода логгера через переменную
+                // const LogEventLevel loggerLevel = LogEventLevel.Debug;
+                // https://stackoverflow.com/questions/25477415/how-can-i-reconfigure-serilog-without-restarting-the-application
+                // https://stackoverflow.com/questions/51389550/serilog-json-config-logginglevelswitch-access
+                const LogEventLevel loggerLevel = LogEventLevel.Information;
+                Log.Logger = new LoggerConfiguration()
+                    .Enrich.With(new ThreadIdEnricher())
+                    .Enrich.FromLogContext()
+                    .MinimumLevel.Verbose()
+                    .WriteTo.Console(restrictedToMinimumLevel: loggerLevel, outputTemplate: outputTemplate, theme: AnsiConsoleTheme.Literate) //.Verbose .Debug .Information .Warning .Error .Fatal
+                    .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
+                    .CreateLogger();
+
+                Logs.Information("The global logger Serilog has been configured.\n");
+            })
             .UseDefaultServiceProvider((ctx, opts) => { /* elided for brevity */ })
             .ConfigureServices((hostContext, services) =>
                 {
@@ -51,25 +88,48 @@ namespace BackgroundDispatcher
                         throw;
                     }
 
-                    services.AddSingleton<MonitorLoop>();
-                    services.AddSingleton<GenerateThisInstanceGuidService>();
-                    services.AddSingleton<ICacheManageService, CacheManageService>();
-                    services.AddSingleton<ISharedDataAccess, SharedDataAccess>();                    
-                    services.AddSingleton<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
-                    services.AddSingleton<IFrontServerEmulationService, FrontServerEmulationService>();
+                    services.AddSingleton<ISettingConstantsS, SettingConstantsService>(); // new one
+                    services.AddScoped<MonitorLoop>();
+                    services.AddScoped<GenerateThisInstanceGuidService>();
+                    services.AddScoped<ICacheManageService, CacheManageService>();
+                    services.AddScoped<ISharedDataAccess, SharedDataAccess>();                    
+                    services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
+                    services.AddScoped<IFrontServerEmulationService, FrontServerEmulationService>();
 
                 });
 
         public static void Main(string[] args)
         {
-            var host = CreateHostBuilder(args).Build();
+            IHost host = CreateHostBuilder(args).Build();
 
-            var monitorLoop = host.Services.GetRequiredService<MonitorLoop>();
+            MonitorLoop monitorLoop = host.Services.GetRequiredService<MonitorLoop>();
             monitorLoop.StartMonitorLoop();
 
             host.Run();
         }
     }
+
+    internal class ThreadIdEnricher : ILogEventEnricher
+    {
+        public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+        {
+            logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty(
+                "ThreadId", Thread.CurrentThread.ManagedThreadId));
+        }
+    }
+
+    public static class LoggerExtensions
+    {
+        // https://stackoverflow.com/questions/29470863/serilog-output-enrich-all-messages-with-methodname-from-which-log-entry-was-ca/46905798
+
+        public static ILogger Here(this ILogger logger, [CallerMemberName] string memberName = "", [CallerLineNumber] int sourceLineNumber = 0)
+        //[CallerFilePath] string sourceFilePath = "",
+        {
+            return logger.ForContext("MemberName", memberName).ForContext("LineNumber", sourceLineNumber);
+            //.ForContext("FilePath", sourceFilePath)
+        }
+    }
+
 
     // вставить генерацию уникального номера в сервис констант - уже нет, оставить здесь
     // может и сервис генерации уникального номера сделать отдельным sln/container, к которому все будут обращаться

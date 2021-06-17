@@ -6,10 +6,10 @@ using Microsoft.Extensions.Configuration;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-namespace BooksTextsSplit.Library.Services
+namespace BackgroundDispatcher.Services
 {
     public interface ISettingConstantsS
-    {        
+    {
         public void SubscribeOnBaseConstantEvent();
         public Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
     }
@@ -61,7 +61,7 @@ namespace BooksTextsSplit.Library.Services
                 if (constantsSet != null)
                 {
                     isConstantsSet = true;
-                    Logs.Here().Debug("EventKeyNames fetched constants in EventKeyNames - {@D}.", new { CycleDelay = constantsSet.TaskEmulatorDelayTimeInMilliseconds.LifeTime });
+                    Logs.Here().Information("EventKeyNames fetched constants in EventKeyNames - {@D}.", new { CycleDelay = constantsSet.TaskEmulatorDelayTimeInMilliseconds.LifeTime });
                 }
                 else
                 {
@@ -71,23 +71,23 @@ namespace BooksTextsSplit.Library.Services
 
                 Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
 
-                string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
-                constantsSet.BookTextSplitLater.Guid.Value = bookTextSplitGuid;
-                Logs.Here().Information("bookTextSplitGuid = {@G}", constantsSet.BookTextSplitLater.Guid);
+                string backgroundDispatcherGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
+                constantsSet.BackgroundDispatcherLater.Guid.Value = backgroundDispatcherGuid;
+                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BookTextSplitLater.Guid.Value);
 
                 // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
-                string bookTextSplitPrefixGuid = $"{constantsSet.BookTextSplitPrefix.Value}:{bookTextSplitGuid}";
-                constantsSet.BookTextSplitLater.PrefixGuid.Value = bookTextSplitPrefixGuid;
-                constantsSet.BookTextSplitLater.PrefixGuid.LifeTime = constantsSet.BookTextSplitPrefix.LifeTime;
-                Logs.Here().Information("bookTextSplitPrefix = {0}, + Guid = {1}", constantsSet.BookTextSplitPrefix.Value, constantsSet.BookTextSplitLater.PrefixGuid.Value);
-
-                // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
-                string bookPlainTextKeyPrefixGuid = $"{constantsSet.BookPlainTextFieldPrefix.Value}:{bookTextSplitGuid}";
-                constantsSet.BookPlainTextLater.KeyPrefixGuid.Value = bookPlainTextKeyPrefixGuid;
-                constantsSet.BookPlainTextLater.KeyPrefixGuid.LifeTime = constantsSet.BookPlainTextFieldPrefix.LifeTime;
-                Logs.Here().Information("bookPlainTextKeyPrefix = {0}, + Guid = {1}", constantsSet.BookPlainTextKeyPrefix.Value, constantsSet.BookPlainTextLater.KeyPrefixGuid.Value);
-
-                // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально
+                string backgroundDispatcherPrefixGuid = $"{constantsSet.BackgroundDispatcher.Prefix.Value}:{backgroundDispatcherGuid}";
+                constantsSet.BackgroundDispatcherLater.PrefixGuid.Value = backgroundDispatcherPrefixGuid;
+                constantsSet.BackgroundDispatcherLater.PrefixGuid.LifeTime = constantsSet.BackgroundDispatcher.Prefix.LifeTime;
+                Logs.Here().Information("backgroundDispatcherPrefix = {0}, + Guid = {1}", constantsSet.BackgroundDispatcher.Prefix.Value, constantsSet.BackgroundDispatcherLater.PrefixGuid.Value);
+                
+                // test
+                Logs.Here().Information("BookTextSplit Prefix = {@P}", constantsSet.BookTextSplitPrefix);
+                Logs.Here().Information("BookPlainText KeyPrefix = {@K}", constantsSet.BookPlainTextKeyPrefix);
+                Logs.Here().Information("BookPlainText FieldPrefix = {@F}", constantsSet.BookPlainTextFieldPrefix);
+                Logs.Here().Information("BookTables KeyPrefix = {@KP}", constantsSet.BookTablesKeyPrefix);
+                Logs.Here().Information("TextSentences KeyPrefixId = {@ID}", constantsSet.TextSentencesKeyPrefixId);
+                Logs.Here().Information("TextSentences KeyPrefixVer = {@VER}", constantsSet.TextSentencesKeyPrefixVer);
 
             }
 

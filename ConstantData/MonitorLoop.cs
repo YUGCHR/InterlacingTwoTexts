@@ -59,6 +59,10 @@ namespace ConstantData
             await _cache.SetStartConstants(constantsSet.ConstantsVersionBase, constantsStartLegacyField, constantsSet);
             Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBase.Value }, new { Field = constantsStartLegacyField });
 
+            Logs.Here().Information("\n ConstantsSet constantsSet is - {@C}.", new { ConstantsSet = constantsSet});
+
+
+
 
             // сервер констант имеет свой гуид и это ключ обновляемых констант
             // его он пишет в поле для нового гуид-ключа для всех

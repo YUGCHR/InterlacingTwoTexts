@@ -11,24 +11,31 @@ namespace Shared.Library.Models
     public class ConstantsSet
     {
         public ConstantsSet()
-        {
+        {            
             EventCmd = KeyEvent.HashSet;
             ConstantsVersionBase = new KeyType();
             ConstantsVersionBaseField = new KeyType();
             ConstantsVersionNumber = new ConstantType
             {
                 Value = 0
-            };
-
-            BookTextSplitGuid = new KeyType();
-            BookTextSplitPrefixGuid = new KeyType();
-            BookPlainTextKeyPrefixGuid = new KeyType();
+            };                       
 
             BackServerGuid = new KeyType();
             BackServerPrefixGuid = new KeyType();
             ProcessAddPrefixGuid = new KeyType();
             ProcessCancelPrefixGuid = new KeyType();
             ProcessCountPrefixGuid = new KeyType();
+
+            BookTextSplitLater = new();
+            BookTextSplitLater.Guid = new KeyType();
+            BookTextSplitLater.PrefixGuid = new KeyType();
+
+            BookPlainTextLater = new();
+            BookPlainTextLater.KeyPrefixGuid = new KeyType();
+
+            BackgroundDispatcherLater = new();
+            BackgroundDispatcherLater.Guid = new KeyType();
+            BackgroundDispatcherLater.PrefixGuid = new KeyType();
         }
 
         // ConstantsList
@@ -70,7 +77,14 @@ namespace Shared.Library.Models
         public KeyType TextSentencesKeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
         public KeyType TextSentencesKeyPrefixVer { get; set; } // uploadVersion:
 
-        // LaterAssigned
+        public BackgroundDispatcherPrefix BackgroundDispatcher { get; set; }
+        public class BackgroundDispatcherPrefix
+        {
+            public KeyType Prefix { get; set; } // BackgroundDispatcher Prefix
+            public KeyType TempTest { get; set; } // Test            
+        }
+
+        // ---------- LaterAssigned ----------
 
         public KeyEvent EventCmd { get; init; } 
         public KeyType ConstantsVersionBase { get; set; }
@@ -82,14 +96,30 @@ namespace Shared.Library.Models
         public KeyType ProcessCancelPrefixGuid { get; set; }
         public KeyType ProcessCountPrefixGuid { get; set; }
 
-        // LaterAssigned - BookTextSplit
+        // LaterAssigned
 
-        public KeyType BookTextSplitGuid { get; set; } // BookTextSplit front server Guid        
-        public KeyType BookTextSplitPrefixGuid { get; set; } // BookTextSplit front server Prefix:Guid        
-        public KeyType BookPlainTextKeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid
-        
-        
+        public BookTextSplitGuid BookTextSplitLater { get; set; }
 
+        public class BookTextSplitGuid
+        {
+            public KeyType Guid { get; set; } // BookTextSplit Guid
+            public KeyType PrefixGuid { get; set; } // BookTextSplit Prefix:Guid        
+        }
+
+        public BookPlainTextGuid BookPlainTextLater { get; set; }
+
+        public class BookPlainTextGuid
+        {            
+            public KeyType KeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid       
+        }
+
+        public BackgroundDispatcherGuid BackgroundDispatcherLater { get; set; }
+
+        public class BackgroundDispatcherGuid
+        {
+            public KeyType Guid { get; set; } // BackgroundDispatcher Guid
+            public KeyType PrefixGuid { get; set; } // BackgroundDispatcher Prefix:Guid        
+        }
 
     }
 
