@@ -129,16 +129,16 @@ namespace BooksTextsSplit.Library.Services
         public async Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
         {
             // достать нужные префиксы, ключи и поля из констант
-            string bookPlainTextKeyPrefixGuid = constantsSet.BookPlainTextLater.KeyPrefixGuid.Value;
-            double keyExistingTime = constantsSet.BookPlainTextLater.KeyPrefixGuid.LifeTime;
+            string bookPlainText_KeyPrefixGuid = constantsSet.BookPlainText.KeyPrefixGuid.Value;
+            double keyExistingTime = constantsSet.BookPlainText.KeyPrefixGuid.LifeTime;
 
             // создать ключ/поле из префикса и гуид книги
-            string bookPlainTextFieldPrefixGuid = $"{constantsSet.BookPlainTextFieldPrefix.Value}:{bookGuid}";
+            string bookPlainText_FieldPrefixGuid = $"{constantsSet.BookPlainText.FieldPrefix.Value}:{bookGuid}";
 
             // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
             // перенести весь _access в Shared.Library.Services CacheManageService
-            await _access.WriteHashedAsync<TextSentence>(bookPlainTextKeyPrefixGuid, bookPlainTextFieldPrefixGuid, bookPlainTextWithDescription, keyExistingTime);
-            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = bookPlainTextKeyPrefixGuid }, new { Field = bookPlainTextFieldPrefixGuid }, new { ValueOfBookId = bookPlainTextWithDescription.BookId });
+            await _access.WriteHashedAsync<TextSentence>(bookPlainText_KeyPrefixGuid, bookPlainText_FieldPrefixGuid, bookPlainTextWithDescription, keyExistingTime);
+            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = bookPlainText_KeyPrefixGuid }, new { Field = bookPlainText_FieldPrefixGuid }, new { ValueOfBookId = bookPlainTextWithDescription.BookId });
 
 
 
@@ -151,8 +151,8 @@ namespace BooksTextsSplit.Library.Services
             // записываем то же самое поле в ключ subscribeOnFrom, а в значение (везде одинаковое) - ключ всех исходников книг
             // на стороне диспетчера всё достать словарём и найти новое (если приедет много сразу из нескольких клиентов), уже обработанное поле сразу удалить, чтобы не накапливались
             string eventKeyFrom = constantsSet.EventKeyFrom.Value;
-            await _access.WriteHashedAsync<string>(eventKeyFrom, bookPlainTextFieldPrefixGuid, bookPlainTextKeyPrefixGuid, keyExistingTime);
-            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = eventKeyFrom }, new { Field = bookPlainTextFieldPrefixGuid }, new { Value = bookPlainTextKeyPrefixGuid });
+            await _access.WriteHashedAsync<string>(eventKeyFrom, bookPlainText_FieldPrefixGuid, bookPlainText_KeyPrefixGuid, keyExistingTime);
+            Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = eventKeyFrom }, new { Field = bookPlainText_FieldPrefixGuid }, new { Value = bookPlainText_KeyPrefixGuid });
 
         }
     }

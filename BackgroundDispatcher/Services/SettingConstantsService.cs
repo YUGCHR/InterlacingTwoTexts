@@ -73,21 +73,16 @@ namespace BackgroundDispatcher.Services
 
                 string backgroundDispatcherGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
                 constantsSet.BackgroundDispatcherLater.Guid.Value = backgroundDispatcherGuid;
-                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BookTextSplitLater.Guid.Value);
+                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BackgroundDispatcherLater.Guid.Value);
 
                 // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
                 string backgroundDispatcherPrefixGuid = $"{constantsSet.BackgroundDispatcher.Prefix.Value}:{backgroundDispatcherGuid}";
                 constantsSet.BackgroundDispatcherLater.PrefixGuid.Value = backgroundDispatcherPrefixGuid;
                 constantsSet.BackgroundDispatcherLater.PrefixGuid.LifeTime = constantsSet.BackgroundDispatcher.Prefix.LifeTime;
                 Logs.Here().Information("backgroundDispatcherPrefix = {0}, + Guid = {1}", constantsSet.BackgroundDispatcher.Prefix.Value, constantsSet.BackgroundDispatcherLater.PrefixGuid.Value);
-                
+
                 // test
-                Logs.Here().Information("BookTextSplit Prefix = {@P}", constantsSet.BookTextSplitPrefix);
-                Logs.Here().Information("BookPlainText KeyPrefix = {@K}", constantsSet.BookPlainTextKeyPrefix);
-                Logs.Here().Information("BookPlainText FieldPrefix = {@F}", constantsSet.BookPlainTextFieldPrefix);
-                Logs.Here().Information("BookTables KeyPrefix = {@KP}", constantsSet.BookTablesKeyPrefix);
-                Logs.Here().Information("TextSentences KeyPrefixId = {@ID}", constantsSet.TextSentencesKeyPrefixId);
-                Logs.Here().Information("TextSentences KeyPrefixVer = {@VER}", constantsSet.TextSentencesKeyPrefixVer);
+                Logs.Here().Information("constantsSet = {@C}", new { ConstantsSet = constantsSet });
 
             }
 

@@ -11,14 +11,14 @@ namespace Shared.Library.Models
     public class ConstantsSet
     {
         public ConstantsSet()
-        {            
+        {
             EventCmd = KeyEvent.HashSet;
             ConstantsVersionBase = new KeyType();
             ConstantsVersionBaseField = new KeyType();
             ConstantsVersionNumber = new ConstantType
             {
                 Value = 0
-            };                       
+            };
 
             BackServerGuid = new KeyType();
             BackServerPrefixGuid = new KeyType();
@@ -26,12 +26,14 @@ namespace Shared.Library.Models
             ProcessCancelPrefixGuid = new KeyType();
             ProcessCountPrefixGuid = new KeyType();
 
-            BookTextSplitLater = new();
-            BookTextSplitLater.Guid = new KeyType();
-            BookTextSplitLater.PrefixGuid = new KeyType();
+            //BookTextSplitLater = new()
+            //{
+            //    Guid = new KeyType(),
+            //    PrefixGuid = new KeyType()
+            //};
 
-            BookPlainTextLater = new();
-            BookPlainTextLater.KeyPrefixGuid = new KeyType();
+            //BookPlainTextLater = new();
+            //BookPlainTextLater.KeyPrefixGuid = new KeyType();
 
             BackgroundDispatcherLater = new();
             BackgroundDispatcherLater.Guid = new KeyType();
@@ -70,12 +72,39 @@ namespace Shared.Library.Models
 
         // KeysList - BookTextSplit
         // добавить(под)классы BookTextSplit, BookPlainText, BookTables, TextSentences 
-        public KeyType BookTextSplitPrefix { get; set; } // BookTextSplit front server Prefix
-        public KeyType BookPlainTextKeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
-        public KeyType BookPlainTextFieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server        
-        public KeyType BookTablesKeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
-        public KeyType TextSentencesKeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
-        public KeyType TextSentencesKeyPrefixVer { get; set; } // uploadVersion:
+
+        public BooksTextSplit BookTextSplit { get; set; }
+
+        public class BooksTextSplit
+        {
+            public KeyType Prefix { get; set; } // BookTextSplit front server Prefix
+            public KeyType Guid { get; set; } // BookTextSplit Guid - will be assigned Later
+            public KeyType PrefixGuid { get; set; } // BookTextSplit Prefix:Guid - will be assigned Later
+        }
+
+        public BooksPlainText BookPlainText { get; set; }
+
+        public class BooksPlainText
+        {
+            public KeyType KeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
+            public KeyType FieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server
+            public KeyType KeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid - will be assigned Later
+        }
+
+        public BookTables BookTable { get; set; }
+
+        public class BookTables
+        {
+            public KeyType KeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
+        }
+
+        public TextSentences TextSentence { get; set; }
+
+        public class TextSentences
+        {
+            public KeyType KeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
+            public KeyType KeyPrefixVer { get; set; } // uploadVersion:
+        }
 
         public BackgroundDispatcherPrefix BackgroundDispatcher { get; set; }
         public class BackgroundDispatcherPrefix
@@ -86,7 +115,7 @@ namespace Shared.Library.Models
 
         // ---------- LaterAssigned ----------
 
-        public KeyEvent EventCmd { get; init; } 
+        public KeyEvent EventCmd { get; init; }
         public KeyType ConstantsVersionBase { get; set; }
         public KeyType ConstantsVersionBaseField { get; set; }
         public ConstantType ConstantsVersionNumber { get; set; }
@@ -98,20 +127,7 @@ namespace Shared.Library.Models
 
         // LaterAssigned
 
-        public BookTextSplitGuid BookTextSplitLater { get; set; }
-
-        public class BookTextSplitGuid
-        {
-            public KeyType Guid { get; set; } // BookTextSplit Guid
-            public KeyType PrefixGuid { get; set; } // BookTextSplit Prefix:Guid        
-        }
-
-        public BookPlainTextGuid BookPlainTextLater { get; set; }
-
-        public class BookPlainTextGuid
-        {            
-            public KeyType KeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid       
-        }
+     
 
         public BackgroundDispatcherGuid BackgroundDispatcherLater { get; set; }
 
