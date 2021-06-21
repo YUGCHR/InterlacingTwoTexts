@@ -72,20 +72,20 @@ namespace BooksTextsSplit.Library.Services
                 Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
 
                 string bookTextSplitGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
-                constantsSet.BookTextSplit.Guid.Value = bookTextSplitGuid;
-                Logs.Here().Information("bookTextSplitGuid = {@G}", constantsSet.BookTextSplit.Guid);
+                constantsSet.BookTextSplitConstant.Guid.Value = bookTextSplitGuid;
+                Logs.Here().Information("bookTextSplitGuid = {@G}", constantsSet.BookTextSplitConstant.Guid);
 
                 // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
-                string bookTextSplit_PrefixGuid = $"{constantsSet.BookTextSplit.Prefix.Value}:{bookTextSplitGuid}";
-                constantsSet.BookTextSplit.PrefixGuid.Value = bookTextSplit_PrefixGuid;
-                constantsSet.BookTextSplit.PrefixGuid.LifeTime = constantsSet.BookTextSplit.Prefix.LifeTime;
-                Logs.Here().Information("bookTextSplitPrefix = {@P}, + Guid = {@G}", constantsSet.BookTextSplit.Prefix, constantsSet.BookTextSplit.PrefixGuid);
+                string bookTextSplit_PrefixGuid = $"{constantsSet.BookTextSplitConstant.Prefix.Value}:{bookTextSplitGuid}";
+                constantsSet.BookTextSplitConstant.PrefixGuid.Value = bookTextSplit_PrefixGuid;
+                constantsSet.BookTextSplitConstant.PrefixGuid.LifeTime = constantsSet.BookTextSplitConstant.Prefix.LifeTime;
+                Logs.Here().Information("bookTextSplitPrefix = {@P}, + Guid = {@G}", constantsSet.BookTextSplitConstant.Prefix, constantsSet.BookTextSplitConstant.PrefixGuid);
 
                 // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и bookTextSplit server Guid 
-                string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainText.KeyPrefix.Value}:{bookTextSplitGuid}";
-                constantsSet.BookPlainText.KeyPrefixGuid.Value = bookPlainText_KeyPrefixGuid;
-                constantsSet.BookPlainText.KeyPrefixGuid.LifeTime = constantsSet.BookPlainText.KeyPrefix.LifeTime;
-                Logs.Here().Information("bookPlainTextKeyPrefix = {@P}, + Guid = {@G}", constantsSet.BookPlainText.KeyPrefix, constantsSet.BookPlainText.KeyPrefixGuid);
+                string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefix.Value}:{bookTextSplitGuid}";
+                constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value = bookPlainText_KeyPrefixGuid;
+                constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime = constantsSet.BookPlainTextConstant.KeyPrefix.LifeTime;
+                Logs.Here().Information("bookPlainTextKeyPrefix = {@P}, + Guid = {@G}", constantsSet.BookPlainTextConstant.KeyPrefix, constantsSet.BookPlainTextConstant.KeyPrefixGuid);
 
                 // создать поле для хранения плоского текста книги из префикса BookTextFieldPrefix и - нет, его создавать локально
 

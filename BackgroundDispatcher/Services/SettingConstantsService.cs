@@ -72,14 +72,14 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
 
                 string backgroundDispatcherGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
-                constantsSet.BackgroundDispatcherLater.Guid.Value = backgroundDispatcherGuid;
-                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BackgroundDispatcherLater.Guid.Value);
+                constantsSet.BackgroundDispatcherConstant.Guid.Value = backgroundDispatcherGuid;
+                Logs.Here().Information("bookTextSplitGuid = {0}", constantsSet.BackgroundDispatcherConstant.Guid.Value);
 
                 // создать именованный гуид сервера из префикса PrefixBookTextSplit и bookTextSplit server Guid
-                string backgroundDispatcherPrefixGuid = $"{constantsSet.BackgroundDispatcher.Prefix.Value}:{backgroundDispatcherGuid}";
-                constantsSet.BackgroundDispatcherLater.PrefixGuid.Value = backgroundDispatcherPrefixGuid;
-                constantsSet.BackgroundDispatcherLater.PrefixGuid.LifeTime = constantsSet.BackgroundDispatcher.Prefix.LifeTime;
-                Logs.Here().Information("backgroundDispatcherPrefix = {0}, + Guid = {1}", constantsSet.BackgroundDispatcher.Prefix.Value, constantsSet.BackgroundDispatcherLater.PrefixGuid.Value);
+                string backgroundDispatcherPrefixGuid = $"{constantsSet.BackgroundDispatcherConstant.Prefix.Value}:{backgroundDispatcherGuid}";
+                constantsSet.BackgroundDispatcherConstant.PrefixGuid.Value = backgroundDispatcherPrefixGuid;
+                constantsSet.BackgroundDispatcherConstant.PrefixGuid.LifeTime = constantsSet.BackgroundDispatcherConstant.Prefix.LifeTime;
+                Logs.Here().Information("backgroundDispatcherPrefix = {0}, + Guid = {1}", constantsSet.BackgroundDispatcherConstant.Prefix.Value, constantsSet.BackgroundDispatcherConstant.PrefixGuid.Value);
 
                 // test
                 Logs.Here().Information("constantsSet = {@C}", new { ConstantsSet = constantsSet });

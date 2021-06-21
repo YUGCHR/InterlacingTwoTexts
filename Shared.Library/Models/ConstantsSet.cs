@@ -26,18 +26,6 @@ namespace Shared.Library.Models
             ProcessCancelPrefixGuid = new KeyType();
             ProcessCountPrefixGuid = new KeyType();
 
-            //BookTextSplitLater = new()
-            //{
-            //    Guid = new KeyType(),
-            //    PrefixGuid = new KeyType()
-            //};
-
-            //BookPlainTextLater = new();
-            //BookPlainTextLater.KeyPrefixGuid = new KeyType();
-
-            BackgroundDispatcherLater = new();
-            BackgroundDispatcherLater.Guid = new KeyType();
-            BackgroundDispatcherLater.PrefixGuid = new KeyType();
         }
 
         // ConstantsList
@@ -73,44 +61,46 @@ namespace Shared.Library.Models
         // KeysList - BookTextSplit
         // добавить(под)классы BookTextSplit, BookPlainText, BookTables, TextSentences 
 
-        public BooksTextSplit BookTextSplit { get; set; }
+        public BookTextSplitConstants BookTextSplitConstant { get; set; }
 
-        public class BooksTextSplit
+        public class BookTextSplitConstants
         {
             public KeyType Prefix { get; set; } // BookTextSplit front server Prefix
             public KeyType Guid { get; set; } // BookTextSplit Guid - will be assigned Later
             public KeyType PrefixGuid { get; set; } // BookTextSplit Prefix:Guid - will be assigned Later
         }
 
-        public BooksPlainText BookPlainText { get; set; }
+        public BookPlainTextConstants BookPlainTextConstant { get; set; }
 
-        public class BooksPlainText
+        public class BookPlainTextConstants
         {
             public KeyType KeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
             public KeyType FieldPrefix { get; set; } // bookText:bookGuid: - field prefix for book text pass to back server
             public KeyType KeyPrefixGuid { get; set; } // bookPlainTexts:bookSplitGuid: + BookTextSplit Guid - will be assigned Later
         }
 
-        public BookTables BookTable { get; set; }
+        public BookTableConstants BookTableConstant { get; set; }
 
-        public class BookTables
+        public class BookTableConstants
         {
             public KeyType KeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
         }
 
-        public TextSentences TextSentence { get; set; }
+        public TextSentenceConstants TextSentenceConstant { get; set; }
 
-        public class TextSentences
+        public class TextSentenceConstants
         {
             public KeyType KeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)
             public KeyType KeyPrefixVer { get; set; } // uploadVersion:
         }
 
-        public BackgroundDispatcherPrefix BackgroundDispatcher { get; set; }
-        public class BackgroundDispatcherPrefix
+        public BackgroundDispatcherConstants BackgroundDispatcherConstant { get; set; }
+        public class BackgroundDispatcherConstants
         {
             public KeyType Prefix { get; set; } // BackgroundDispatcher Prefix
-            public KeyType TempTest { get; set; } // Test            
+            public KeyType TempTest { get; set; } // Test
+            public KeyType Guid { get; set; } // BackgroundDispatcher Guid
+            public KeyType PrefixGuid { get; set; } // BackgroundDispatcher Prefix:Guid
         }
 
         // ---------- LaterAssigned ----------
@@ -124,18 +114,6 @@ namespace Shared.Library.Models
         public KeyType ProcessAddPrefixGuid { get; set; }
         public KeyType ProcessCancelPrefixGuid { get; set; }
         public KeyType ProcessCountPrefixGuid { get; set; }
-
-        // LaterAssigned
-
-     
-
-        public BackgroundDispatcherGuid BackgroundDispatcherLater { get; set; }
-
-        public class BackgroundDispatcherGuid
-        {
-            public KeyType Guid { get; set; } // BackgroundDispatcher Guid
-            public KeyType PrefixGuid { get; set; } // BackgroundDispatcher Prefix:Guid        
-        }
 
     }
 
