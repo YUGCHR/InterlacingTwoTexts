@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Shared.Library.Services;
 using System;
 
 namespace BooksTextsSplit.Library.Services
@@ -45,7 +46,7 @@ namespace BooksTextsSplit.Library.Services
             _getKeyTaskPercents = Configuration.GetSection("SettingConstants").GetSection("RedisKeys").GetSection("keyTaskPercents").Value;
             _getKeyIsTaskRunning = Configuration.GetSection("SettingConstants").GetSection("RedisKeys").GetSection("keyIsTaskRunning").Value;
 
-            Logs.Information("Setting Constants was started. {0} ", _getRecordActualityLevel);
+            Logs.Here().Information("Setting Constants was started. {0} ", _getRecordActualityLevel);
 
         }
         private IConfiguration Configuration { get; }

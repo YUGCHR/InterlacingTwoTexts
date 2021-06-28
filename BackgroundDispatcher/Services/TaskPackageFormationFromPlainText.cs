@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
@@ -8,22 +9,24 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface IFrontServerEmulationService
+    public interface ITaskPackageFormationFromPlainText
     {
         public Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl);
-        public Task<int> FrontServerEmulationMain(ConstantsSet constantsSet); // все ключи положить в константы
+        public Task<int> FrontServerEmulationMain(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
-    public class FrontServerEmulationService : IFrontServerEmulationService
+    public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
     {
-        private readonly ILogger<FrontServerEmulationService> _logger;
+        private readonly ILogger<TaskPackageFormationFromPlainText> _logger;
         private readonly ICacheManageService _cache;
 
-        public FrontServerEmulationService(ILogger<FrontServerEmulationService> logger, ICacheManageService cache)
+        public TaskPackageFormationFromPlainText(ILogger<TaskPackageFormationFromPlainText> logger, ICacheManageService cache)
         {
             _logger = logger;
             _cache = cache;
         }
+
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TaskPackageFormationFromPlainText>();
 
         public async Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl) // not used
         {
@@ -31,16 +34,31 @@ namespace BackgroundDispatcher.Services
 
             await _cache.WriteHashedAsync<string>(eventKeyRun, eventFieldRun, eventGuidFieldRun, ttl); // создаём ключ ("task:run"), на который подписана очередь и в значении передаём имя ключа, содержащего пакет задач
 
-            _logger.LogInformation("Guid Field {0} for key {1} was created and set.", eventGuidFieldRun, eventKeyRun);
+            //_logger.LogInformation("Guid Field {0} for key {1} was created and set.", eventGuidFieldRun, eventKeyRun);
+            Logs.Here().Information("Guid Field {0} for key {1} was created and set.\n", eventGuidFieldRun, eventKeyRun);
         }
 
-        public async Task<int> FrontServerEmulationMain(ConstantsSet constantsSet) // _logger = 300
+        public async Task<int> FrontServerEmulationMain(ConstantsSet constantsSet, CancellationToken stoppingToken) // _logger = 300
         {
-            // получаем условия задач по стартовому ключу 
-            int tasksPackagesCount = await FrontServerFetchConditions(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
+            // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
+            // TakeBookTextAndCreateTask
+            // TaskPackageFormationFromPlainText
+            // получаем условия задач по стартовому ключу
+            // записываем то же самое поле в ключ subscribeOnFrom, а в значение (везде одинаковое) - ключ всех исходников книг
+            // на стороне диспетчера всё достать в словарь и найти новое (если приедет много сразу из нескольких клиентов)
+            // уже обработанное поле сразу удалить, чтобы не накапливались
+
+
+
+            // тут определить, надо ли обновить константы
+
+
+
+            int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
 
             // начинаем цикл создания и размещения пакетов задач
-            _logger.LogInformation(30010, " - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.", tasksPackagesCount);
+            //_logger.LogInformation(30010, " - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.", tasksPackagesCount);
+            Logs.Here().Information(" - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.\n", tasksPackagesCount);
 
             for (int i = 0; i < tasksPackagesCount; i++)
             {
@@ -70,17 +88,21 @@ namespace BackgroundDispatcher.Services
             return tasksPackagesCount;
         }
 
-        private async Task<int> FrontServerFetchConditions(string eventKeyFrom, string eventFieldFrom)
+        private async Task<int> FetchBookPlainText(string eventKeyFrom, string eventFieldFrom) // CollectBookPlainText
         {
-            //получить число пакетов задач (по этому ключу метод вызвали)
-            int tasksCount = await _cache.FetchHashedAsync<int>(eventKeyFrom, eventFieldFrom);
+            // в словарь получаем список полей, а в значение везде одинаковое - ключ, где эти поля лежат (ключ из префикса BookTextFieldPrefix и bookTextSplit server Guid)
+            // поле представляет собой префикс bookText:bookGuid: + bookGuid и хранит в значении плоский текст книги с полным описанием
+            // eventKeyFrom, bookPlainText_FieldPrefix + BookGuid, bookPlainText_KeyPrefix + ServerGuid
 
-            _logger.LogInformation(30020, "TaskCount = {TasksCount} from key {Key} was fetched.", tasksCount, eventKeyFrom);
+            IDictionary<string, string> tasksCount = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
 
-            if (tasksCount < 3) tasksCount = 3;
-            if (tasksCount > 50) tasksCount = 50;
+            // выгруженные поля сразу удалить
 
-            return tasksCount;
+            Logs.Here().Information("FetchBookPlainText fetched all fields in {@D}.", new { Tasks = tasksCount });
+
+            //_logger.LogInformation(30020, "TaskCount = {TasksCount} from key {Key} was fetched.", tasksCount, eventKeyFrom);
+
+            return tasksCount.Count;
         }
 
         private Dictionary<string, TaskDescriptionAndProgress> FrontServerCreateTasks(ConstantsSet constantsSet, int tasksCount, int taskDelayTimeSpanFromSeconds)

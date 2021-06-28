@@ -25,12 +25,12 @@ namespace Shared.Library.Models
             ProcessAddPrefixGuid = new KeyType();
             ProcessCancelPrefixGuid = new KeyType();
             ProcessCountPrefixGuid = new KeyType();
-
         }
 
         // ConstantsList
         public ConstantType RecordActualityLevel { get; set; }
         public ConstantType TaskEmulatorDelayTimeInMilliseconds { get; set; }
+        public ConstantType TimerIntervalInMilliseconds { get; set; }
         public ConstantType RandomRangeExtended { get; set; }
         public ConstantType BalanceOfTasksAndProcesses { get; set; }
         public ConstantType MaxProcessesCountOnServer { get; set; }
@@ -58,11 +58,7 @@ namespace Shared.Library.Models
         public KeyType EventFieldBack { get; init; }
         public KeyType EventFieldFront { get; init; }
 
-        // KeysList - BookTextSplit
-        // добавить(под)классы BookTextSplit, BookPlainText, BookTables, TextSentences 
-
         public BookTextSplitConstants BookTextSplitConstant { get; set; }
-
         public class BookTextSplitConstants
         {
             public KeyType Prefix { get; set; } // BookTextSplit front server Prefix
@@ -71,7 +67,6 @@ namespace Shared.Library.Models
         }
 
         public BookPlainTextConstants BookPlainTextConstant { get; set; }
-
         public class BookPlainTextConstants
         {
             public KeyType KeyPrefix { get; set; } // bookPlainTexts:bookSplitGuid: - key prefix for book text pass to back server
@@ -80,14 +75,12 @@ namespace Shared.Library.Models
         }
 
         public BookTableConstants BookTableConstant { get; set; }
-
         public class BookTableConstants
         {
             public KeyType KeyPrefix { get; set; } // bookTables:bookId: - this prefix + bookId is the key of all version of this bookId
         }
 
         public TextSentenceConstants TextSentenceConstant { get; set; }
-
         public class TextSentenceConstants
         {
             public KeyType KeyPrefixId { get; set; } // textSentences:bookId: - chapters key prefix part 1 (part1 + bookId + part2 + upld-ver)

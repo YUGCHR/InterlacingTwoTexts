@@ -46,7 +46,7 @@ namespace BooksTextsSplit
                     .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
                     .CreateLogger();
 
-                Logs.Information("The global logger Serilog has been configured.\n");
+                Logs.Here().Information("The global logger Serilog has been configured.\n");
             })
             .ConfigureWebHostDefaults(webBuilder =>
                 {

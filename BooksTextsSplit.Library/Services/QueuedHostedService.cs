@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
+using Shared.Library.Services;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -28,7 +29,7 @@ namespace BooksTextsSplit.Library.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            Logs.Information("Queued Hosted Service was started.\n");
+            Logs.Here().Information("Queued Hosted Service was started.\n");
 
             ConstantsSet constantsSet = await _constants.ConstantInitializer(stoppingToken);
 

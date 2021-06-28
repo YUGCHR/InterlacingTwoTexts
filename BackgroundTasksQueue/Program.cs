@@ -83,7 +83,7 @@ namespace BackgroundTasksQueue
                     .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
                     .CreateLogger();
 
-                Logs.Information("The global logger Serilog has been configured.\n");
+                Logs.Here().Information("The global logger Serilog has been configured.\n");
             })
             .UseDefaultServiceProvider((ctx, opts) => { /* elided for brevity */ })
             .ConfigureServices((hostContext, services) =>

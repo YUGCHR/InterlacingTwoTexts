@@ -14,24 +14,24 @@ namespace BackgroundDispatcher
 {
     public class MonitorLoop
     {
+        private readonly CancellationToken _cancellationToken;
         private readonly ISettingConstantsS _constants;
         private readonly ISharedDataAccess _data;
         private readonly ICacheManageService _cache;
-        private readonly CancellationToken _cancellationToken;
         private readonly IOnKeysEventsSubscribeService _subscribe;
 
         public MonitorLoop(
+            IHostApplicationLifetime applicationLifetime,
             ISettingConstantsS constants,
             ISharedDataAccess data,
             ICacheManageService cache,
-            IHostApplicationLifetime applicationLifetime,
             IOnKeysEventsSubscribeService subscribe)
         {
+            _cancellationToken = applicationLifetime.ApplicationStopping;
             _constants = constants;
             _cache = cache;
             _data = data;
             _subscribe = subscribe;
-            _cancellationToken = applicationLifetime.ApplicationStopping;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<MonitorLoop>();
@@ -39,7 +39,7 @@ namespace BackgroundDispatcher
         public void StartMonitorLoop()
         {
             //_logger.LogInformation("Monitor Loop is starting.");
-            Logs.Information("Monitor Loop is started.\n");
+            Logs.Here().Information("Monitor Loop is started.\n");
 
             // Run a console user input loop in a background thread
             Task.Run(Monitor, _cancellationToken);
@@ -87,7 +87,7 @@ namespace BackgroundDispatcher
             {
                 // если серверов меньше заданного минимума, сидеть здесь и ждать регистрации нужного количества
                 //_logger.LogInformation(1001, "Please, start {0} instances of BackgroundTasksQueue server", serverCount);
-                Logs.Information("Please, start {0} instances of BackgroundTasksQueue server.\n", serverCount);
+                Logs.Here().Warning("Please, start {0} instances of BackgroundTasksQueue server.\n", serverCount);
                 // или если есть хотя бы один, то не ждать, а работать?
                 // ждать - значит поставить флаг разрешения размещения задач в запрещено, подписка сама оповестит, что произошли изменения
             }
@@ -120,7 +120,7 @@ namespace BackgroundDispatcher
             // тут необходимо очистить ключ EventKeyFrontGivesTask, может быть временно, для отладки
             string eventKeyFrontGivesTask = constantsSet.EventKeyFrontGivesTask.Value;
             //_logger.LogInformation(1005, "Key eventKeyFrontGivesTask = {0} fetched from constants", eventKeyFrontGivesTask);
-            Logs.Information("Key eventKeyFrontGivesTask = {0} fetched from constants.\n", eventKeyFrontGivesTask);
+            Logs.Here().Information("Key eventKeyFrontGivesTask = {0} fetched from constants.\n", eventKeyFrontGivesTask);
 
             // можно не проверять наличие ключа, а сразу пробовать удалить, там внутри есть своя проверка
             bool isExistEventKeyFrontGivesTask = await _cache.IsKeyExist(eventKeyFrontGivesTask);
@@ -128,7 +128,7 @@ namespace BackgroundDispatcher
             {
                 bool isDeleteSuccess = await _cache.DelKeyAsync(eventKeyFrontGivesTask);
                 //_logger.LogInformation(1009, "FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.", eventKeyFrontGivesTask, isDeleteSuccess);
-                Logs.Information("FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.\n", eventKeyFrontGivesTask, isDeleteSuccess);
+                Logs.Here().Information("FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.\n", eventKeyFrontGivesTask, isDeleteSuccess);
 
             }
 
@@ -161,23 +161,20 @@ namespace BackgroundDispatcher
 
             _subscribe.SubscribeOnEventFrom(constantsSet);
 
-            while (IsCancellationNotYet())
+            while (IsCancellationNotYet)
             {
                 var keyStroke = Console.ReadKey();
 
                 if (keyStroke.Key == ConsoleKey.W)
                 {
                     //_logger.LogInformation("ConsoleKey was received {KeyStroke}.", keyStroke.Key);
-                    Logs.Information("ConsoleKey was received {KeyStroke}.\n", keyStroke.Key);
+                    Logs.Here().Information("ConsoleKey was received {KeyStroke}.\n", keyStroke.Key);
 
                 }
             }
         }
 
-        private bool IsCancellationNotYet()
-        {
-            return !_cancellationToken.IsCancellationRequested; // add special key from Redis?
-        }
+        private bool IsCancellationNotYet => !_cancellationToken.IsCancellationRequested; // add special key from Redis?
     }
 }
 

@@ -69,7 +69,7 @@ namespace BackgroundDispatcher
                     .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
                     .CreateLogger();
 
-                Logs.Information("The global logger Serilog has been configured.\n");
+                Logs.Here().Information("The global logger Serilog has been configured.\n");
             })
             .UseDefaultServiceProvider((ctx, opts) => { /* elided for brevity */ })
             .ConfigureServices((hostContext, services) =>
@@ -94,7 +94,7 @@ namespace BackgroundDispatcher
                     services.AddScoped<ICacheManageService, CacheManageService>();
                     services.AddScoped<ISharedDataAccess, SharedDataAccess>();                    
                     services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
-                    services.AddScoped<IFrontServerEmulationService, FrontServerEmulationService>();
+                    services.AddScoped<ITaskPackageFormationFromPlainText, TaskPackageFormationFromPlainText>();
 
                 });
 
