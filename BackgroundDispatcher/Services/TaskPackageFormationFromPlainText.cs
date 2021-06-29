@@ -40,7 +40,8 @@ namespace BackgroundDispatcher.Services
 
         public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            Logs.Here().Information("HandlerCallingDistributor started.");
+            Logs.Here().Information("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ \n HandlerCallingDistributor started.");
+            // можно добавить задержку для тестирования
 
 
             // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
