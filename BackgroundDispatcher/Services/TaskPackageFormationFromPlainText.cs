@@ -12,7 +12,7 @@ namespace BackgroundDispatcher.Services
     public interface ITaskPackageFormationFromPlainText
     {
         public Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl);
-        public Task<int> FrontServerEmulationMain(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
     public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
@@ -38,8 +38,11 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("Guid Field {0} for key {1} was created and set.\n", eventGuidFieldRun, eventKeyRun);
         }
 
-        public async Task<int> FrontServerEmulationMain(ConstantsSet constantsSet, CancellationToken stoppingToken) // _logger = 300
+        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
+            Logs.Here().Information("HandlerCallingDistributor started.");
+
+
             // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
             // TakeBookTextAndCreateTask
             // TaskPackageFormationFromPlainText
@@ -51,7 +54,14 @@ namespace BackgroundDispatcher.Services
 
 
             // тут определить, надо ли обновить константы
+            _ = HandlerCalling(constantsSet, stoppingToken);
+            Logs.Here().Information("HandlerCallingDistributor will return true.");
 
+            return true;
+        }
+
+        public async Task<int> HandlerCalling(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
 
 
             int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
