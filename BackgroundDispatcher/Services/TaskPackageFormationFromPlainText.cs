@@ -18,11 +18,16 @@ namespace BackgroundDispatcher.Services
     public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
     {
         private readonly ILogger<TaskPackageFormationFromPlainText> _logger;
+        private readonly IIntegrationTestService _test;
         private readonly ICacheManageService _cache;
 
-        public TaskPackageFormationFromPlainText(ILogger<TaskPackageFormationFromPlainText> logger, ICacheManageService cache)
+        public TaskPackageFormationFromPlainText(
+            ILogger<TaskPackageFormationFromPlainText> logger,
+            IIntegrationTestService test,
+            ICacheManageService cache)
         {
             _logger = logger;
+            _test = test;
             _cache = cache;
         }
 
@@ -40,7 +45,7 @@ namespace BackgroundDispatcher.Services
 
         public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            Logs.Here().Information("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ \n HandlerCallingDistributor started.");
+            Logs.Here().Information("HandlerCallingDistributor started.");
             // можно добавить задержку для тестирования
 
 
@@ -53,11 +58,17 @@ namespace BackgroundDispatcher.Services
             // уже обработанное поле сразу удалить, чтобы не накапливались
 
 
+            // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
+            bool targetDepthNotReached = await _test.Depth_HandlerCallingDistributore_Reached(constantsSet, stoppingToken);
+            Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);
 
-            // тут определить, надо ли обновить константы
-            _ = HandlerCalling(constantsSet, stoppingToken);
+            if (targetDepthNotReached)
+            {
+                // тут определить, надо ли обновить константы
+                _ = HandlerCalling(constantsSet, stoppingToken);
+            }
+
             Logs.Here().Information("HandlerCallingDistributor will return true.");
-
             return true;
         }
 

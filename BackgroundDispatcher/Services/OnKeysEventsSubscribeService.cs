@@ -14,6 +14,7 @@ namespace BackgroundDispatcher.Services
     public interface IOnKeysEventsSubscribeService
     {
         public void SubscribeOnEventFrom(ConstantsSet constantsSet);
+        public void SubscribeOnTestEvent(ConstantsSet constantsSet);
     }
 
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
@@ -23,6 +24,7 @@ namespace BackgroundDispatcher.Services
         private readonly ILogger<OnKeysEventsSubscribeService> _logger;
         private readonly ICacheManageService _cache;
         private readonly IKeyEventsProvider _keyEvents;
+        private readonly IIntegrationTestService _test;
         private readonly ITaskPackageFormationFromPlainText _front;
 
         public OnKeysEventsSubscribeService(
@@ -30,6 +32,7 @@ namespace BackgroundDispatcher.Services
             ILogger<OnKeysEventsSubscribeService> logger,
             ICacheManageService cache,
             IKeyEventsProvider keyEvents,
+            IIntegrationTestService test,
             ITaskPackageFormationFromPlainText front
             )
         {
@@ -37,6 +40,7 @@ namespace BackgroundDispatcher.Services
             _logger = logger;
             _cache = cache;
             _keyEvents = keyEvents;
+            _test = test;
             _front = front;
         }
 
@@ -77,6 +81,26 @@ namespace BackgroundDispatcher.Services
 
 
 
+        public void SubscribeOnTestEvent(ConstantsSet constantsSet)
+        {
+            string eventKey = "test"; // test
+            KeyEvent eventCmd = constantsSet.EventCmd; // HashSet
+
+            _keyEvents.Subscribe(eventKey, (key, cmd) => // async
+            {
+                if (cmd == eventCmd)
+                {
+                    Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
+
+                    _ = _test.IntegrationTestStart(constantsSet, _cancellationToken);
+                }
+            });
+
+            string eventKeyCommand = $"Key = {eventKey}, Command = {eventCmd}";
+            _logger.LogInformation("You subscribed on event - {EventKey}.", eventKeyCommand);
+            _logger.LogInformation("To start the front emulation please send from Redis console the following command - \n{_}{0} {1} count NN (NN - packages count).", "      ", eventCmd, eventKey);
+        }        
+
         public void SubscribeOnEventFrom(ConstantsSet constantsSet)
         {
             string eventKey = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
@@ -93,7 +117,7 @@ namespace BackgroundDispatcher.Services
                 if (cmd == eventCmd)
                 {
                     // считать вызовы подписки и запустить таймер после первого (второго?) вызова
-                    int count = Interlocked.Increment(ref _callingNumOfEventFrom);                    
+                    int count = Interlocked.Increment(ref _callingNumOfEventFrom);
                     Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.\n", eventKey, _callingNumOfEventFrom, count);
 
                     _ = EventCounter(constantsSet, _cancellationToken);
