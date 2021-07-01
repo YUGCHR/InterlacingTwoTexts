@@ -83,7 +83,7 @@ namespace BackgroundDispatcher.Services
 
         public void SubscribeOnTestEvent(ConstantsSet constantsSet)
         {
-            string eventKey = "test"; // test
+            string eventKey = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet
 
             _keyEvents.Subscribe(eventKey, (key, cmd) => // async
@@ -133,8 +133,8 @@ namespace BackgroundDispatcher.Services
         {
             // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
-            int countTrackingStart = 2;
-            int countDecisionMaking = 6;
+            int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
+            int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
 
             var count = Volatile.Read(ref _callingNumOfEventFrom);
 
@@ -205,7 +205,7 @@ namespace BackgroundDispatcher.Services
             // сюда попали, когда вышло время ожидания по таймеру
 
             ConstantsSet constantsSet = (ConstantsSet)state;
-            int countTrackingStart = 2;
+            int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             var count = Volatile.Read(ref _callingNumOfEventFrom);
             Logs.Here().Information("_callingNumOfEventFrom {0} was Volatile.Read and count = {1}.", _callingNumOfEventFrom, count);
 

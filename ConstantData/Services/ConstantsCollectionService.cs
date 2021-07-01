@@ -8,6 +8,7 @@ namespace ConstantData.Services
         public ConstantsSet SettingConstants { get; set; }        
     }
 
+    // Service to load constants from appsettings.json to model ConstantsSet
     public class ConstantsCollectionService : IConstantsCollectionService
     {
         public ConstantsCollectionService(IConfiguration configuration)

@@ -27,6 +27,34 @@ namespace Shared.Library.Models
             ProcessCountPrefixGuid = new KeyType();
         }
 
+        // Constant to check the constants loading accuracy - source
+        public KeyType ConstantsLoadingSelfTestBegin { get; set; }
+
+        public IntegerConstants IntegerConstant { get; set; }
+        public class IntegerConstants
+        {
+            public BackgroundDispatcherConstants BackgroundDispatcherConstant { get; set; }
+            public class BackgroundDispatcherConstants
+            {
+                public ConstantType CountTrackingStart { get; set; }
+                public ConstantType CountDecisionMaking { get; set; }
+                public ConstantType Reserved01 { get; set; }
+            }
+            public IntegrationTestConstants IntegrationTestConstant { get; set; }
+            public class IntegrationTestConstants
+            {
+                public ConstantType DelayTimeForTest1 { get; set; }
+                public ConstantType TestScenario1 { get; set; }
+                public ConstantType TestScenario2 { get; set; }
+                public ConstantType TestScenario3 { get; set; }
+                public ConstantType ResultTest1Passed { get; set; }
+            }
+        }
+
+
+
+
+
         // ConstantsList
         public ConstantType RecordActualityLevel { get; set; }
         public ConstantType TaskEmulatorDelayTimeInMilliseconds { get; set; }
@@ -36,6 +64,44 @@ namespace Shared.Library.Models
         public ConstantType MaxProcessesCountOnServer { get; set; }
         public ConstantType MinBackProcessesServersCount { get; set; }
         public ConstantType ChapterFieldsShiftFactor { get; set; } // shift chapter numbers of the second language (for example + 1 000 000)
+
+
+
+
+
+
+
+        public Prefixes Prefix { get; set; }
+        public class Prefixes
+        {
+            public BackgroundDispatcherPrefixes BackgroundDispatcherPrefix { get; set; }
+            public class BackgroundDispatcherPrefixes
+            {
+                public KeyType Reserved01 { get; set; }
+                public KeyType Reserved02 { get; set; }
+                public KeyType Reserved03 { get; set; }
+            }
+            public IntegrationTestPrefixes IntegrationTestPrefix { get; set; }
+            public class IntegrationTestPrefixes
+            {
+                public KeyType KeyStartTestEvent { get; set; }
+                public KeyType FieldStartTest { get; set; }
+                public KeyType SettingKey1 { get; set; }
+                public KeyType SettingField1 { get; set; }
+                public KeyType DepthValue1 { get; set; }
+                public KeyType DepthValue2 { get; set; }
+                public KeyType DepthValue3 { get; set; }
+                public KeyType ResultsKey1 { get; set; }
+                public KeyType ResultsField1 { get; set; }
+            }
+        }
+
+
+
+
+
+
+
 
         // KeysList
         public KeyType EventKeyFrom { get; init; } // subscribeOnFrom - key to fetch task package from controller/emulator
@@ -95,6 +161,9 @@ namespace Shared.Library.Models
             public KeyType Guid { get; set; } // BackgroundDispatcher Guid
             public KeyType PrefixGuid { get; set; } // BackgroundDispatcher Prefix:Guid
         }
+
+        // Constant to check the constants loading accuracy - source
+        public KeyType ConstantsLoadingSelfTestEnd { get; set; }
 
         // ---------- LaterAssigned ----------
 

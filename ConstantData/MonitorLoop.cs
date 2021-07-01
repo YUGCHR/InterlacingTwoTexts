@@ -38,7 +38,7 @@ namespace ConstantData
         public void StartMonitorLoop()
         {
             Logs.Here().Information("ConstantsMountingMonitor Loop is starting.");
-            
+
             Task.Run(ConstantsMountingMonitor, _cancellationToken);
         }
 
@@ -48,18 +48,18 @@ namespace ConstantData
             Logs.Here().Debug("ConstantCheck EventKeyFrontGivesTaskTimeDays = {0}.", constantsSet.EventKeyFrontGivesTask.LifeTime);
 
             (string startConstantKey, string constantsStartLegacyField, string constantsStartGuidField) = _data.FetchBaseConstants();
-            
+
             string dataServerPrefixGuid = $"{constantsSet.PrefixDataServer.Value}:{_guid}";
             double baseLifeTime = constantsSet.PrefixDataServer.LifeTime;
             constantsSet.ConstantsVersionBase.Value = startConstantKey;
             constantsSet.ConstantsVersionBase.LifeTime = baseLifeTime;
             constantsSet.ConstantsVersionBaseField.Value = constantsStartGuidField;
-            
+
             // записываем константы в стартовый ключ и старое поле (для совместимости)
             await _cache.SetStartConstants(constantsSet.ConstantsVersionBase, constantsStartLegacyField, constantsSet);
             Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBase.Value }, new { Field = constantsStartLegacyField });
 
-            Logs.Here().Information("\n ConstantsSet constantsSet is - {@C}.", new { ConstantsSet = constantsSet});
+            Logs.Here().Information("\n ConstantsSet constantsSet is - {@C}.", new { ConstantsSet = constantsSet });
 
 
 
@@ -103,6 +103,17 @@ namespace ConstantData
             await _cache.SetStartConstants(constantsSet.ConstantsVersionBase, constantsStartGuidField, constantsSet);
             Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBase.Value }, new { Field = constantsStartGuidField });
 
+            bool isSelfTestPassed = ConstantsLoadingSelfTest(constantsSet);
+
+            if (isSelfTestPassed)
+            {
+                Logs.Here().Information("------------------------------------------------------------------------- \n ConstantData loaded constants obviously correctly. \n (if you want details, they are above in the print of the whole class). \n -------------------------------------------------------------------------");
+            }
+            else
+            {
+                Logs.Here().Error("ConstantData FAILED to load the constants correctly. \n (if you want details, they are above in the print of the whole class).");
+            }
+
             // подписываемся на ключ сообщения о необходимости обновления констант
             _subscribe.SubscribeOnEventUpdate(constantsSet, constantsStartGuidField, _cancellationToken);
             Logs.Here().Debug("SettingConstants ConstantsVersionBase = {0}, ConstantsVersionNumber = {1}.", constantsSet.ConstantsVersionBase.Value, constantsSet.ConstantsVersionNumber.Value);
@@ -125,6 +136,26 @@ namespace ConstantData
                 }
 
                 await Task.Delay(10, _cancellationToken);
+            }
+        }
+
+        private bool ConstantsLoadingSelfTest(ConstantsSet constantsSet)
+        {
+            if (constantsSet.ConstantsLoadingSelfTestEnd == null || constantsSet.ConstantsLoadingSelfTestBegin == null)
+            {
+                return false;
+            }
+
+            string selfTestSource = constantsSet.ConstantsLoadingSelfTestBegin.Value;
+            string selfTestControl = constantsSet.ConstantsLoadingSelfTestEnd.Value;
+
+            if (selfTestControl == selfTestSource)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
             }
         }
     }

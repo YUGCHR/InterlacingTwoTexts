@@ -48,7 +48,6 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("HandlerCallingDistributor started.");
             // можно добавить задержку для тестирования
 
-
             // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
             // TakeBookTextAndCreateTask
             // TaskPackageFormationFromPlainText
@@ -57,12 +56,15 @@ namespace BackgroundDispatcher.Services
             // на стороне диспетчера всё достать в словарь и найти новое (если приедет много сразу из нескольких клиентов)
             // уже обработанное поле сразу удалить, чтобы не накапливались
 
-
             // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
             bool targetDepthNotReached = await _test.Depth_HandlerCallingDistributore_Reached(constantsSet, stoppingToken);
             Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);
 
-            if (targetDepthNotReached)
+            // если глубина текста не достигнута, то идём дальше по цепочке вызовов
+            // только как идти дальше при штатной работе, без теста?
+            // можно добавить переменную workOrTest, true - Work, false - Test и поставить первой в условие с ИЛИ
+            bool workOrTestSwitch = false;
+            if (workOrTestSwitch || targetDepthNotReached)
             {
                 // тут определить, надо ли обновить константы
                 _ = HandlerCalling(constantsSet, stoppingToken);
