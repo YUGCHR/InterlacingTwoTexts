@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ namespace BackgroundDispatcher.Services
     {
         public void SubscribeOnEventFrom(ConstantsSet constantsSet);
         public void SubscribeOnTestEvent(ConstantsSet constantsSet);
+        public void Dispose();
     }
 
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
@@ -49,6 +51,7 @@ namespace BackgroundDispatcher.Services
         private bool _timerCanBeStarted;
         private bool _handlerCallingsMergeCanBeCalled;
         private int _callingNumOfEventFrom;
+        private bool _isTestInProgress;
 
         // 1 разблокировать вызов для следующего забега
         // 2 не вызывается следующий метод - может из-за несоответствия типов
@@ -76,57 +79,44 @@ namespace BackgroundDispatcher.Services
         // поправки на множественные обработчики
         // блокировка двойного вызова только в слиянии
         // останавливать только таймер, но не счётчик
-        // при разблокировки вызова проверять счётчик
+        // при разблокировке вызова проверять счётчик
+
+        // можно при запуске теста модифицировать ключ from, чтобы не могли проходить настоящие задачи
+        // но лучше проверять содержимое поля - у реальной задачи и теста оно различается
+        // и надо предусмотреть ответ контроллеру, что вас много, а я одна
+        // перед стартом теста надо проверить, не занят ли сервер реальной задачей
+        // для тестирования этой ситуации можно увеличить время выполнения реальной задачи, чтобы успеть запустить тест
 
 
-
-
-        public void SubscribeOnTestEvent(ConstantsSet constantsSet)
-        {
-            string eventKey = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            KeyEvent eventCmd = constantsSet.EventCmd; // HashSet
-
-            _keyEvents.Subscribe(eventKey, (key, cmd) => // async
-            {
-                if (cmd == eventCmd)
-                {
-                    Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
-
-                    _ = _test.IntegrationTestStart(constantsSet, _cancellationToken);
-                }
-            });
-
-            string eventKeyCommand = $"Key = {eventKey}, Command = {eventCmd}";
-            _logger.LogInformation("You subscribed on event - {EventKey}.", eventKeyCommand);
-            _logger.LogInformation("To start the front emulation please send from Redis console the following command - \n{_}{0} {1} count NN (NN - packages count).", "      ", eventCmd, eventKey);
-        }        
-
+        // подписка на ключ создания задачи (загрузки книги)
         public void SubscribeOnEventFrom(ConstantsSet constantsSet)
         {
-            string eventKey = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet
             _callingNumOfEventFrom = 0;
             _handlerCallingsMergeCanBeCalled = true;
+            // по умолчанию ставим переключатель Test/Work в положение работа
+            _isTestInProgress = false;
 
             // инициализация таймера (DoWork не сработает с нулевым счетчиком)
             _timer = new Timer(DoWork, constantsSet, 0, Timeout.Infinite);
             _timerCanBeStarted = true;
 
-            _keyEvents.Subscribe(eventKey, (key, cmd) => // async
+            _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
                 if (cmd == eventCmd)
                 {
                     // считать вызовы подписки и запустить таймер после первого (второго?) вызова
                     int count = Interlocked.Increment(ref _callingNumOfEventFrom);
-                    Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.\n", eventKey, _callingNumOfEventFrom, count);
+                    Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.\n", eventKeyFrom, _callingNumOfEventFrom, count);
 
                     _ = EventCounter(constantsSet, _cancellationToken);
                 }
             });
 
-            string eventKeyCommand = $"Key = {eventKey}, Command = {eventCmd}";
+            string eventKeyCommand = $"Key = {eventKeyFrom}, Command = {eventCmd}";
             _logger.LogInformation("You subscribed on event - {EventKey}.", eventKeyCommand);
-            _logger.LogInformation("To start the front emulation please send from Redis console the following command - \n{_}{0} {1} count NN (NN - packages count).", "      ", eventCmd, eventKey);
+            _logger.LogInformation("To start the front emulation please send from Redis console the following command - \n{_}{0} {1} count NN (NN - packages count).", "      ", eventCmd, eventKeyFrom);
         }
 
         public Task EventCounter(ConstantsSet constantsSet, CancellationToken stoppingToken)
@@ -178,12 +168,53 @@ namespace BackgroundDispatcher.Services
 
             _handlerCallingsMergeCanBeCalled = false;
 
+            // вот здесь подходящий момент, когда не надо спешить и можно определить, что сейчас - тест или работа
+            // если будет следующий вызов, то он повисит в ожидании
+            // вот только его поля уже будет доступны...
+            // но если тест, то поле все равно будет только одно - оно перезапишется
+            // а если будет хоть одно рабочее поле, то тест отменится, даже если он был запущен раньше
+            // всё поменялось, тест при запуске ставит флаг _isTestInProgress в true и остальные разбегаются в стороны
+
             // тут можно возвращать true из обработчика - с await, это будет означать, что он освободился и готов принять событие во второй поток
-            _handlerCallingsMergeCanBeCalled = await _front.HandlerCallingDistributore(constantsSet, _cancellationToken);
+            _handlerCallingsMergeCanBeCalled = await _front.HandlerCallingDistributore(constantsSet, _isTestInProgress, _cancellationToken);
             Logs.Here().Information("HandlerCallingDistributore returned calling unblock. {@F}", new { Flag = _handlerCallingsMergeCanBeCalled });
         }
 
-        public Task StartTimerOnce(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        // not used
+        private async Task<bool> IsTestStartedAndAllowed(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+            // надо проверить значение поля ключа From - если там bookPlainText_FieldPrefixGuid, то это работа, а если "count", то тест
+            // для этого надо удалять отработанные поля в более поздних методах
+            // проверка - достать все поля из ключа
+            // если поле только одно и соответствует тесту, то можно переключать в тест
+            // если есть что-то ещё, то обработчик занят реальной задачей, тогда сообщить, что проведение теста запрещено законом
+            // поле теста тоже надо удалять, можно прямо здесь, после принятия решения
+
+            // всё не так просто - ключ генерируется очень часто (при тестах или интенсивной работе)
+            // придётся подменять ключ From - при запуске теста настоящий ключ From заблокировать флагом
+
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            IDictionary<string, string> tasks = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
+            int tasksCount = tasks.Count;
+            if(tasksCount == 1)
+            {
+                foreach(var t in tasks)
+                {
+                    (string field, string value) = t;
+                    if (field == "count")
+                    {
+                        // тут удалить поле
+                        // а в методе, запустившем тест, проверить удаление поля - что тест начал работать
+                        bool isFieldDeleted = await _cache.DelFieldAsync(eventKeyFrom, field);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return false;
+        }
+
+        private Task StartTimerOnce(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             if (_timerCanBeStarted)
             {
@@ -225,7 +256,7 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("HandlerCallingsMerge was called.");
         }
 
-        public Task StopTimer(CancellationToken stoppingToken)
+        private Task StopTimer(CancellationToken stoppingToken)
         {
             _timerCanBeStarted = true;
 
@@ -242,5 +273,45 @@ namespace BackgroundDispatcher.Services
         {
             _timer?.Dispose();
         }
+
+        // подписка на команду на запуск тестов
+        public void SubscribeOnTestEvent(ConstantsSet constantsSet)
+        {
+            string eventKey = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            KeyEvent eventCmd = constantsSet.EventCmd; // HashSet
+
+            _keyEvents.Subscribe(eventKey, async (key, cmd) => 
+            {
+                if (cmd == eventCmd)
+                {
+                    bool isTestReadyToStart = !_isTestInProgress;
+                    if (isTestReadyToStart)
+                    {
+                        Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
+                        // тут заблокировать повторное событие до окончания теста
+                        // общий флаг запуска теста и блокировки повторного запуска                    
+                        // ставим переключатель в положение тест
+                        _isTestInProgress = true;
+                        Logs.Here().Information("Is test in progress state = {0}, integration test started. \n", _isTestInProgress);
+                        // после окончания теста снять блокировку
+                        _isTestInProgress = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
+                        Logs.Here().Information("Is test in progress state = {0}, integration test finished. \n", _isTestInProgress);
+
+
+
+                        // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
+                        // и для этого тоже нужен тест...
+
+
+
+                    }
+                }
+            });
+
+            string eventKeyCommand = $"Key = {eventKey}, Command = {eventCmd}";
+            _logger.LogInformation("You subscribed on event - {EventKey}.", eventKeyCommand);
+            _logger.LogInformation("To start the front emulation please send from Redis console the following command - \n{_}{0} {1} count NN (NN - packages count).", "      ", eventCmd, eventKey);
+        }
+
     }
 }

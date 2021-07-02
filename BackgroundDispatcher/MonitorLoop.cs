@@ -164,6 +164,8 @@ namespace BackgroundDispatcher
             // обработка ключа для тестирования
             _subscribe.SubscribeOnTestEvent(constantsSet);
 
+            // сделать обработку завершения работы и развеять таймер
+
             while (IsCancellationNotYet)
             {
                 var keyStroke = Console.ReadKey();

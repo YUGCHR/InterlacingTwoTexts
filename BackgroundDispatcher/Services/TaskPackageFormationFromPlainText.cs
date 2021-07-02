@@ -12,7 +12,7 @@ namespace BackgroundDispatcher.Services
     public interface ITaskPackageFormationFromPlainText
     {
         public Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl);
-        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, bool workOrTestSwitch, CancellationToken stoppingToken);
     }
 
     public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
@@ -43,7 +43,7 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("Guid Field {0} for key {1} was created and set.\n", eventGuidFieldRun, eventKeyRun);
         }
 
-        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, bool isTestInProgress, CancellationToken stoppingToken)
         {
             Logs.Here().Information("HandlerCallingDistributor started.");
             // можно добавить задержку для тестирования
@@ -63,10 +63,11 @@ namespace BackgroundDispatcher.Services
             // если глубина текста не достигнута, то идём дальше по цепочке вызовов
             // только как идти дальше при штатной работе, без теста?
             // можно добавить переменную workOrTest, true - Work, false - Test и поставить первой в условие с ИЛИ
-            bool workOrTestSwitch = false;
-            if (workOrTestSwitch || targetDepthNotReached)
+            // 
+            bool isWorkInProgress = !isTestInProgress;
+            if (isWorkInProgress || targetDepthNotReached)
             {
-                // тут определить, надо ли обновить константы
+                // 
                 _ = HandlerCalling(constantsSet, stoppingToken);
             }
 
@@ -76,7 +77,7 @@ namespace BackgroundDispatcher.Services
 
         public async Task<int> HandlerCalling(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-
+            // тут определить, надо ли обновить константы
 
             int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
 

@@ -13,7 +13,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface IIntegrationTestService
     {
-        public Task IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
@@ -49,13 +49,13 @@ namespace BackgroundDispatcher.Services
             return test1Depth != targetTest1Depth;
         }
 
-        public async Task IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // написать сценарии тестирования и на разные глубины
             // управлять глубиной можно тоже по ключу
             // и в рабочем варианте отключить тестирование одной константой
 
-            Logs.Here().Information("   ------------------ Integration test was started.");
+            Logs.Here().Information("Integration test was started.");
 
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
@@ -92,6 +92,9 @@ namespace BackgroundDispatcher.Services
 
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
 
+            // можно сделать сценарии в виде листа и вызов конкретного по индексу
+            // собирать константы в лист лучше уже в классе теста
+            // или в интерфейсе выбора сценария показывать названия полей, а потом брать их значение для вызова теста
             // test scenario selection 
             int testScenario = await _cache.FetchHashedAsync<int>(testEventKey, testEventFileld);
 
@@ -124,6 +127,7 @@ namespace BackgroundDispatcher.Services
 
                 // в выходном (окончательном) сообщении указывать глубину теста
 
+                // определять длину плюсиков из длины строки
                 string frameSeparator1 = new('+', 39);
                 string frameSeparator2 = "+";
                 int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
@@ -136,6 +140,8 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Warning("Test scenario {0} FAILED.", testScenario);
                 }
             }
+            // возвращаем состояние _isTestInProgress - тест больше не выполняется
+            return false;
         }
     }
 }
