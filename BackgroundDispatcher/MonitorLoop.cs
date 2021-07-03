@@ -38,8 +38,7 @@ namespace BackgroundDispatcher
 
         public void StartMonitorLoop()
         {
-            //_logger.LogInformation("Monitor Loop is starting.");
-            Logs.Here().Information("Monitor Loop is started.\n");
+            Logs.Here().Information("Monitor Loop is started.");
 
             // Run a console user input loop in a background thread
             Task.Run(Monitor, _cancellationToken);
@@ -61,8 +60,6 @@ namespace BackgroundDispatcher
 
             // use guid
             ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
-            //ConstantsSet constantsSet = await _data.DeliveryOfUpdatedConstants(_cancellationToken);
-
 
             // на старте проверить наличие ключа с константами
             // в сервисе констант при старте удалять ключ и создавать новый
@@ -87,7 +84,7 @@ namespace BackgroundDispatcher
             {
                 // если серверов меньше заданного минимума, сидеть здесь и ждать регистрации нужного количества
                 //_logger.LogInformation(1001, "Please, start {0} instances of BackgroundTasksQueue server", serverCount);
-                Logs.Here().Warning("Please, start {0} instances of BackgroundTasksQueue server.\n", serverCount);
+                Logs.Here().Warning("Please, start {0} instances of BackgroundTasksQueue server.", serverCount);
                 // или если есть хотя бы один, то не ждать, а работать?
                 // ждать - значит поставить флаг разрешения размещения задач в запрещено, подписка сама оповестит, что произошли изменения
             }
@@ -119,16 +116,14 @@ namespace BackgroundDispatcher
 
             // тут необходимо очистить ключ EventKeyFrontGivesTask, может быть временно, для отладки
             string eventKeyFrontGivesTask = constantsSet.EventKeyFrontGivesTask.Value;
-            //_logger.LogInformation(1005, "Key eventKeyFrontGivesTask = {0} fetched from constants", eventKeyFrontGivesTask);
-            Logs.Here().Information("Key eventKeyFrontGivesTask = {0} fetched from constants.\n", eventKeyFrontGivesTask);
+            Logs.Here().Information("Key eventKeyFrontGivesTask = {0} fetched from constants.", eventKeyFrontGivesTask);
 
             // можно не проверять наличие ключа, а сразу пробовать удалить, там внутри есть своя проверка
             bool isExistEventKeyFrontGivesTask = await _cache.IsKeyExist(eventKeyFrontGivesTask);
             if (isExistEventKeyFrontGivesTask)
             {
                 bool isDeleteSuccess = await _cache.DelKeyAsync(eventKeyFrontGivesTask);
-                //_logger.LogInformation(1009, "FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.", eventKeyFrontGivesTask, isDeleteSuccess);
-                Logs.Here().Information("FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.\n", eventKeyFrontGivesTask, isDeleteSuccess);
+                Logs.Here().Information("FrontServerEmulation reported - isDeleteSuccess of the key {0} is {1}.", eventKeyFrontGivesTask, isDeleteSuccess);
 
             }
 
@@ -159,10 +154,8 @@ namespace BackgroundDispatcher
             // собственно, это пока всё (потом можно добавить случайную задержку между генерацией отдельных пакетов)
 
 
-            _subscribe.SubscribeOnEventFrom(constantsSet);
+            _subscribe.SubscribingPlan(constantsSet);
 
-            // обработка ключа для тестирования
-            _subscribe.SubscribeOnTestEvent(constantsSet);
 
             // сделать обработку завершения работы и развеять таймер
 
@@ -172,9 +165,7 @@ namespace BackgroundDispatcher
 
                 if (keyStroke.Key == ConsoleKey.W)
                 {
-                    //_logger.LogInformation("ConsoleKey was received {KeyStroke}.", keyStroke.Key);
                     Logs.Here().Information("ConsoleKey was received {KeyStroke}.\n", keyStroke.Key);
-
                 }
             }
         }

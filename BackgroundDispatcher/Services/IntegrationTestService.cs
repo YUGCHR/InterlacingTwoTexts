@@ -61,8 +61,8 @@ namespace BackgroundDispatcher.Services
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
             int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;
 
-            string testEventKey = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            string testEventFileld = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
 
             string testSettingKey1 = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.Value; // testSettingKey1
             double testSettingKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.LifeTime;
@@ -91,17 +91,26 @@ namespace BackgroundDispatcher.Services
             }
 
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom lifeTime
+            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}";
+
+            // сделать тестовые книги для загрузки
+            string eventFiledFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // field to load plain texts
+            string eventValueFromTest = $""; // key to load plain texts
 
             // можно сделать сценарии в виде листа и вызов конкретного по индексу
             // собирать константы в лист лучше уже в классе теста
             // или в интерфейсе выбора сценария показывать названия полей, а потом брать их значение для вызова теста
             // test scenario selection 
-            int testScenario = await _cache.FetchHashedAsync<int>(testEventKey, testEventFileld);
+            int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
             //int setting2 = await _cache.FetchHashedAsync<int>(testSettingKey1, testSettingField2);
             //int setting3 = await _cache.FetchHashedAsync<int>(testSettingKey1, testSettingField3);
 
-            if (testScenario == 1)
+            int testScenario1 = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Value;
+            string testScenario1description = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Description;
+
+            if (testScenario == testScenario1)
             {
                 Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
 
@@ -109,10 +118,11 @@ namespace BackgroundDispatcher.Services
                 {
                     Logs.Here().Information("Event From was created {0} time(s).", i + 1);
 
-                    await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", Math.Abs(i).ToString(), 0.001);
+                    // запись данных книги в фальшивый (тестовый) ключ обработки плоского текста
+                    await _cache.WriteHashedAsync<string>(eventKeyFromTest, "count", Math.Abs(i).ToString(), eventKeyFromTestLifeTime);
                 }
 
-                Logs.Here().Information("Test scenario {0} was started and is waited the results.", testScenario);
+                Logs.Here().Information("Test scenario {0} ({1}) was started and is waited the results.", testScenario, testScenario1description);
 
                 int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
                 bool isTestResultAppeared = false;
@@ -126,14 +136,19 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("Test scenario {0} finished and the results will come soon.", testScenario);
 
                 // в выходном (окончательном) сообщении указывать глубину теста
-
-                // определять длину плюсиков из длины строки
-                string frameSeparator1 = new('+', 39);
-                string frameSeparator2 = "+";
+                                
                 int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
-                if (testResult == resultTest1Passed)
+
+                // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
+                // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
+                bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
+
+                if (eventKeyTestWasDeleted && testResult == resultTest1Passed)
                 {
-                    Logs.Here().Information("{0} \n {1}Test scenario {2} passed successfully{3} \n {4}", frameSeparator1, frameSeparator2, testScenario, frameSeparator2, frameSeparator1);
+                    char separatorUnit = '+';
+                    string successTextMessage = $"Test scenario <{testScenario1description}> passed successfully";
+                    (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, successTextMessage);
+                    Logs.Here().Information("{0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
                 }
                 else
                 {
