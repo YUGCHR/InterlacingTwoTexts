@@ -12,7 +12,7 @@ namespace BackgroundDispatcher.Services
     public interface ITaskPackageFormationFromPlainText
     {
         public Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl);
-        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, bool workOrTestSwitch, CancellationToken stoppingToken);
+        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
     public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
@@ -39,14 +39,17 @@ namespace BackgroundDispatcher.Services
 
             await _cache.WriteHashedAsync<string>(eventKeyRun, eventFieldRun, eventGuidFieldRun, ttl); // создаём ключ ("task:run"), на который подписана очередь и в значении передаём имя ключа, содержащего пакет задач
 
-            //_logger.LogInformation("Guid Field {0} for key {1} was created and set.", eventGuidFieldRun, eventKeyRun);
             Logs.Here().Information("Guid Field {0} for key {1} was created and set.\n", eventGuidFieldRun, eventKeyRun);
         }
 
-        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, bool isTestInProgress, CancellationToken stoppingToken)
+        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             Logs.Here().Information("HandlerCallingDistributor started.");
             // можно добавить задержку для тестирования
+
+            // сходим в тесты, узнаем, они это сейчас или не они
+            // если они не вызывались, может быть не определено, проверить на null и присвоить false, если что
+            bool isTestInProgress = _test.IsTestInProgress();
 
             // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
             // TakeBookTextAndCreateTask
@@ -63,7 +66,7 @@ namespace BackgroundDispatcher.Services
             // если глубина текста не достигнута, то идём дальше по цепочке вызовов
             // только как идти дальше при штатной работе, без теста?
             // можно добавить переменную workOrTest, true - Work, false - Test и поставить первой в условие с ИЛИ
-            // 
+            
             bool isWorkInProgress = !isTestInProgress;
             if (isWorkInProgress || targetDepthNotReached)
             {

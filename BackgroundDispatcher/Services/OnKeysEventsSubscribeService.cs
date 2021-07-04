@@ -71,6 +71,8 @@ namespace BackgroundDispatcher.Services
 
         // можно при запуске теста модифицировать ключ from, чтобы не могли проходить настоящие задачи
         // но лучше проверять содержимое поля - у реальной задачи и теста оно различается
+        // 
+
         // и надо предусмотреть ответ контроллеру, что вас много, а я одна
         // перед стартом теста надо проверить, не занят ли сервер реальной задачей
         // для тестирования этой ситуации можно увеличить время выполнения реальной задачи, чтобы успеть запустить тест
@@ -81,18 +83,24 @@ namespace BackgroundDispatcher.Services
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet            
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}";
+            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
 
+            // инициализируем поля и таймер в классе EventCounterHandler
             _count.EventCounterInit(constantsSet);
 
             // по умолчанию ставим переключатель Test/Work в положение работа
             _isTestInProgress = false;
 
+            // надо сходить в тесты и инициализировать там местное поле _isTestInProgress
+            // потому что в методе TaskPackageFormationFromPlainText.HandlerCallingDistributore это поле проверяется, чтобы определить тест сейчас или реальная работа
+            // а если тесты ни разу не вызывались, это поле может быть не определено            
+            _test.SetIsTestInProgress(false);
+
             // подписка на ключ создания задачи (загрузки книги)
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
 
             // подписка на фальшивый (тестовый) ключ создания задачи
-            SubscribeOnEventFrom(constantsSet, eventKeyFromTest, eventCmd);
+            SubscribeOnEventFromTest(constantsSet, eventKeyFromTest, eventCmd);
 
             // подписка на ключ для старта тестов
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
@@ -105,20 +113,45 @@ namespace BackgroundDispatcher.Services
         }
 
         // bool isTestNotInProgress = !_isTestInProgress;
-        private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKey, KeyEvent eventCmd)
+        // неудачная идея объединения в один метод, надо обратно разделить на настоящий и фальшивый
+        // и настоящий блокировать при старте теста
+        // где находится гуид запроса контроллера?
+        // надо его обрабатывать и давать контроллеру подтверждение получения задания
+
+        // подписка на ключ создания задачи (загрузки книги)
+        private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
-            _keyEvents.Subscribe(eventKey, (key, cmd) => // async
+            _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
-                if (cmd == eventCmd)
+                bool isTestNotRunning = !_isTestInProgress;
+                if (isTestNotRunning)
                 {
-                    _ = _count.EventCounterOccurred(constantsSet, eventKey, _cancellationToken);
+                    if (cmd == eventCmd)
+                    {
+                        _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, _cancellationToken);
+                    }
                 }
             });
 
-            Logs.Here().Information("Subscription on event key {0} was registered", eventKey);
+            Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);
+        }
+
+        // подписка на фальшивый (тестовый) ключ создания задачи
+        private void SubscribeOnEventFromTest(ConstantsSet constantsSet, string eventKeyFromTest, KeyEvent eventCmd)
+        {
+            _keyEvents.Subscribe(eventKeyFromTest, (key, cmd) => // async
+            {
+                if (cmd == eventCmd)
+                {
+                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFromTest, _cancellationToken);
+                }
+            });
+
+            Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFromTest);
         }
 
         // подписка на команду на запуск тестов
+        // при дальнейшем углублении теста показывать этапы прохождения
         private void SubscribeOnTestEvent(ConstantsSet constantsSet, string eventKey, KeyEvent eventCmd)
         {
             _keyEvents.Subscribe(eventKey, async (key, cmd) =>
@@ -127,28 +160,45 @@ namespace BackgroundDispatcher.Services
                 {
                     // ещё проверить счётчик и если не нулевой, ждать обнуления
                     // за ним придётся ходить в следующий класс
-                    //
+                    // если счётчик не нулевой, значит там обрабатывается настоящая задача и надо ждать
 
-                    bool isTestReadyToStart = !_isTestInProgress;
-                    if (isTestReadyToStart)
+                    // показать лог получения ключа на запуск теста
+
+                    // можно повиснуть на методе и ждать положительного ответа
+                    Logs.Here().Information("isZeroCount will start to check zero counter state.");
+                    bool isZeroCount = await _count.IsCounterZeroReading(constantsSet);
+                    Logs.Here().Information("isZeroCount returned {0}.", isZeroCount);
+
+                    if (isZeroCount)
                     {
-                        Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
-                        // тут заблокировать повторное событие до окончания теста
-                        // общий флаг запуска теста и блокировки повторного запуска                    
-                        // ставим переключатель в положение тест
-                        _isTestInProgress = true;
-                        Logs.Here().Information("Is test in progress state = {0}, integration test started. \n", _isTestInProgress);
-                        // после окончания теста снять блокировку
-                        _isTestInProgress = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
-                        Logs.Here().Information("Is test in progress state = {0}, integration test finished. \n", _isTestInProgress);
+                        bool isTestReadyToStart = !_isTestInProgress;
+                        if (isTestReadyToStart)
+                        {
+                            _isTestInProgress = true;
+                            Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
+
+                            // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
+
+                            // тут заблокировать повторное событие до окончания теста
+                            // общий флаг запуска теста и блокировки повторного запуска                    
+                            // ставим переключатель в положение тест
+                            Logs.Here().Information("Is test in progress state = {0}, integration test started. \n", _isTestInProgress);
+                            // после окончания теста снять блокировку
+                            _isTestInProgress = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
+                            Logs.Here().Information("Is test in progress state = {0}, integration test finished. \n", _isTestInProgress);
 
 
 
-                        // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
-                        // и для этого тоже нужен тест...
+                            // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
+                            // и для этого тоже нужен тест...
 
 
 
+                        }
+                    }
+                    else
+                    {
+                        Logs.Here().Warning("Real task is in progress now, please try to start test later. isZeroCount = {0}", isZeroCount);
                     }
                 }
             });

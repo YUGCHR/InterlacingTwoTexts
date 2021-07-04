@@ -14,6 +14,8 @@ namespace BackgroundDispatcher.Services
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public void SetIsTestInProgress(bool init_isTestInProgress);
+        public bool IsTestInProgress();
         public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
@@ -27,6 +29,8 @@ namespace BackgroundDispatcher.Services
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
+
+        private bool _isTestInProgress;
 
         public async Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
@@ -49,6 +53,16 @@ namespace BackgroundDispatcher.Services
             return test1Depth != targetTest1Depth;
         }
 
+        public void SetIsTestInProgress(bool init_isTestInProgress)
+        {
+            _isTestInProgress = init_isTestInProgress;
+        }
+
+        public bool IsTestInProgress()
+        {
+            return _isTestInProgress;
+        }
+
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // написать сценарии тестирования и на разные глубины
@@ -56,6 +70,8 @@ namespace BackgroundDispatcher.Services
             // и в рабочем варианте отключить тестирование одной константой
 
             Logs.Here().Information("Integration test was started.");
+            // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
+            _isTestInProgress = true;
 
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
@@ -74,6 +90,7 @@ namespace BackgroundDispatcher.Services
 
             string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
             string test1Depth = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
+            // при дальнейшем углублении теста показывать этапы прохождения
             await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth, testSettingKey1LifeTime);
 
             //string testSettingField2 = "f2"; // 
@@ -136,7 +153,7 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("Test scenario {0} finished and the results will come soon.", testScenario);
 
                 // в выходном (окончательном) сообщении указывать глубину теста
-                                
+
                 int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
 
                 // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
@@ -156,7 +173,8 @@ namespace BackgroundDispatcher.Services
                 }
             }
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
-            return false;
+            _isTestInProgress = false;
+            return _isTestInProgress;
         }
     }
 }
