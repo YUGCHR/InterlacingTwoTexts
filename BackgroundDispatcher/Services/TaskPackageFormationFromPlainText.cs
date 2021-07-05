@@ -59,19 +59,28 @@ namespace BackgroundDispatcher.Services
             // на стороне диспетчера всё достать в словарь и найти новое (если приедет много сразу из нескольких клиентов)
             // уже обработанное поле сразу удалить, чтобы не накапливались
 
+            bool targetDepthNotReached = true;
             // спрятать под if
-            // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
-            bool targetDepthNotReached = await _test.Depth_HandlerCallingDistributore_Reached(constantsSet, stoppingToken);
-            Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);
+            if (isTestInProgress)
+            {
+                // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
+                targetDepthNotReached = await _test.Depth_HandlerCallingDistributore_Reached(constantsSet, stoppingToken);
+                Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);
+            }
 
             // если глубина текста не достигнута, то идём дальше по цепочке вызовов
             // только как идти дальше при штатной работе, без теста?
             // можно добавить переменную workOrTest, true - Work, false - Test и поставить первой в условие с ИЛИ
             
             bool isWorkInProgress = !isTestInProgress;
+            // должно быть true - если работа, а не тест или тест, но глубина теста не достигнута
+            // должно быть false - если текст, а не работа и глубина теста достигнута (тогда обработчик вызовов не надо вызывать)
             if (isWorkInProgress || targetDepthNotReached)
             {
-                // 
+                // тут еще можно определить, надо ли обновить константы
+                // хотя константы лучше проверять дальше
+                // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
+                // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
                 _ = HandlerCalling(constantsSet, stoppingToken);
             }
 
@@ -81,8 +90,6 @@ namespace BackgroundDispatcher.Services
 
         public async Task<int> HandlerCalling(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            // тут определить, надо ли обновить константы
-
             int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
 
             // начинаем цикл создания и размещения пакетов задач
