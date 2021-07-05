@@ -157,6 +157,19 @@ namespace BackgroundDispatcher
             // собственно, это пока всё (потом можно добавить случайную задержку между генерацией отдельных пакетов)
 
 
+
+
+            // временное удаление рабочих ключей для тестирования
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}";
+            bool eventKeyFromWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyFrom);
+            bool eventKeyFromTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyFromTest);
+            Logs.Here().Information("Keys {0} and {1} were deleted successfully - {2} / {3}.", eventKeyFrom, eventKeyFromTest, eventKeyFromWasDeleted, eventKeyFromTestWasDeleted);
+
+
+
+
             _subscribe.SubscribingPlan(constantsSet);
 
 

@@ -59,6 +59,7 @@ namespace BackgroundDispatcher.Services
             // на стороне диспетчера всё достать в словарь и найти новое (если приедет много сразу из нескольких клиентов)
             // уже обработанное поле сразу удалить, чтобы не накапливались
 
+            // спрятать под if
             // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
             bool targetDepthNotReached = await _test.Depth_HandlerCallingDistributore_Reached(constantsSet, stoppingToken);
             Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);

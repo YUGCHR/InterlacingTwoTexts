@@ -101,7 +101,7 @@ namespace BackgroundDispatcher.Services
             int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
             int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
             int currentTimeToWaitZeroCount = 0;
-            int totalTimeOfZeroCountWaiting = (int) (timerIntervalInMilliseconds * 2.001) / delayTimeForTest1;
+            int totalTimeOfZeroCountWaiting = (int)(timerIntervalInMilliseconds * 2.001) / delayTimeForTest1;
             Logs.Here().Information("totalTimeOfZeroCountWaiting = {0}.", totalTimeOfZeroCountWaiting);
 
             while (count > 0)
@@ -135,7 +135,7 @@ namespace BackgroundDispatcher.Services
         {
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
-            Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.\n", eventKey, _callingNumOfEventFrom, count);
+            Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.", eventKey, _callingNumOfEventFrom, count);
 
             // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
@@ -168,11 +168,28 @@ namespace BackgroundDispatcher.Services
         private async Task HandlerMergeOfCalling(ConstantsSet constantsSet)
         {
             // слияние вызовов обработчика из таймера и из счётчика
-            Logs.Here().Information("HandlerCallingsMerge was started.");
+            Logs.Here().Information("HandlerMergeOfCalling was started.");
 
             // остановить и сбросить таймер (не очищать?)
             Logs.Here().Information("Timer will be stopped.");
             _ = StopTimer(_cancellationToken);
+
+            // true - to call temp test
+            // создание третьей задачи, когда две только уехали на обработку по таймеру - как поведёт себя вызов теста в этот момент
+            // рассмотреть два варианта - вызов теста до появления третьей задачи и после
+            // по идее в первом варианте третья задача должна остаться проигнорироаанной
+            // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
+            bool tempTestOf3rdTaskAdded = true;
+
+            // tartTask3beforeTest = true - тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
+            // tartTask3beforeTest = false - третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
+
+            if (tempTestOf3rdTaskAdded)
+            {
+                bool startTask3beforeTest = false;
+                bool checkValue = await _test.TempTestOf3rdTaskAdded(constantsSet, tempTestOf3rdTaskAdded, startTask3beforeTest);
+                Logs.Here().Information("to read value for awaiting when keys will be written - checkValue = {0})", checkValue);
+            }
 
             // предусмотреть блокировку повторного вызова метода слияния (не повторного, а сдвоенного - от счетчика и таймера одновременно)
             while (!_handlerCallingsMergeCanBeCalled)
@@ -236,7 +253,7 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
             _ = HandlerMergeOfCalling(constantsSet);
-            Logs.Here().Information("HandlerCallingsMerge was called.");
+            Logs.Here().Information("HandlerMergeOfCalling was called.");
         }
 
         private Task StopTimer(CancellationToken stoppingToken)

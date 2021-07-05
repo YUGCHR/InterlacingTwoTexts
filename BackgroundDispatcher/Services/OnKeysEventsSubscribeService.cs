@@ -77,6 +77,14 @@ namespace BackgroundDispatcher.Services
         // перед стартом теста надо проверить, не занят ли сервер реальной задачей
         // для тестирования этой ситуации можно увеличить время выполнения реальной задачи, чтобы успеть запустить тест
 
+        // проверить вариант, когда одна реальная задача добавляется после начала выполнения двух предыдущих - когда идёт ожидание обнуления счётчика
+        // можно ли охватить это ещё дополнительным тестом, хотя бы временным или это перебор?
+        // можно сгенерировать ключ реальной задачи из кода - добавить времянку для тестирования этого варианта
+        // и не один раз, а пару раз - для наглядности и потом не создавать - пусть запустится тест
+        // и после запуска теста создать ещё один реальный ключ или даже несколько - добавить времянку в цикл создания тестовых ключей
+        // проверить, что прохождение реальных задач заблокировано
+        // и посмотреть, как подобрать их после окончания теста и выполнить, если хватает
+
         public void SubscribingPlan(ConstantsSet constantsSet)
         {
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
@@ -118,6 +126,12 @@ namespace BackgroundDispatcher.Services
         // где находится гуид запроса контроллера?
         // надо его обрабатывать и давать контроллеру подтверждение получения задания
 
+        // -----------------------------------------------------------------------------------------------------------------------------------------
+        // при обработке плоского текста посчитать его хэш и сохранить в версии книги и потом проверять
+        // если это та же самая книга, можно не сохранять
+        // очень полезно в плане перемещения мозгов из фронта в бэк - определять версию на сервере и потом показывать пользователю для согласования
+        // -----------------------------------------------------------------------------------------------------------------------------------------
+
         // подписка на ключ создания задачи (загрузки книги)
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
@@ -152,9 +166,9 @@ namespace BackgroundDispatcher.Services
 
         // подписка на команду на запуск тестов
         // при дальнейшем углублении теста показывать этапы прохождения
-        private void SubscribeOnTestEvent(ConstantsSet constantsSet, string eventKey, KeyEvent eventCmd)
+        private void SubscribeOnTestEvent(ConstantsSet constantsSet, string eventKeyTest, KeyEvent eventCmd)
         {
-            _keyEvents.Subscribe(eventKey, async (key, cmd) =>
+            _keyEvents.Subscribe(eventKeyTest, async (key, cmd) =>
             {
                 if (cmd == eventCmd)
                 {
@@ -175,7 +189,7 @@ namespace BackgroundDispatcher.Services
                         if (isTestReadyToStart)
                         {
                             _isTestInProgress = true;
-                            Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKey);
+                            Logs.Here().Information("Key {0} was received, integration test starts. \n", eventKeyTest);
 
                             // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
 
@@ -203,7 +217,7 @@ namespace BackgroundDispatcher.Services
                 }
             });
 
-            Logs.Here().Information("Subscription on event key {0} was registered", eventKey);
+            Logs.Here().Information("Subscription on event key {0} was registered", eventKeyTest);
         }
 
     }

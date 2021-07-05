@@ -17,6 +17,7 @@ namespace BackgroundDispatcher.Services
         public void SetIsTestInProgress(bool init_isTestInProgress);
         public bool IsTestInProgress();
         public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest);
     }
 
     public class IntegrationTestService : IIntegrationTestService
@@ -108,7 +109,7 @@ namespace BackgroundDispatcher.Services
             }
 
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
-            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom lifeTime
+            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
             string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}";
 
             // сделать тестовые книги для загрузки
@@ -131,6 +132,7 @@ namespace BackgroundDispatcher.Services
             {
                 Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
 
+                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
                 for (int i = 0; i < countTrackingStart; i++)
                 {
                     Logs.Here().Information("Event From was created {0} time(s).", i + 1);
@@ -176,5 +178,74 @@ namespace BackgroundDispatcher.Services
             _isTestInProgress = false;
             return _isTestInProgress;
         }
+
+        public async Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest)
+        {
+            // создание третьей задачи, когда две только уехали на обработку по таймеру - как поведёт себя вызов теста в этот момент
+            // рассмотреть два варианта - вызов теста до появления третьей задачи и после
+            // по идее в первом варианте третья задача должна остаться проигнорироаанной
+            // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
+            // выделить в отдельный метод?
+            // tempTestOf3rdTaskAdded - from redis key
+            bool result;
+            if (tempTestOf3rdTaskAdded)
+            {
+                // рассмотреть два варианта - вызов теста после появления третьей задачи и до
+                if (startTask3beforeTest)
+                {
+                    // здесь тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
+                    Logs.Here().Information("Test will call StartTask3beforeTest {0})", startTask3beforeTest);
+                    result = await StartTask3beforeTest(constantsSet);
+                }
+                else
+                {
+                    // здесь третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
+                    Logs.Here().Information("Test will call StartTestBeforeTask3 {0})", startTask3beforeTest);
+                    result = await StartTestBeforeTask3(constantsSet);
+                }
+
+                Logs.Here().Information("Temporary test finished with result = {0}.", result);
+                return result;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> StartTask3beforeTest(ConstantsSet constantsSet)
+        {
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
+
+            // сначала создаём третью задачу, а потом даём команду на запуск теста
+            await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
+
+            await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
+            
+            // to read value for awaiting when keys will be written
+            int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
+
+            return checkValue == 1;
+        }
+
+        public async Task<bool> StartTestBeforeTask3(ConstantsSet constantsSet)
+        {
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
+
+            // сначала даём команду на запуск теста, а потом создаём третью задачу (успеет ли тест её заблокировать)
+            await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
+
+            await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
+
+            // to read value for awaiting when keys will be written
+            int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
+
+            return checkValue == 1;
+        }
+
     }
 }
