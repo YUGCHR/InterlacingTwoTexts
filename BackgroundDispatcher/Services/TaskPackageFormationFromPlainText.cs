@@ -84,6 +84,8 @@ namespace BackgroundDispatcher.Services
                 _ = HandlerCalling(constantsSet, stoppingToken);
             }
 
+            
+
             Logs.Here().Information("HandlerCallingDistributor will return true.");
             return true;
         }

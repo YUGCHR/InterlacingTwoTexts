@@ -16,6 +16,8 @@ namespace BackgroundDispatcher.Services
     {
         public void EventCounterInit(ConstantsSet constantsSet);
         public Task<bool> IsCounterZeroReading(ConstantsSet constantsSet);
+        public bool IsTestStarted();
+        public void TestIsFinished();
         public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, CancellationToken stoppingToken);
         public void Dispose();
     }
@@ -46,11 +48,15 @@ namespace BackgroundDispatcher.Services
         private bool _timerCanBeStarted;
         private bool _handlerCallingsMergeCanBeCalled;
         private int _callingNumOfEventFrom;
+        private bool _isTestStarted;
 
         public void EventCounterInit(ConstantsSet constantsSet)
         {
             _callingNumOfEventFrom = 0;
             _handlerCallingsMergeCanBeCalled = true;
+
+            // ключ блокировки запуска реальной задачи после запуска теста (maybe it is needed to rename to _realTaskCanBeProcessed)
+            _isTestStarted = false;
 
             // инициализация таймера (DoWork не сработает с нулевым счетчиком)
             _timer = new Timer(DoWork, constantsSet, 0, Timeout.Infinite);
@@ -77,7 +83,7 @@ namespace BackgroundDispatcher.Services
         // надо вернуться в запуск теста, заблокировать выполнение настоящих задач и только тогда сбросить счётчик
         // и можно не разбираться, была там единица или нет, а сбрасывать всегда - тоже методом из соседнего класса для доступа к счётчику
         // при дальнейшем углублении теста показывать этапы прохождения
-
+        
         public async Task<bool> IsCounterZeroReading(ConstantsSet constantsSet)
         {
             // можно повиснуть в методе и ждать положительного ответа
@@ -93,6 +99,9 @@ namespace BackgroundDispatcher.Services
             // счётчик нулевой, значит задачи не выполняются, можно возвращать разрешение на запуск тестов
             if (count == 0)
             {
+                // 
+                _isTestStarted = true;
+                Logs.Here().Information("New real Tasks are blocked. _isTestStarted = {0}", _isTestStarted);
                 return true;
             }
 
@@ -104,6 +113,10 @@ namespace BackgroundDispatcher.Services
             int totalTimeOfZeroCountWaiting = (int)(timerIntervalInMilliseconds * 2.001) / delayTimeForTest1;
             Logs.Here().Information("totalTimeOfZeroCountWaiting = {0}.", totalTimeOfZeroCountWaiting);
 
+            // результаты -
+            // третий вызов задачи приходит когда только начинается проверка счётчика,
+            // надо передвинуть вызов на более позднее время - на момент возврата из IsCounterZeroReading, но ещё там
+
             while (count > 0)
             {
                 Logs.Here().Information("Event count {0} > 0, changes will be waited {1} sec.", count, delayTimeForTest1);
@@ -113,6 +126,10 @@ namespace BackgroundDispatcher.Services
 
                 if (currentTimeToWaitZeroCount > totalTimeOfZeroCountWaiting)
                 {
+                    // 
+                    _isTestStarted = true;
+                    Logs.Here().Information("New real Tasks are blocked. _isTestStarted = {0}", _isTestStarted);
+
                     // сбросить счётчик событий                
                     int lastCount = Interlocked.Exchange(ref _callingNumOfEventFrom, 0);
                     Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, lastCount);
@@ -125,9 +142,21 @@ namespace BackgroundDispatcher.Services
                 }
             }
 
-            // или за время ожидания закончатся все задачи и счётчик обнулится или, если есть только одна задача и она не собирается выполняться, через время счётчик обнулят и можно возвращать true
+            // или за время ожидания закончатся все задачи и счётчик обнулится или
+            // если есть только одна задача и она не собирается выполняться, через время счётчик обнулят и можно возвращать true
+
             Logs.Here().Information("count {0} has became zero and true will be returned.", count);
             return true;
+        }
+
+        public bool IsTestStarted()
+        {
+            return _isTestStarted;
+        }
+        
+        public void TestIsFinished()
+        {
+            _isTestStarted = false;
         }
 
         // методы (таймер тоже) не асинхронные и их ждут - наверное, можно работать параллельно

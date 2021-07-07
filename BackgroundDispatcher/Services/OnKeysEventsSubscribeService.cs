@@ -40,7 +40,6 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
 
         private bool _isTestInProgressAlready;
-        private bool _isTestStarted;
 
         // 1 разблокировать вызов для следующего забега
         // 2 не вызывается следующий метод - может из-за несоответствия типов
@@ -100,9 +99,6 @@ namespace BackgroundDispatcher.Services
             // ключ блокировки повторного запуска теста до окончания уже запущенного
             _isTestInProgressAlready = false;
 
-            // ключ блокировки запуска реальной задачи после запуска теста (maybe it is needed to rename to _realTaskCanBeProcessed)
-            _isTestStarted = false;
-
             // надо сходить в тесты и инициализировать там местное поле _isTestInProgress
             // потому что в методе TaskPackageFormationFromPlainText.HandlerCallingDistributore это поле проверяется, чтобы определить тест сейчас или реальная работа
             // а если тесты ни разу не вызывались, это поле может быть не определено            
@@ -143,7 +139,8 @@ namespace BackgroundDispatcher.Services
             {
                 // сразу после успешного старта тестов блокируется подписка на новые задачи
                 // если блокировка всё равно не будет успевать, надо ходить за флагом в класс EventCounterHandler
-                if (cmd == eventCmd && !_isTestStarted)
+                bool isTestStarted = _count.IsTestStarted();
+                if (cmd == eventCmd && !isTestStarted)
                 {
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, _cancellationToken);
                 }
@@ -185,19 +182,23 @@ namespace BackgroundDispatcher.Services
                     // показать лог получения ключа на запуск теста
 
                     // можно повиснуть на методе и ждать положительного ответа
-                    Logs.Here().Information("isZeroCount will start to check zero counter state. _isTestStarted = {0}", _isTestStarted);
-                    _isTestStarted = await _count.IsCounterZeroReading(constantsSet);
-                    Logs.Here().Information("isZeroCount returned {0}.", _isTestStarted);
+                    Logs.Here().Information("isZeroCount will start to check zero counter state.");
+                    bool isTestStarted = await _count.IsCounterZeroReading(constantsSet);
+                    Logs.Here().Information("isZeroCount returned {0}.", isTestStarted);
 
                     // здесь (долго быть) всегда - счётчик задач нулевой, новые задачи заблокированы
 
                     // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
-                    // счётчик уже сброшен и новая задача заблокирована возрастом
+                    // счётчик уже сброшен и новая задача заблокирована возвратом
 
-                    Logs.Here().Information("Is test in progress state = {0}, integration test started. \n", _isTestInProgressAlready);
+                    Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
                     _isTestInProgressAlready = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
-                    Logs.Here().Information("Is test in progress state = {0}, integration test finished. \n", _isTestInProgressAlready);
+                    Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
+
+                    // 
+                    _count.TestIsFinished();
+                    Logs.Here().Information("New real Task can be handled.");
 
 
 
