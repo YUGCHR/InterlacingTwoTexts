@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
+// план работ -
+
 namespace BackgroundDispatcher.Services
 {
     public interface IOnKeysEventsSubscribeService

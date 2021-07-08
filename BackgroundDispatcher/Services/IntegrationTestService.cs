@@ -9,11 +9,27 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
+// план работ -
+// 1. выделить в метод запуск ключей задач (название ключа, количество задач, задержка между запусками ...)
+
+// 2. сделать ключ регулирования запуска теста теста - порядок запуска задача-тест-задача, можно в значении в виде массива инт/бул
+// (массив неудобно при ручном запуске, лучше текстом или числом, предусмотреть возможную задержку между пунктами)
+// key - "testSettingKey2", rename it to test-of-addition-of-3rd-task:settings (value int)
+// field (int) - test steps
+// values mean the following - 
+// -100 - delay in milliseconds
+// 0 - stop the test processing
+// 100 - start task subscribeOnFrom
+// 20x - start hset test test x (x = 1, 2, 3 - the test depth)
+// 300 - start task subscribeOnFrom:test
+// потом (при формировании из веб-интерфейса) можно сделать модель с массивом
+
 namespace BackgroundDispatcher.Services
 {
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime);
         public void SetIsTestInProgress(bool init_isTestInProgress);
         public bool IsTestInProgress();
         public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
@@ -99,7 +115,7 @@ namespace BackgroundDispatcher.Services
 
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
-            int resultTest1Passed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
+            int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
 
             bool testResultsKey1WasDeleted = await _cache.DeleteKeyIfCancelled(testResultsKey1);
 
@@ -132,14 +148,16 @@ namespace BackgroundDispatcher.Services
             {
                 Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
 
-                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
-                for (int i = 0; i < countTrackingStart; i++)
-                {
-                    Logs.Here().Information("Event From was created {0} time(s).", i + 1);
 
-                    // запись данных книги в фальшивый (тестовый) ключ обработки плоского текста
-                    await _cache.WriteHashedAsync<string>(eventKeyFromTest, "count", Math.Abs(i).ToString(), eventKeyFromTestLifeTime);
-                }
+                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
+                int keysCount = countTrackingStart;
+                int delayBetweenMsec = 10;
+                string key = eventKeyFromTest;
+                string[] field = new string[2] { "count", "count" };
+                string[] value = new string[2] { "1", "2" };
+                double lifeTime = eventKeyFromTestLifeTime;
+                bool result = await TestKeysCreationInQuantityWithDelay(keysCount, delayBetweenMsec, key, field, value, lifeTime);
+
 
                 Logs.Here().Information("Test scenario {0} ({1}) was started and is waited the results.", testScenario, testScenario1description);
 
@@ -161,8 +179,8 @@ namespace BackgroundDispatcher.Services
                 // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
                 // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
                 bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
-
-                if (eventKeyTestWasDeleted && testResult == resultTest1Passed)
+                bool testResultIsAsserted = testResult == test1IsPassed;
+                if (eventKeyTestWasDeleted && testResultIsAsserted)
                 {
                     char separatorUnit = '+';
                     string successTextMessage = $"Test scenario <{testScenario1description}> passed successfully";
@@ -171,12 +189,52 @@ namespace BackgroundDispatcher.Services
                 }
                 else
                 {
-                    Logs.Here().Warning("Test scenario {0} FAILED.", testScenario);
+                    char separatorUnit = 'X';
+                    string successTextMessage = $"Test scenario <{testScenario1description}> is FAILED";
+                    (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, successTextMessage);
+                    Logs.Here().Information("{0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
+                    //Logs.Here().Warning("Test scenario {0} FAILED.", testScenario);
                 }
             }
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
             return _isTestInProgress;
+        }
+
+        public async Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime)
+        {
+            bool lifeTimeCanCreateKey = lifeTime > 0;
+            if (!lifeTimeCanCreateKey)
+            {
+                Logs.Here().Warning("{@K} with {@T} cannot be created.", new { Key = key }, new { LifeTime = lifeTime });
+                return false;
+            }
+
+            int fieldLength = field.Length;
+            int valueLength = value.Length;
+
+            if (fieldLength == valueLength && keysCount == fieldLength)
+            {
+                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
+                for (int i = 0; i < keysCount; i++)
+                {
+                    Logs.Here().Information("Event {0} was created {1} time(s).", key, i + 1);
+
+                    // запись данных книги в фальшивый (тестовый) ключ обработки плоского текста
+                    await _cache.WriteHashedAsync<string>(key, field[i], value[i], lifeTime);
+                    if (delayBetweenMsec > 0)
+                    {
+                        await Task.Delay(delayBetweenMsec);
+                        Logs.Here().Information("Delay between events is {0} msec.", delayBetweenMsec);
+
+                    }
+                }
+
+                return true;
+            }
+
+            Logs.Here().Warning("{@Q} is mismatched with array(s) length - {@F} {@V}.", new { KeysQuantity = keysCount }, new { FieldLength = fieldLength }, new { ValueLength = valueLength });
+            return false;
         }
 
         public async Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest)
@@ -222,7 +280,7 @@ namespace BackgroundDispatcher.Services
             await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
 
             await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
-            
+
             // to read value for awaiting when keys will be written
             int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 

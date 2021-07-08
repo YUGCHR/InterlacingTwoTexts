@@ -7,6 +7,10 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
+// план работ -
+// организовать тестовый ключ с плоским текстом и тестировать следующий этап
+
+
 namespace BackgroundDispatcher.Services
 {
     public interface ITaskPackageFormationFromPlainText
