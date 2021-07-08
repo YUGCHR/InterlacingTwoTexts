@@ -23,6 +23,18 @@ using Shared.Library.Services;
 // 20x - start hset test test x (x = 1, 2, 3 - the test depth)
 // 300 - start task subscribeOnFrom:test
 // потом (при формировании из веб-интерфейса) можно сделать модель с массивом
+// 
+// организовать тестовый ключ с плоским текстом
+// key - bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd:test
+// field_1 - bookText:bookGuid:0622f50c-d1d7-4dac-af14-b2a936fa750a - LanguageId:0, UploadVersion:30, BookId:79
+// field_2 - bookText:bookGuid:99e02275-c842-426c-8369-3ee72b668845 - LanguageId:1, UploadVersion:30, BookId:79
+// field_3 - bookText:bookGuid:a97346d4-1506-4b63-8f6d-4ff7afd217f4 - LanguageId:0, UploadVersion:30, BookId:78
+// field_4 - bookText:bookGuid:2d4e3513-ee43-4ff9-8993-2eb0bff53aed - LanguageId:1, UploadVersion:30, BookId:78
+// из этого ключа-хранилища создавать ключ со стандартным названием (без test в конце) и с одним из полей по очереди
+// на каждый ключ генерировать subscribeFrom field_1 key(w/o test)
+// 
+
+
 
 namespace BackgroundDispatcher.Services
 {
@@ -32,6 +44,7 @@ namespace BackgroundDispatcher.Services
         public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime);
         public void SetIsTestInProgress(bool init_isTestInProgress);
         public bool IsTestInProgress();
+        public Task<bool> RemoveWorkKeyOnStart(string key);
         public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest);
     }
@@ -78,6 +91,13 @@ namespace BackgroundDispatcher.Services
         public bool IsTestInProgress()
         {
             return _isTestInProgress;
+        }
+
+        public async Task<bool> RemoveWorkKeyOnStart(string key)
+        {
+            // can use Task RemoveAsync(string[] keys, CommandFlags flags = CommandFlags.None);
+            bool result = await _cache.DeleteKeyIfCancelled(key);
+            return result;
         }
 
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)

@@ -129,7 +129,9 @@ namespace BooksTextsSplit.Library.Services
         public async Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
         {
             // достать нужные префиксы, ключи и поля из констант
+            //string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value}:test"; //TEMP FOR TEST
             string bookPlainText_KeyPrefixGuid = constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value;
+            //double keyExistingTime = 1000; // constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime; //TEMP FOR TEST
             double keyExistingTime = constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime;
 
             // создать ключ/поле из префикса и гуид книги

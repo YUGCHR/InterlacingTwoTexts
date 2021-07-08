@@ -9,7 +9,7 @@ using Shared.Library.Services;
 
 // план работ -
 // организовать тестовый ключ с плоским текстом и тестировать следующий этап
-
+// 
 
 namespace BackgroundDispatcher.Services
 {
@@ -90,7 +90,7 @@ namespace BackgroundDispatcher.Services
 
             
 
-            Logs.Here().Information("HandlerCallingDistributor will return true.");
+            Logs.Here().Information("HandlerCallingDistributor is returned true.");
             return true;
         }
 
@@ -99,7 +99,6 @@ namespace BackgroundDispatcher.Services
             int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
 
             // начинаем цикл создания и размещения пакетов задач
-            //_logger.LogInformation(30010, " - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.", tasksPackagesCount);
             Logs.Here().Information(" - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.\n", tasksPackagesCount);
 
             for (int i = 0; i < tasksPackagesCount; i++)
