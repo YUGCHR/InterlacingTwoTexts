@@ -23,7 +23,9 @@ using Shared.Library.Services;
 // 20x - start hset test test x (x = 1, 2, 3 - the test depth)
 // 300 - start task subscribeOnFrom:test
 // потом (при формировании из веб-интерфейса) можно сделать модель с массивом
-// 
+//
+// можно было не громоздить фальшивый ключ для тестов, а проверять из контроллера поле и запрещать прохождение реальной задачи
+//
 // организовать тестовый ключ с плоским текстом
 // key - bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd:test
 // field_1 - bookText:bookGuid:0622f50c-d1d7-4dac-af14-b2a936fa750a - LanguageId:0, UploadVersion:30, BookId:79
@@ -33,15 +35,30 @@ using Shared.Library.Services;
 // из этого ключа-хранилища создавать ключ со стандартным названием (без test в конце) и с одним из полей по очереди
 // на каждый ключ генерировать subscribeFrom field_1 key(w/o test)
 // 
-
-
+// план -
+// 1 считать ключ-хранилище тестовых плоских текстов
+// 2 создать лист модели из ключа, поля и значения плоского текста и к нему сигнального
+// (значение теста в лист не писать, доставать из кэша в момент записи нового ключа)
+// 3 поля тестового хранилища записаны заранее в нужном порядке и хранятся прямо в методе константами
+// 4
+// 
+// тогда можно писать подряд ключ плоского текста и сигнальный ключ подписки для него
+//
 
 namespace BackgroundDispatcher.Services
 {
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime);
+
+        // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
+        public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string field, string value, double lifeTime);
+
+        // create one key with many fields/values (with possible delay after each key has been created)
+        public Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string[] key, string[] field, string[] value, double[] lifeTime);
+
+        // create many keys with field/value/lifetime each (with possible delay after each key has been created)
+        public Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime);
         public void SetIsTestInProgress(bool init_isTestInProgress);
         public bool IsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
@@ -61,6 +78,50 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
 
         private bool _isTestInProgress;
+
+        public async Task<int> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+            string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd:test";
+            string field_79_ENG = "bookText:bookGuid:0622f50c-d1d7-4dac-af14-b2a936fa750a";
+            string field_79_RUS = "bookText:bookGuid:99e02275-c842-426c-8369-3ee72b668845";
+            string field_78_ENG = "bookText:bookGuid:a97346d4-1506-4b63-8f6d-4ff7afd217f4";
+            string field_78_RUS = "bookText:bookGuid:2d4e3513-ee43-4ff9-8993-2eb0bff53aed";
+            string testKeBookPlainTexts = "bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd";
+            string[] fields = new string[4] { field_79_ENG, field_79_RUS, field_78_ENG, field_78_RUS };
+
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
+            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
+
+            // проверить ключи плоского текста и тестового оповещения и, если нужно, удалить их
+            // пока что удаляем при старте
+            bool resultPlainTexts = await _cache.DeleteKeyIfCancelled(testKeBookPlainTexts);
+            bool resultFromTest = await _cache.DeleteKeyIfCancelled(eventKeyFromTest);
+
+            // 1 считать ключ-хранилище тестовых плоских текстов
+            // 2 создать лист модели из ключа, поля и значения плоского текста и к нему сигнального
+            // (значение теста в лист не писать, доставать из кэша в момент записи нового ключа)
+
+            int testPairsCount = 1;
+            for (int i = 0; i < testPairsCount + 2; i++)
+            {
+                // прочитать первое поле хранилища
+                string bookPlainText = await _cache.FetchHashedAsync<string>(storageKeyBookPlainTexts, fields[i]);
+
+                // создать тестовый ключ плоского текста
+                await _cache.WriteHashedAsync<string>(testKeBookPlainTexts, fields[i], bookPlainText, eventKeyFromTestLifeTime);
+
+                // возможно добавить задержку
+
+                // создать тестовый ключ оповещения 
+                await _cache.WriteHashedAsync<string>(eventKeyFromTest, fields[i], testKeBookPlainTexts, eventKeyFromTestLifeTime);
+
+                // возможно добавить задержку
+            }
+
+            return testPairsCount * 2;
+        }
 
         public async Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
@@ -176,7 +237,7 @@ namespace BackgroundDispatcher.Services
                 string[] field = new string[2] { "count", "count" };
                 string[] value = new string[2] { "1", "2" };
                 double lifeTime = eventKeyFromTestLifeTime;
-                bool result = await TestKeysCreationInQuantityWithDelay(keysCount, delayBetweenMsec, key, field, value, lifeTime);
+                bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
 
                 Logs.Here().Information("Test scenario {0} ({1}) was started and is waited the results.", testScenario, testScenario1description);
@@ -221,39 +282,74 @@ namespace BackgroundDispatcher.Services
             return _isTestInProgress;
         }
 
-        public async Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime)
-        {
-            bool lifeTimeCanCreateKey = lifeTime > 0;
-            if (!lifeTimeCanCreateKey)
-            {
-                Logs.Here().Warning("{@K} with {@T} cannot be created.", new { Key = key }, new { LifeTime = lifeTime });
-                return false;
-            }
+        // метод, создающий ключи в цикле, дополнить и массивом ключей тоже - можно сделать несколько перезагрузок
+        // если массив ключей, то массивы полей и значений совпадающие с ним по размерности
+        // а если ключ один, то в цикле пишутся несколько полей со значениями
+        // если всё по одному, то в цикле пишутся одинаковые - но зачем?
 
-            int fieldLength = field.Length;
-            int valueLength = value.Length;
-
-            if (fieldLength == valueLength && keysCount == fieldLength)
+        // rename to TestKeysCreationInQuantityWithDelayAfter
+        public async Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string field, string value, double lifeTime)
+        {// create key with field/value/lifetime one or many times (with possible delay after each key has been created)
+            if (keysCount > 0 && lifeTime > 0)
             {
-                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
                 for (int i = 0; i < keysCount; i++)
                 {
-                    Logs.Here().Information("Event {0} was created {1} time(s).", key, i + 1);
+                    Logs.Here().Information("Event {@K} {@F} will be created.", new { Key = key[i] }, new { Field = field[i] });
+                    await _cache.WriteHashedAsync<string>(key, field, value, lifeTime);
 
-                    // запись данных книги в фальшивый (тестовый) ключ обработки плоского текста
-                    await _cache.WriteHashedAsync<string>(key, field[i], value[i], lifeTime);
                     if (delayBetweenMsec > 0)
                     {
                         await Task.Delay(delayBetweenMsec);
                         Logs.Here().Information("Delay between events is {0} msec.", delayBetweenMsec);
-
                     }
                 }
-
                 return true;
             }
+            Logs.Here().Warning("{@K} with {@T} in {@C} cannot be created.", new { Key = key }, new { LifeTime = lifeTime }, new { KeysCount = keysCount });
+            return false;
+        }
 
-            Logs.Here().Warning("{@Q} is mismatched with array(s) length - {@F} {@V}.", new { KeysQuantity = keysCount }, new { FieldLength = fieldLength }, new { ValueLength = valueLength });
+        public async Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string[] key, string[] field, string[] value, double[] lifeTime)
+        {// create one key with many fields/values (with possible delay after each key has been created)
+            int keyLength = key.Length;
+            int fieldLength = field.Length;
+            int valueLength = value.Length;
+            int lifeTimeLength = lifeTime.Length;
+
+            if (keyLength == fieldLength && fieldLength == valueLength && valueLength == lifeTimeLength)
+            {
+                for (int i = 0; i < keyLength; i++)
+                {
+                    bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key[i], field[i], value[i], lifeTime[i]);
+                    if (!createKeyI)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            Logs.Here().Warning("Some arrays lengths are mismatched.");
+            return false;
+        }
+
+        public async Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime)
+        {// create many keys with field/value/lifetime each (with possible delay after each key has been created)
+            int fieldLength = field.Length;
+            int valueLength = value.Length;
+
+            if (fieldLength == valueLength)
+            {
+                for (int i = 0; i < fieldLength; i++)
+                {
+                    bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key, field[i], value[i], lifeTime);
+                    if (!createKeyI)
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            Logs.Here().Warning("Some arrays lengths are mismatched.");
             return false;
         }
 
