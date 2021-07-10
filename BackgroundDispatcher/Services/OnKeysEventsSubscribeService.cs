@@ -85,7 +85,7 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
 
         private bool _isTestInProgressAlready;
-                
+
         public async Task SubscribingPlan(ConstantsSet constantsSet)
         {
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom

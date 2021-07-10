@@ -53,6 +53,7 @@ namespace BackgroundDispatcher.Services
 
             // сходим в тесты, узнаем, они это сейчас или не они
             // если они не вызывались, может быть не определено, проверить на null и присвоить false, если что
+            // уже всё заранее инициализировано
             bool isTestInProgress = _test.IsTestInProgress();
 
             // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
