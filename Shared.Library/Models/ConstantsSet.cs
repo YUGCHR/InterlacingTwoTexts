@@ -77,8 +77,8 @@ namespace Shared.Library.Models
             public BackgroundDispatcherPrefixes BackgroundDispatcherPrefix { get; set; }
             public class BackgroundDispatcherPrefixes
             {
-                public KeyType Reserved01 { get; set; }
-                public KeyType Reserved02 { get; set; }
+                public KeyType TaskPackage { get; set; }
+                public KeyType EventKeyFrontGivesTask { get; set; }
                 public KeyType Reserved03 { get; set; }
             }
             public IntegrationTestPrefixes IntegrationTestPrefix { get; set; }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BooksTextsSplit.Library.Models;
@@ -51,6 +52,7 @@ namespace BackgroundDispatcher.Services
     public interface IIntegrationTestService
     {
         public Task<bool> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0);
+        public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "");
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
@@ -64,7 +66,7 @@ namespace BackgroundDispatcher.Services
         public void SetIsTestInProgress(bool init_isTestInProgress);
         public bool IsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
-        public Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> IsPreassignedDepthReached(ConstantsSet constantsSet, string currentDepth, CancellationToken stoppingToken);
         public Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest);
     }
 
@@ -112,7 +114,7 @@ namespace BackgroundDispatcher.Services
                 // (значение теста в лист не писать, доставать из кэша в момент записи нового ключа)
 
                 // выделить for в отдельный метод и уменьшить слоистость?
-                for (int i = 0; i < testPairsCount + 2; i++)
+                for (int i = 0; i < testPairsCount * 2; i++)
                 {
                     // прочитать первое поле хранилища
                     TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(storageKeyBookPlainTexts, fields[i]);
@@ -120,9 +122,11 @@ namespace BackgroundDispatcher.Services
 
                     // создать тестовый ключ плоского текста
                     resultPlainText = await WriteHashedAsyncWithDelayAfter<TextSentence>(testKeBookPlainTexts, fields[i], bookPlainText, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
+                    Logs.Here().Information("Test plain text was write in {@K} / {@F}", new { Key = testKeBookPlainTexts }, new { Field = fields[i] });
 
                     // создать тестовый ключ оповещения 
                     resultFromTest = await WriteHashedAsyncWithDelayAfter<string>(eventKeyFromTest, fields[i], testKeBookPlainTexts, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
+                    Logs.Here().Information("Test subscribeOnFrom was write in {@K} / {@F} / {@V}", new { Key = eventKeyFromTest }, new { Field = fields[i] }, new { Value = testKeBookPlainTexts });
 
                     if (SomethingWentWrong(resultPlainText, resultFromTest))
                     {
@@ -136,7 +140,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // можно сделать перегрузку с массивом на вход
-        private bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true)
+        public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "")
         { // return true if something went wrong!
             const int resultCount = 5;
             bool[] results = new bool[resultCount] { result0, result1, result2, result3, result4 };
@@ -145,7 +149,7 @@ namespace BackgroundDispatcher.Services
             {
                 if (!results[i])
                 {
-                    Logs.Here().Error("Situation where something went unexpectedly wrong is appeared - result No. {0} is {1}", results[i], i);
+                    Logs.Here().Error("Situation in {0} where something went unexpectedly wrong is appeared - result No. {1} is {2}", currentMethodName, results[i], i);
                     return true;
                 }
             }
@@ -170,7 +174,7 @@ namespace BackgroundDispatcher.Services
             return false;
         }
 
-        public async Task<bool> Depth_HandlerCallingDistributore_Reached(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<bool> IsPreassignedDepthReached(ConstantsSet constantsSet, string currentDepth, CancellationToken stoppingToken)
         {
             // создаем сообщение об успешном тесте
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
@@ -183,12 +187,17 @@ namespace BackgroundDispatcher.Services
 
             string testSettingKey1 = "testSettingKey1";
             string testSettingField1 = "f1"; // test depth
-            string test1Depth = "HandlerCallingDistributore"; // other values - in constants
+
+            // получать в параметрах, чтобы определить, из какого места вызвали
+            string test1Depth1 = "HandlerCallingDistributore"; // other values - in constants
+            string test1Depth2 = "DistributeTaskPackageInCafee";
+
+            // здесь задана нужная глубина теста
             string targetTest1Depth = await _cache.FetchHashedAsync<string>(testSettingKey1, testSettingField1);
             bool keyWasDeleted = await _cache.DelFieldAsync(testResultsKey1, testSettingField1);
 
             // this method result is returned to variable <bool> targetDepthNotReached
-            return test1Depth != targetTest1Depth;
+            return currentDepth != targetTest1Depth;
         }
 
         public void SetIsTestInProgress(bool init_isTestInProgress)
@@ -242,10 +251,12 @@ namespace BackgroundDispatcher.Services
             bool testSettingKey1WasDeleted = await RemoveWorkKeyOnStart(testSettingKey1);
 
             string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
-            string test1Depth = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
+            string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
+            string test1Depth2 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue2.Value; // DistributeTaskPackageInCafee
 
+            // здесь задаётся глубина теста - название метода, в котором надо закончить тест
             // при дальнейшем углублении теста показывать этапы прохождения
-            await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth, testSettingKey1LifeTime);
+            await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth2, testSettingKey1LifeTime);
 
             //string testSettingField2 = "f2"; // 
             //string testSettingField3 = "f3"; //
@@ -464,7 +475,7 @@ namespace BackgroundDispatcher.Services
             return false;
         }
 
-        public async Task<bool> StartTask3beforeTest(ConstantsSet constantsSet)
+        private async Task<bool> StartTask3beforeTest(ConstantsSet constantsSet)
         {
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
             double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
@@ -482,7 +493,7 @@ namespace BackgroundDispatcher.Services
             return checkValue == 1;
         }
 
-        public async Task<bool> StartTestBeforeTask3(ConstantsSet constantsSet)
+        private async Task<bool> StartTestBeforeTask3(ConstantsSet constantsSet)
         {
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
             double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
