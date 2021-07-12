@@ -18,7 +18,7 @@ namespace BooksTextsSplit.Library.Services
         public Task<bool> SetTaskGuidKeys(TaskUploadPercents uploadPercents, int keysExistingTimeFactor);
         public Task<BookTable> CheckBookId(string bookTablesKey, int uploadVersion);
         public Task AddHashValue<T>(string Key, int id, T context);
-        public Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid);
+        public Task<bool> AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid);
     }
 
     public class ControllerCacheManager : IControllerCacheManager
@@ -126,7 +126,7 @@ namespace BooksTextsSplit.Library.Services
             await _access.WriteHashedAsync<int, T>(Key, id, context, chaptersExistingTime);
         }
 
-        public async Task AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
+        public async Task<bool> AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
         {
             // достать нужные префиксы, ключи и поля из констант
             //string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value}:test"; //TEMP FOR TEST
@@ -136,6 +136,16 @@ namespace BooksTextsSplit.Library.Services
 
             // создать ключ/поле из префикса и гуид книги
             string bookPlainText_FieldPrefixGuid = $"{constantsSet.BookPlainTextConstant.FieldPrefix.Value}:{bookGuid}";
+
+            // здесь проверить тестовый ключ и ждать, если идет тест
+            bool isTestInProgress = await IsTestInProgress(constantsSet);
+            if(isTestInProgress)
+            {
+                // выполняется тест и не освободился, надо возвращать пользователю отлуп
+                Logs.Here().Information("The waiting time of the end of the test was expired - {0}", isTestInProgress);
+
+                return false;
+            }
 
             // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
             // перенести весь _access в Shared.Library.Services CacheManageService
@@ -153,11 +163,54 @@ namespace BooksTextsSplit.Library.Services
             // но как тогда синхронизировать счётчик?
 
             // записываем то же самое поле в ключ subscribeOnFrom, а в значение (везде одинаковое) - ключ всех исходников книг
-            // на стороне диспетчера всё достать словарём и найти новое (если приедет много сразу из нескольких клиентов), уже обработанное поле сразу удалить, чтобы не накапливались
+            // на стороне диспетчера всё достать словарём и найти новое (если приедет много сразу из нескольких клиентов)
+            // уже обработанное поле сразу удалить, чтобы не накапливались
             string eventKeyFrom = constantsSet.EventKeyFrom.Value;
             await _access.WriteHashedAsync<string>(eventKeyFrom, bookPlainText_FieldPrefixGuid, bookPlainText_KeyPrefixGuid, keyExistingTime);
             Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V} \n", new { Key = eventKeyFrom }, new { Field = bookPlainText_FieldPrefixGuid }, new { Value = bookPlainText_KeyPrefixGuid });
+            
+            // типа справились (тут можно подождать какой-то реакции диспетчера - скажем, когда исчезнет ключ subscribeOnFrom
+            return true;
+        }
 
+        private async Task<bool> IsTestInProgress(ConstantsSet constantsSet)
+        {
+            // здесь проверить тестовый ключ и, если выполняется тест, ждать
+            // можно ждать стандартные 5 сек (или свое время) и, если не освободилось, возвращать пользователю отлуп
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
+            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
+            int totalTimeOfTestEndWaiting = (int)(timerIntervalInMilliseconds * 2.001) / delayTimeForTest1;
+            int currentTimeToWaitEndOfTest = 0;
+
+            bool isTestInProgress = true;
+            // крутимся в цикле, пока существует ключ запуска теста
+            while (isTestInProgress)
+            {
+                isTestInProgress = await _access.KeyExistsAsync(eventKeyTest);
+                Logs.Here().Information("Test {@K} is existed - {0}", new { Key = eventKeyTest }, isTestInProgress);
+
+                if (!isTestInProgress)
+                {
+                    // если ключа теста нет, возвращаем, что теста нет - без ожидания
+                    Logs.Here().Information("Test {@K} is not found - {0}", new { Key = eventKeyTest }, !isTestInProgress);
+                    return false;
+                }
+
+                await Task.Delay(delayTimeForTest1);
+                currentTimeToWaitEndOfTest++;
+                Logs.Here().Information("Test {@K} is existed - {0}, it is waited {1} msec for {2} times", new { Key = eventKeyTest }, isTestInProgress, delayTimeForTest1, currentTimeToWaitEndOfTest);
+
+                if (currentTimeToWaitEndOfTest > totalTimeOfTestEndWaiting)
+                {
+                    // время ожидания вышло, тест почему-то не закончился - всё плохо, больше не ждём
+                    Logs.Here().Information("The waiting time {0} was expired {1}, the test {@K} for some reason is {2} yet", currentTimeToWaitEndOfTest, totalTimeOfTestEndWaiting, new { Key = eventKeyTest }, isTestInProgress);
+
+                    return true;
+                }
+            }
+            // вообще всё пропало
+            return true;
         }
     }
 }

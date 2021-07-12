@@ -9,8 +9,19 @@ using Shared.Library.Services;
 using BooksTextsSplit.Library.Models;
 using System.Runtime.CompilerServices;
 
+//
 // план работ -
-// организовать тестовый ключ с плоским текстом и тестировать следующий этап
+// перенести лог в метод получения названия метода и включать по параметру
+// в конце теста проверять ключи и поля на совпадение (в отдельном методе?)
+// отмечать пройденную глубину теста
+// сделать нормальное включение ветки теста с третьим ключом
+// добавить второй сценарий теста - с шестью событиями
+// и сделать больше тестовых ключей с текстами
+// можно добавить в конце названий полей приметные номера - например с указанием, что тест, номер книги и язык
+// и в ключ тоже что-то добавить (нет, в ключ не надо, он никуда не идёт)
+// можно в ключ пакета в кафе добавлять контрольное слово для тестов и потом его находить для определения прохождения теста
+// но вообще это всё лишнее - надо чтобы тест сам определял правильность прохождения
+// вынести всё (что можно) из главного класса тестов в дополнительные
 // 
 
 namespace BackgroundDispatcher.Services
@@ -91,8 +102,8 @@ namespace BackgroundDispatcher.Services
             bool isWorkInProgress = !isTestInProgress;
             // должно быть true - если работа, а не тест или тест, но глубина теста не достигнута
             // должно быть false - если текст, а не работа и глубина теста достигнута (тогда обработчик вызовов не надо вызывать)
-            bool nextMethodWasCalled;
-            if (isWorkInProgress || targetDepthNotReached || true) // true - temporary ()
+            bool nextMethodWasCalled = false;
+            if (isWorkInProgress || targetDepthNotReached)
             {
                 // надо как-то возвращать true на предыдущие точки глубин
                 // например, можно несколько полей глубины и поля номерные по порядку
@@ -109,8 +120,13 @@ namespace BackgroundDispatcher.Services
             return nextMethodWasCalled;
         }
 
-        public string FetchCurrentMethodName([CallerMemberName] string currentMethodName = "")
+        // можно перенести во вспомогательную библиотеку
+        public string FetchCurrentMethodName(bool showLogMethodStarted = false, [CallerMemberName] string currentMethodName = "")
         {
+            if (showLogMethodStarted)
+            {
+                Logs.Here().Debug("{0} started.", currentMethodName);
+            }
             return currentMethodName;
         }
 

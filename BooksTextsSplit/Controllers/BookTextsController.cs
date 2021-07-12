@@ -156,19 +156,22 @@ namespace BooksTextsSplit.Controllers
 
         // POST: api/BookTexts/UploadFile        
         [HttpPost("UploadFile")]
-        public IActionResult UploadFile([FromForm] IFormFile bookFile, [FromForm] string jsonBookDescription)
+        public async Task<IActionResult> UploadFile([FromForm] IFormFile bookFile, [FromForm] string jsonBookDescription)
         {            
             if (bookFile != null)
             {
                 string bookGuid = Guid.NewGuid().ToString();
 
                 // вызвать метод из ControllerDataManager
-                _data.BookProcessing(bookFile, jsonBookDescription, bookGuid);
+                bool isPainBookTextAdded = await _data.BookProcessing(bookFile, jsonBookDescription, bookGuid);
                 Logs.Here().Information("BookProcessing was called = {@G}", new { BookGuid = bookGuid });
 
                 _task2Queue.BackgroundRecordBookToDb(bookFile, jsonBookDescription, bookGuid); // remove
-
-                return Ok(bookGuid);
+                if (isPainBookTextAdded)
+                {
+                    return Ok(bookGuid);
+                }
+                return Problem("BackServer is busy");
             }
             return Problem("bad file");
         }

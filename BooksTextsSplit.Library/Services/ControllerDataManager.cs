@@ -19,7 +19,7 @@ namespace BooksTextsSplit.Library.Services
     #region Declarations
     public interface IControllerDataManager
     {
-        public Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string guid);
+        public Task<bool> BookProcessing(IFormFile bookFile, string jsonBookDescription, string guid);
         public Task<TaskUploadPercents> IsExistBackgroundUpdateKeys();
         public Task<bool> RemoveTotalCountWhereLanguageId(int languageId);
         public Task<int> TotalRecordsCountWhereLanguageId(int languageId);
@@ -214,7 +214,7 @@ namespace BooksTextsSplit.Library.Services
         #region Upload Book
 
 
-        public async Task BookProcessing(IFormFile bookFile, string jsonBookDescription, string bookGuid)
+        public async Task<bool> BookProcessing(IFormFile bookFile, string jsonBookDescription, string bookGuid)
         {
             // 1 получить константы 
             // 2 обработать форму и создать нужные константы для записи
@@ -240,9 +240,9 @@ namespace BooksTextsSplit.Library.Services
             bookPlainTextWithDescription.BookPlainText = text;
             bookPlainTextWithDescription.BookGuid = bookGuid;
 
-            await _cache.AddPainBookText(constantsSet, bookPlainTextWithDescription, bookGuid);
+            bool isPainBookTextAdded = await _cache.AddPainBookText(constantsSet, bookPlainTextWithDescription, bookGuid);
             Logs.Here().Information("AddPainBookText was called = {@G}", new { BookGuid = bookGuid });
-
+            return isPainBookTextAdded;
         }
 
 
