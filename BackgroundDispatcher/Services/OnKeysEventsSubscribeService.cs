@@ -147,6 +147,7 @@ namespace BackgroundDispatcher.Services
             {
                 // сразу после успешного старта тестов блокируется подписка на новые задачи
                 // если блокировка всё равно не будет успевать, надо ходить за флагом в класс EventCounterHandler
+                // больше тут не надо блокировать
                 bool isTestStarted = _count.IsTestStarted();
                 if (cmd == eventCmd && !isTestStarted)
                 {
