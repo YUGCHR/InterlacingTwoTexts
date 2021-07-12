@@ -119,6 +119,7 @@ namespace BackgroundDispatcher.Services
             // третий вызов задачи приходит когда только начинается проверка счётчика,
             // надо передвинуть вызов на более позднее время - на момент возврата из IsCounterZeroReading, но ещё там
 
+            // точно такая же конструкция используется ещё в одном месте, можно выделить в метод, но там все непросто
             while (count > 0)
             {
                 Logs.Here().Information("Event count {0} > 0, changes will be waited {1} sec.", count, delayTimeForTest1);

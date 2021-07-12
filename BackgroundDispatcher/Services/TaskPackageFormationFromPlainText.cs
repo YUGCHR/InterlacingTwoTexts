@@ -22,12 +22,16 @@ using System.Runtime.CompilerServices;
 // но вообще это всё лишнее - надо чтобы тест сам определял правильность прохождения
 // вынести всё (что можно) из главного класса тестов в дополнительные
 // 
+// те поля, которые не получилось удалить (сами исчезли) надо сложить в отдельный список
+// и отдать в специальный метод - он за ними присмотрит
+//
+// по кругу пока не ходить - в тестах проверить, захватываются ли все вызовы или что-то пропадает
+// 
 
 namespace BackgroundDispatcher.Services
 {
     public interface ITaskPackageFormationFromPlainText
     {
-        public Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl);
         public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
@@ -49,15 +53,6 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TaskPackageFormationFromPlainText>();
 
-        public async Task FrontServerEmulationCreateGuidField(string eventKeyRun, string eventFieldRun, double ttl) // not used
-        {
-            string eventGuidFieldRun = Guid.NewGuid().ToString(); // 
-
-            await _cache.WriteHashedAsync<string>(eventKeyRun, eventFieldRun, eventGuidFieldRun, ttl); // создаём ключ ("task:run"), на который подписана очередь и в значении передаём имя ключа, содержащего пакет задач
-
-            Logs.Here().Information("Guid Field {0} for key {1} was created and set.\n", eventGuidFieldRun, eventKeyRun);
-        }
-
         public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // добавить счётчик потоков и проверить при большом количестве вызовов
@@ -69,54 +64,34 @@ namespace BackgroundDispatcher.Services
 
             // можно добавить задержку для тестирования
 
-            // сходим в тесты, узнаем, они это сейчас или не они
-            // если они не вызывались, может быть не определено, проверить на null и присвоить false, если что
-            // уже всё заранее инициализировано
-            bool isTestInProgress = _test.IsTestInProgress();
-
-            // CollectSourceDataAndCreateTaskPackageForBackgroundProcessing
-            // TakeBookTextAndCreateTask
-            // TaskPackageFormationFromPlainText
-            // получаем условия задач по стартовому ключу
-            // записываем то же самое поле в ключ subscribeOnFrom, а в значение (везде одинаковое) - ключ всех исходников книг
-            // на стороне диспетчера всё достать в словарь и найти новое (если приедет много сразу из нескольких клиентов)
             // уже обработанное поле сразу удалить, чтобы не накапливались
 
-            bool targetDepthNotReached = true;
-            // спрятать под if
+            // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
+            // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
+            bool isTestInProgress = _test.IsTestInProgress();
             if (isTestInProgress)
             {
                 // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
+                // если дальше идти не надо, то return прямо здесь
                 // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
-                //string test1Depth1 = "HandlerCallingDistributore"; // other values - in constants
-                //string test1Depth2 = "DistributeTaskPackageInCafee";
-                targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken); // currentMethodName
-                Logs.Here().Information("Test reached HandlerCallingDistributor and will {0} move on.", targetDepthNotReached);
+                // название метода из переменной - currentMethodName
+                // инвертировать возврат и переименовать переменную результата в targetDepthReached
+                bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
+                Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
+                if (!targetDepthNotReached)
+                {
+                    return true;
+                }
             }
+            // тут еще можно определить, надо ли обновить константы
+            // хотя константы лучше проверять дальше
+            // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
+            // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
 
-            // если глубина текста не достигнута, то идём дальше по цепочке вызовов
-            // только как идти дальше при штатной работе, без теста?
-            // можно добавить переменную workOrTest, true - Work, false - Test и поставить первой в условие с ИЛИ
+            _ = HandlerCalling(constantsSet, stoppingToken);
 
-            bool isWorkInProgress = !isTestInProgress;
-            // должно быть true - если работа, а не тест или тест, но глубина теста не достигнута
-            // должно быть false - если текст, а не работа и глубина теста достигнута (тогда обработчик вызовов не надо вызывать)
-            bool nextMethodWasCalled = false;
-            if (isWorkInProgress || targetDepthNotReached)
-            {
-                // надо как-то возвращать true на предыдущие точки глубин
-                // например, можно несколько полей глубины и поля номерные по порядку
-
-                // тут еще можно определить, надо ли обновить константы
-                // хотя константы лучше проверять дальше
-                // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
-                // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
-                nextMethodWasCalled = true;
-                _ = HandlerCalling(constantsSet, stoppingToken);
-            }
-
-            Logs.Here().Information("{0} is returned {1}.", currentMethodName, nextMethodWasCalled);
-            return nextMethodWasCalled;
+            Logs.Here().Information("{0} is returned true.", currentMethodName);
+            return true;
         }
 
         // можно перенести во вспомогательную библиотеку
@@ -131,44 +106,68 @@ namespace BackgroundDispatcher.Services
 
         public async Task<int> HandlerCalling(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            // обработчик вызовов - что делает
+            // обработчик вызовов - что делает (надо переименовать - не вызовов, а событий подписки или как-то так)
             // получает сообщение о сформированном вызове по поводу subscribeOnFrom
             // собирает из subscribeOnFrom все данные и формирует пакет задач с плоским текстом (формирование пакета можно отдать в следующий метод)
             // удаляет обработанные поля subscribeOnFrom
             // проверяет наличие ключа subscribeOnFrom, если остался, ещё раз достаёт поля - и далее по кругу, пока ключ не исчезнет
-            // 
+
             // решить, как лучше - ждать, когда ключ исчезнет и только потом формировать пакет задач или формировать новый пакет на каждом круге
             // первый вариант - пакет на каждом круге
             // а если ключ не исчез, подождать стандартные 5 секунд - скорее всего, новые поля заберёт следующие поток
-            // 
+
             // вообще, в этом обработчике надо только достать список полей и сразу же удалить поля по списку
             // только успешно удалённые поля будут считаться полученными и пригодными для дальнейшей обработки
             // потом отдать данные в следующий метод
+
             // те поля, которые не получилось удалить (сами исчезли) надо сложить в отдельный список
             // и отдать в специальный метод - он за ними присмотрит
-            //
+
             // по кругу пока не ходить - в тестах проверить, захватываются ли все вызовы или что-то пропадает
-            // 
+
             // вообще-то это всё - разместить пакет задач для бэк-сервера и дальше только контролировать выполнение
 
             string currentMethodName = FetchCurrentMethodName();
             Logs.Here().Information("{0} started.", currentMethodName);
 
-            // если тест, надо смотреть тестовый ключ, а не рабочий
-            // убрать все присваивания в отдельный метод, чтобы не путаться
-            string eventKeyFrom = constantsSet.EventKeyFrom.Value;
-            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
-            string eventKey = eventKeyFrom;
+            // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
+            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTests) = await ProcessedDataOfSubscribeOnFrom(constantsSet, stoppingToken);
 
-            bool isTestInProgress = _test.IsTestInProgress();
-            if (isTestInProgress)
+            // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
+            string taskPackageGuid = await BackgroundDispatcherCreateTasks(constantsSet, sourceKeyWithPlainTests, fieldsKeyFromDataList);
+
+            // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
+            bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
+
+            if(isCafeKeyCreated) // && test is processing now
             {
-                eventKey = eventKeyFromTest; // subscribeOnFrom:test
+                // вызвать метод теста для сообщения об окончании выполнения
             }
-            
-            IDictionary<string, string> keyFromDataList = await _cache.FetchHashedAllAsync<string>(eventKey);
 
+            // никакого возврата никто не ждёт, но на всякий случай вернём ?
+            return 0;
+        }
+
+        private async Task<(List<string>, string)> ProcessedDataOfSubscribeOnFrom(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+            // название (назначение) метода - достать ключ и поля плоских текстов из события подписки subscribeOnFrom
+
+            // если тест, надо смотреть тестовый ключ, а не рабочий
+            // теперь ключ всегда одинаковый - рабочий
+            // убрать все присваивания в отдельный метод, чтобы не путаться (уже одно осталось, нечего убирать)
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value;
+            //string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            //string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
+            //string eventKey = eventKeyFrom;
+
+            //bool isTestInProgress = _test.IsTestInProgress();
+            //if (isTestInProgress)
+            //{
+            //    eventKey = eventKeyFromTest; // subscribeOnFrom:test
+            //}
+
+            IDictionary<string, string> keyFromDataList = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
+            int keyFromDataListCount = keyFromDataList.Count;
             List<string> fieldsKeyFromDataList = new();
             string sourceKeyWithPlainTests = null;
 
@@ -178,15 +177,16 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
 
                 // удаляем текущее поле (для точности и скорости перед удалением можно проверить существование? и, если есть, то удалять)
-                bool isFieldRemovedSuccessful = await _cache.DelFieldAsync(eventKey, f);
-                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKey });
+                bool isFieldRemovedSuccessful = await _cache.DelFieldAsync(eventKeyFrom, f);
+                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom });
 
                 // если не удалилось - и фиг с ним, удаляем его из словаря
-                if (!isFieldRemovedSuccessful)
-                {
-                    keyFromDataList.Remove(f);
-                    // а вот не фиг - тут сохраняем его куда-то (потом)
-                }
+                // можно убрать, всё равно словарь больше не используется
+                //if (!isFieldRemovedSuccessful)
+                //{
+                //    keyFromDataList.Remove(f);
+                //    // а вот не фиг - тут сохраняем его куда-то (потом)
+                //}
                 // если удалилось, то переписываем в лист
                 // кстати, из словаря тогда можно не удалять - он уже никому неинтересен
                 // и инвертировать логику и без else
@@ -199,18 +199,13 @@ namespace BackgroundDispatcher.Services
                 }
             }
 
-            // получили заверенный словарь с полями и ключом (в значении), отдать в следующий метод
+            int fieldsKeyFromDataListCount = fieldsKeyFromDataList.Count;
+            Logs.Here().Information("{0} tasks were found, {1} tasks were proceeded.", keyFromDataListCount, fieldsKeyFromDataListCount);
 
-            // что интересно, словарь тут уже не нужен, а достаточно простого списка (List) полей
-            // ключ везде одинаковый и его можно передать строкой
-
-            int result = await BackgroundDispatcherCreateTasks(constantsSet, sourceKeyWithPlainTests, fieldsKeyFromDataList);
-
-            // никакого возврата никто не ждёт, но на всякий случай вернём количество полученных полей
-            return keyFromDataList.Count;
+            return (fieldsKeyFromDataList, sourceKeyWithPlainTests);
         }
 
-        private async Task<int> BackgroundDispatcherCreateTasks(ConstantsSet constantsSet, string sourceKeyWithPlainTests, List<string> taskPackageFileds)
+        private async Task<string> BackgroundDispatcherCreateTasks(ConstantsSet constantsSet, string sourceKeyWithPlainTests, List<string> taskPackageFileds)
         {
             // получили ключ-гуид и список полей, по сути, это уже готовый пакет
             // сам ключ уже сформирован и ждёт - можно получить плоские тесты
@@ -230,7 +225,7 @@ namespace BackgroundDispatcher.Services
             if (sourceKeyWithPlainTests == null)
             {
                 _test.SomethingWentWrong(false);
-                return -1;
+                return null;
             }
 
             string taskPackage = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.Value; // taskPackage
@@ -255,9 +250,7 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("Plain text {@F} No. {0} was created in {@K}.", new { Filed = f }, inPackageTaskCount, new { Key = taskPackageGuid });
             }
 
-            await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
-
-            return inPackageTaskCount;
+            return taskPackageGuid;
         }
 
         private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, string taskPackageGuid)
@@ -268,131 +261,11 @@ namespace BackgroundDispatcher.Services
 
             string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
             double cafeKeyLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.LifeTime;
-            
+
             await _cache.WriteHashedAsync(cafeKey, taskPackageGuid, taskPackageGuid, cafeKeyLifeTime);
             Logs.Here().Information("{@T} was placed in {@C}.", new { Task = taskPackageGuid }, new { Cafe = cafeKey });
 
             return true;
         }
-
-
-
-
-
-
-
-
-
-        // not used below
-
-        public async Task<int> Ttttt(ConstantsSet constantsSet, CancellationToken stoppingToken)
-        {
-
-            int tasksPackagesCount = await FetchBookPlainText(constantsSet.EventKeyFrom.Value, constantsSet.EventFieldFrom.Value);
-
-            // начинаем цикл создания и размещения пакетов задач
-            Logs.Here().Information(" - Creation cycle of key EventKeyFrontGivesTask fields started with {1} steps.\n", tasksPackagesCount);
-
-            for (int i = 0; i < tasksPackagesCount; i++)
-            {
-                // guid - главный номер задания, используемый в дальнейшем для доступа к результатам
-                string taskPackageGuid = Guid.NewGuid().ToString();
-                int tasksCount = Math.Abs(taskPackageGuid.GetHashCode()) % 10; // просто (псевдо)случайное число
-                if (tasksCount < 3)
-                {
-                    tasksCount += 3;
-                }
-                // задаём время выполнения цикла - как если бы получили его от контроллера
-                // на самом деле для эмуляции пока берём из константы
-                int taskDelayTimeSpanFromSeconds = constantsSet.TaskEmulatorDelayTimeInMilliseconds.Value;
-                // создаём пакет задач (в реальности, опять же, пакет задач положил отдельный контроллер)
-                Dictionary<string, TaskDescriptionAndProgress> taskPackage = FrontServerCreateTasks(constantsSet, tasksCount, taskDelayTimeSpanFromSeconds);
-
-                // при создании пакета сначала создаётся пакет задач в ключе, а потом этот номер создаётся в виде поля в подписном ключе
-
-                // создаем ключ taskPackageGuid и кладем в него пакет 
-                // записываем ключ taskPackageGuid пакета задач в поле ключа eventKeyFrontGivesTask и в значение ключа - тоже taskPackageGuid
-                // дополняем taskPackageGuid префиксом PrefixPackage
-                string taskPackagePrefixGuid = $"{constantsSet.PrefixPackage.Value}:{taskPackageGuid}";
-                //int inPackageTaskCount = await FrontServerSetTasks(constantsSet, taskPackage, taskPackagePrefixGuid);
-                // можно возвращать количество созданных задач и проверять, что не нуль - но это чтобы хоть что-то проверять (или проверять наличие созданных ключей)
-                // на создание ключа с пакетом задач уйдёт заметное время, поэтому промежуточный ключ оправдан (наверное)
-            }
-            return tasksPackagesCount;
-        }
-
-        private async Task<int> FetchBookPlainText(string eventKeyFrom, string eventFieldFrom) // CollectBookPlainText
-        {
-            // в словарь получаем список полей, а в значение везде одинаковое - ключ, где эти поля лежат (ключ из префикса BookTextFieldPrefix и bookTextSplit server Guid)
-            // поле представляет собой префикс bookText:bookGuid: + bookGuid и хранит в значении плоский текст книги с полным описанием
-            // eventKeyFrom, bookPlainText_FieldPrefix + BookGuid, bookPlainText_KeyPrefix + ServerGuid
-
-            IDictionary<string, string> tasksCount = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
-
-            // выгруженные поля сразу удалить
-
-            Logs.Here().Information("FetchBookPlainText fetched all fields in {@D}.", new { Tasks = tasksCount });
-
-            //_logger.LogInformation(30020, "TaskCount = {TasksCount} from key {Key} was fetched.", tasksCount, eventKeyFrom);
-
-            return tasksCount.Count;
-        }
-
-        private Dictionary<string, TaskDescriptionAndProgress> FrontServerCreateTasks(ConstantsSet constantsSet, int tasksCount, int taskDelayTimeSpanFromSeconds)
-        {
-            Dictionary<string, TaskDescriptionAndProgress> taskPackage = new Dictionary<string, TaskDescriptionAndProgress>();
-
-            for (int i = 0; i < tasksCount; i++)
-            {
-                string guid = Guid.NewGuid().ToString();
-
-                // инициализовать весь класс отдельным методом
-                // найти, как передать сюда TasksPackageGuid
-                TaskDescriptionAndProgress descriptor = DescriptorInit(tasksCount, taskDelayTimeSpanFromSeconds, guid);
-
-                int currentCycleCount = descriptor.TaskDescription.CycleCount;
-
-                // дополняем taskPackageGuid префиксом PrefixPackage
-                string taskPackagePrefixGuid = $"{constantsSet.PrefixTask.Value}:{guid}";
-                taskPackage.Add(taskPackagePrefixGuid, descriptor);
-
-                _logger.LogInformation(30030, "Task {I} from {TasksCount} with ID {Guid} and {CycleCount} cycles was added to Dictionary.", i, tasksCount, taskPackagePrefixGuid, currentCycleCount);
-                //_logger.LogInformation(30033, "TaskDescriptionAndProgress descriptor TaskCompletedOnPercent = {0}.", descriptor.TaskState.TaskCompletedOnPercent);
-            }
-            return taskPackage;
-        }
-
-        private TaskDescriptionAndProgress DescriptorInit(int tasksCount, int taskDelayTimeSpanFromSeconds, string guid)
-        {
-            TaskDescriptionAndProgress.TaskComplicatedDescription cycleCount = new()
-            {
-                TaskGuid = guid,
-                CycleCount = Math.Abs(guid.GetHashCode()) % 10, // получать 10 из констант
-                TaskDelayTimeFromMilliSeconds = taskDelayTimeSpanFromSeconds
-            };
-
-            TaskDescriptionAndProgress.TaskProgressState init = new()
-            {
-                IsTaskRunning = false,
-                TaskCompletedOnPercent = -1
-            };
-
-            // получать max (3) из констант
-            if (cycleCount.CycleCount < 3)
-            {
-                cycleCount.CycleCount += 3;
-            }
-
-            TaskDescriptionAndProgress descriptor = new()
-            {
-                // передать сюда TasksPackageGuid
-                TasksCountInPackage = tasksCount,
-                TaskDescription = cycleCount,
-                TaskState = init
-            };
-
-            return descriptor;
-        }
-
     }
 }

@@ -116,7 +116,7 @@ namespace BackgroundDispatcher.Services
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
 
             // подписка на фальшивый (тестовый) ключ создания задачи
-            SubscribeOnEventFromTest(constantsSet, eventKeyFromTest, eventCmd);
+            //SubscribeOnEventFromTest(constantsSet, eventKeyFromTest, eventCmd);
 
             // подписка на ключ для старта тестов
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
@@ -148,8 +148,9 @@ namespace BackgroundDispatcher.Services
                 // сразу после успешного старта тестов блокируется подписка на новые задачи
                 // если блокировка всё равно не будет успевать, надо ходить за флагом в класс EventCounterHandler
                 // больше тут не надо блокировать
-                bool isTestStarted = _count.IsTestStarted();
-                if (cmd == eventCmd && !isTestStarted)
+                // после появления ключа запуска теста, контроллер не сможет прислать новое задание
+                //bool isTestStarted = _count.IsTestStarted();
+                if (cmd == eventCmd) // && !isTestStarted)
                 {
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, _cancellationToken);
                 }
@@ -199,13 +200,13 @@ namespace BackgroundDispatcher.Services
 
                     // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
                     // счётчик уже сброшен и новая задача заблокирована возвратом
-
+                    
                     Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
                     _isTestInProgressAlready = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
                     Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
-                    // 
+                    // уже не нужен
                     _count.TestIsFinished();
                     Logs.Here().Information("New real Task can be handled.");
 
