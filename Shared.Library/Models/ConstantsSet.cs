@@ -79,8 +79,9 @@ namespace Shared.Library.Models
             {
                 public KeyType TaskPackage { get; set; }
                 public KeyType EventKeyFrontGivesTask { get; set; }
-                public KeyType Reserved03 { get; set; }
+                public KeyType KeyBookPlainTextsHashesVersionsList { get; set; }
             }
+
             public IntegrationTestPrefixes IntegrationTestPrefix { get; set; }
             public class IntegrationTestPrefixes
             {

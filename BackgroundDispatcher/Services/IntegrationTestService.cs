@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -58,6 +59,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0);
+        public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "");
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
@@ -222,11 +224,9 @@ namespace BackgroundDispatcher.Services
 
             // Value Type is TextSentence
 
-            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
             // пока время тестовых ключей задаётся отдельно (может, меньше, чем настоящие) - хотя реальной разницы нет
             double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
-            //string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
 
             // проверить ключи плоского текста и тестового оповещения и, если нужно, удалить их
             // пока что удаляем при старте
@@ -265,6 +265,39 @@ namespace BackgroundDispatcher.Services
                 return true;
             }
             return !SomethingWentWrong(resultPlainText, resultFromTest);
+        }
+
+        // финальный метод проверки результатов теста
+        public async Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken)
+        {
+            // можно сохранять ключи всех проверенных пакетов - в листе (за текущий сеанс) или в ключе (на произвольное время)
+            // если в ключе, то полем может быть дата или лучше гуид сеанса(текущий гуид сервера), а в значении лист ключей пакетов
+            // другой вариант - ключ пакета это поле, а в значении что-нибудь, например, лист задач пакета
+            // теперь пора сделать правильные тестовые тексты и проверять хэш текста при загрузке
+
+            // рекурсия?
+            IDictionary<string, string> keyEventDataList = await _cache.FetchHashedAllAsync<string>(keyEvent);
+            int keyEventDataListCount = keyEventDataList.Count;
+
+            foreach (var d in keyEventDataList)
+            {
+                // обычно должен быть один элемент, но надо рассмотреть вариант, что может успеть появиться второй
+                (var f, var v) = d;
+                Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
+
+                // поле и значение одинаковые, там ключ пакета задач
+                // достать все поля и значения из ключа, в значениях текст, сравнить его (хэш?) с исходным
+                IDictionary<string, TextSentence> plainTextsDataList = await _cache.FetchHashedAllAsync<TextSentence>(v);
+                
+                foreach (var t in keyEventDataList)
+                {
+                    (var bookGuid, var bookPlainText) = t;
+                    Logs.Here().Information("Dictionary element is {@G} {@T}.", new { BookGuid = bookGuid }, new { BookPlainText = bookPlainText });
+
+
+                }
+            }
+            return true;
         }
 
         // можно сделать перегрузку с массивом на вход

@@ -16,8 +16,11 @@ namespace Shared.Library.Services
         public Task<bool> IsKeyExist(string key);
         public Task<bool> DelKeyAsync(string key);
         public Task<bool> DelFieldAsync(string key, string field);
+        public Task<bool> DelFieldAsync<TK>(string key, TK field);
         public Task<T> FetchHashedAsync<T>(string key, string field);
+        public Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
         public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
+        public Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl);
         public Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key);
     }
 
@@ -98,15 +101,31 @@ namespace Shared.Library.Services
         {
             return await _cache.RemoveHashedAsync(key, field);
         }
+        
+        public async Task<bool> DelFieldAsync<TK>(string key, TK field)
+        {
+            return await _cache.RemoveHashedAsync<TK>(key, field);
+        }
 
         public async Task<T> FetchHashedAsync<T>(string key, string field)
         {
             return await _cache.GetHashedAsync<T>(key, field);
         }
+
+        // Task<TV> GetHashedAsync<TK, TV>(string key, TK field, CommandFlags flags = CommandFlags.None);
+        public async Task<TV> FetchHashedAsync<TK, TV>(string key, TK field)
+        {
+            return await _cache.GetHashedAsync<TK, TV>(key, field);
+        }
        
         public async Task WriteHashedAsync<T>(string key, string field, T value, double ttl)
         {
             await _cache.SetHashedAsync<T>(key, field, value, TimeSpan.FromDays(ttl));
+        }
+        
+        public async Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl)
+        {
+            await _cache.SetHashedAsync<TK, TV>(key, field, value, TimeSpan.FromDays(ttl));
         }
 
         public async Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key)

@@ -92,14 +92,12 @@ namespace BackgroundDispatcher.Services
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet            
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
-
+            string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
 
             // временное удаление рабочих ключей для тестирования (а может и постоянное)
             bool eventKeyFromWasDeleted = await _test.RemoveWorkKeyOnStart(eventKeyFrom);
-            bool eventKeyFromTestWasDeleted = await _test.RemoveWorkKeyOnStart(eventKeyFromTest);
-            Logs.Here().Information("Keys {0} and {1} were deleted successfully - {2} / {3}.", eventKeyFrom, eventKeyFromTest, eventKeyFromWasDeleted, eventKeyFromTestWasDeleted);
-
+            bool cafeKeyWasDeleted = await _test.RemoveWorkKeyOnStart(cafeKey);
+            Logs.Here().Information("Keys {0} and {1} were deleted successfully - {2} / {3}.", eventKeyFrom, cafeKey, eventKeyFromWasDeleted, cafeKeyWasDeleted);
 
             // инициализируем поля и таймер в классе EventCounterHandler
             _count.EventCounterInit(constantsSet);
@@ -116,7 +114,7 @@ namespace BackgroundDispatcher.Services
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
 
             // подписка на фальшивый (тестовый) ключ создания задачи
-            //SubscribeOnEventFromTest(constantsSet, eventKeyFromTest, eventCmd);
+            SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
 
             // подписка на ключ для старта тестов
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
@@ -159,18 +157,18 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);
         }
 
-        // подписка на фальшивый (тестовый) ключ создания задачи
-        private void SubscribeOnEventFromTest(ConstantsSet constantsSet, string eventKeyFromTest, KeyEvent eventCmd)
+        // подписка на ключ кафе и по событию сообщать тестам
+        private void SubscribeOnEventСafeKey(ConstantsSet constantsSet, string cafeKey, KeyEvent eventCmd)
         {
-            _keyEvents.Subscribe(eventKeyFromTest, (key, cmd) => // async
+            _keyEvents.Subscribe(cafeKey, (key, cmd) => // async
             {
                 if (cmd == eventCmd)
                 {
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFromTest, _cancellationToken);
+                    _ = _test.IsTestResultAsserted(constantsSet, cafeKey, _cancellationToken);
                 }
             });
 
-            Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFromTest);
+            Logs.Here().Information("Subscription on event key {0} was registered", cafeKey);
         }
 
         // подписка на команду на запуск тестов

@@ -20,6 +20,9 @@ namespace BooksTextsSplit.Library.Models
 
         [JsonProperty(PropertyName = "uploadVersion")]
         public int UploadVersion { get; set; } // means BooksPairId - pair of English and Russian book
+        
+        [JsonProperty(PropertyName = "hashVersion")]
+        public int HashVersion { get; set; } // means BooksPairId - pair of English and Russian book
 
         [JsonProperty(PropertyName = "bookId")]
         public int BookId { get; set; } // means BooksPairId - pair of English and Russian book
@@ -27,6 +30,9 @@ namespace BooksTextsSplit.Library.Models
         [JsonProperty(PropertyName = "bookGuid")]
         public string BookGuid { get; set; }
 
+        [JsonProperty(PropertyName = "bookPlainTextHash")]
+        public string BookPlainTextHash { get; set; }
+        
         [JsonProperty(PropertyName = "bookPlainText")]
         public string BookPlainText { get; set; }
 

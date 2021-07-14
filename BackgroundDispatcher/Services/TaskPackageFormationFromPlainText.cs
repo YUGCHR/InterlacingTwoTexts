@@ -8,6 +8,8 @@ using Shared.Library.Models;
 using Shared.Library.Services;
 using BooksTextsSplit.Library.Models;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Text;
 
 //
 // план работ -
@@ -135,15 +137,17 @@ namespace BackgroundDispatcher.Services
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await BackgroundDispatcherCreateTasks(constantsSet, sourceKeyWithPlainTests, fieldsKeyFromDataList);
-
-            // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
-            bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
-
-            if(isCafeKeyCreated) // && test is processing now
+            // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
+            if (taskPackageGuid != null)
             {
-                // вызвать метод теста для сообщения об окончании выполнения
-            }
+                // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
+                bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
 
+                if (isCafeKeyCreated) // && test is processing now
+                {
+                    // вызвать метод теста для сообщения об окончании выполнения
+                }
+            }
             // никакого возврата никто не ждёт, но на всякий случай вернём ?
             return 0;
         }
@@ -205,7 +209,7 @@ namespace BackgroundDispatcher.Services
             return (fieldsKeyFromDataList, sourceKeyWithPlainTests);
         }
 
-        private async Task<string> BackgroundDispatcherCreateTasks(ConstantsSet constantsSet, string sourceKeyWithPlainTests, List<string> taskPackageFileds)
+        private async Task<string> BackgroundDispatcherCreateTasks(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
         {
             // получили ключ-гуид и список полей, по сути, это уже готовый пакет
             // сам ключ уже сформирован и ждёт - можно получить плоские тесты
@@ -222,7 +226,7 @@ namespace BackgroundDispatcher.Services
             // достаём по одному тексты и складываем в новый ключ
             // гуид пакета отдаём в следующий метод
 
-            if (sourceKeyWithPlainTests == null)
+            if (sourceKeyWithPlainTexts == null)
             {
                 _test.SomethingWentWrong(false);
                 return null;
@@ -241,9 +245,18 @@ namespace BackgroundDispatcher.Services
                 inPackageTaskCount++;
 
                 // прочитать первое поле хранилища
-                TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTests, f);
+                TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);
                 Logs.Here().Information("Test plain text was read from key-storage");
 
+                // вот тут самый подходящий момент посчитать хэш
+                // создать новую версию через хэш и записать её в плоский текст
+                // всё равно читаем его и заново пишем, момент просто создан для вмешательства
+                bookPlainText = await AddVersionViaHashToPlainText(constantsSet, bookPlainText);
+                // может вернуться null, надо придумать, что с ним делать - это означает, что такой текст есть и работать с ним не надо
+                if (bookPlainText == null)
+                {
+                    return null;
+                }
                 // создать поле плоского текста
                 await _cache.WriteHashedAsync<TextSentence>(taskPackageGuid, f, bookPlainText, taskPackageGuidLifeTime);
 
@@ -253,11 +266,190 @@ namespace BackgroundDispatcher.Services
             return taskPackageGuid;
         }
 
+        private async Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText)
+        {
+            // обратиться к тестам и пусть они посчитают хэш и сообщат, есть ли уже такой в списке и, если нет, присвоят номер версии
+            // хэш лучше посчитать прямо здесь и передавать его для экономии памяти, кроме него нужен номер книги и язык
+            // с этим тоже проблема, особо взять их негде, кроме как из фронт-веба, а это ненадёжные данные, но пока будем брать оттуда
+
+            // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value;
+
+            int bookId = bookPlainText.BookId;
+            int languageId = bookPlainText.LanguageId;
+            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
+            // создаём поле с номером книги и языком книги, если англ, то поле просто номер, а если рус, то поле миллион номер
+            int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
+
+            string bookPlainTextMD5Hash = CreateMD5(bookPlainText.BookPlainText);
+
+            // отдать методу хэш, номер и язык книги, получить номер версии, если такой хэш уже есть, то что вернуть? можно -1
+            int versionHash = await ChechPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
+
+            // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся
+            if (versionHash < 0)
+            {
+                Logs.Here().Warning("This plain text already exist. {@B} / {@L}.", new { BookId = bookId }, new { LanguageId = languageId });
+                return null;
+            }
+
+            // получили 0, надо создать лист и первый элемент в нём и положить в ключ новое поле (возможно и сам ключ создать, но это неважно)
+            if (versionHash == 0)
+            {
+                List<TextSentence> bookPlainTextsHash = new();
+                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
+                return bookPlainText;
+            }
+
+            // получили номер версии, лист уже есть, надо его достать, создать новый элемент, добавить в лист и записать в то же место
+            if (versionHash > 0)
+            {
+                List<TextSentence> bookPlainTextsHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
+                return bookPlainText;
+            }
+            return default;
+        }
+
+        // метод создаёт элемент List-хранилища хэшей плоских текстов и обновляет сам плоский текст, добавляя в него хэш и версию текста
+        private async Task<TextSentence> WriteBookPlainTextHash(ConstantsSet constantsSet, TextSentence bookPlainText, List<TextSentence> bookPlainTextsHash, int versionHash, string bookPlainTextMD5Hash)
+        {
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value;
+            double keyBookPlainTextsHashesVersionsListLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.LifeTime;
+
+            int bookId = bookPlainText.BookId;
+            int languageId = bookPlainText.LanguageId;
+            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
+            // создаём поле с номером книги и языком книги, если англ, то поле просто номер, а если рус, то поле миллион номер
+            int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
+
+            TextSentence bookPlainTextHash0 = new TextSentence()
+            {
+                BookId = bookPlainText.BookId,
+                LanguageId = bookPlainText.LanguageId,
+                HashVersion = versionHash + 1,
+                BookPlainTextHash = bookPlainTextMD5Hash,
+                BookPlainText = null
+            };
+            bookPlainTextsHash.Add(bookPlainTextHash0);
+
+            bookPlainText.HashVersion = versionHash + 1;
+            bookPlainText.BookPlainTextHash = bookPlainTextMD5Hash;
+
+            int bookHashVersion = bookPlainText.HashVersion;
+            string bookPlainTextHash = bookPlainText.BookPlainTextHash;
+
+            // новый вариант bookPlainTexttHash без текста, только с хэшем будет существовать в ключе со списком всех загруженных книг
+            await _cache.WriteHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextsHash, keyBookPlainTextsHashesVersionsListLifeTime);
+
+            // тут проверяем и показываем как записались версия и хэш в существующий bookPlainText и его же (обновлённый) возвращаем из метода
+            Logs.Here().Information("New book {@B} plain text {@L} hash and version were updated. {@V} \n {@H}.", new { BookId = bookId }, new { LanguageId = languageId }, new { HashVersion = bookHashVersion }, new { BookPlainTextHash = bookPlainTextHash });
+            return bookPlainText;
+        }
+
+
+        // метод проверяет существование хэша в хранилище хэшей плоских текстов, может вернуть -
+        // -1, если такой хэш есть
+        // 0, если такого поля/ключа вообще нет, записывать надо первую версию
+        // int последней существующей версии, записывать надо на 1 больше
+        private async Task<int> ChechPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
+        {
+            int maxVersion = 0;
+
+            // 1 проверить существование ключа вообще и полученного поля (это уже только его чтением)
+            bool soughtKey = await _cache.IsKeyExist(keyBookPlainTextsHashesVersionsList);
+            if (!soughtKey)
+            {
+                // _test.SomethingWentWrong(!soughtKey);
+                // если ключа вообще нет, тоже возвращаем 0, будет первая книга с первой версией в ключе
+                return 0;
+            }
+            List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            // 2 если поля нет, возвращаем результат - первая версия 
+            if (bookPlainTextsVersions == null)
+            {
+                return 0;
+            }
+            // 3 если поле есть, достаём из него значение - это лист
+            // 4 перебираем лист, достаём хэши и сравниваем с полученным в параметрах
+            foreach (TextSentence v in bookPlainTextsVersions)
+            {
+                // одновременно с этим находим максимальную версию, сохраняем в maxVersion
+                int hashVersion = v.HashVersion;
+                if (hashVersion > maxVersion)
+                {
+                    maxVersion = hashVersion;
+                }
+                // 5 если совпадение нашлось, возвращаем отлуп - пока -1
+                string bookPlainTextHash = v.BookPlainTextHash;
+                bool isThisHashExisted = String.Equals(bookPlainTextHash, bookPlainTextMD5Hash);
+                if (isThisHashExisted)
+                {
+                    return -1;
+                }
+            }
+            // 6 если совпадения нет, берём maxVersion, прибавляем 1 и возвращаем версию
+            // прибавлять 1 будем там, где будем записывать новый хэш
+            return maxVersion;
+
+
+            // 7 записывать будем в другом месте, потому что тут нет самого текста
+            // (хотя он и не нужен, можно и тут записать)
+            // всё же тут не пишем - нечего писать, есть только поле с номером и языком книги
+            // с другой стороны, надо хранить номер, язык и версию книги, а также хэш текста, а это всё здесь есть
+            // лучше бы конечно взять исходный плоский текст и сам текст удалить, оставив всё остальное описание
+            // попробуем писать не тут
+
+        }
+
+        // метод из анализа книги
+        public string GetMd5Hash(string fileContent)
+        {
+            MD5 md5Hasher = MD5.Create(); //создаем объект класса MD5 - он создается не через new, а вызовом метода Create            
+            byte[] data = md5Hasher.ComputeHash(Encoding.Default.GetBytes(fileContent));//преобразуем входную строку в массив байт и вычисляем хэш
+            StringBuilder sBuilder = new StringBuilder();//создаем новый Stringbuilder (изменяемую строку) для набора байт
+            for (int i = 0; i < data.Length; i++)// Преобразуем каждый байт хэша в шестнадцатеричную строку
+            {
+                sBuilder.Append(data[i].ToString("x2"));//указывает, что нужно преобразовать элемент в шестнадцатиричную строку длиной в два символа
+            }
+            string pasHash = sBuilder.ToString();
+
+            return pasHash;
+        }
+
+        public static string CreateMD5(string input)
+        { // https://stackoverflow.com/questions/11454004/calculate-a-md5-hash-from-a-string
+            // Use input string to calculate MD5 hash
+            MD5 md5 = MD5.Create();
+
+            byte[] inputBytes = Encoding.ASCII.GetBytes(input);
+            byte[] hashBytes = md5.ComputeHash(inputBytes);
+
+            // Convert the byte array to hexadecimal string
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < hashBytes.Length; i++)
+            {
+                sb.Append(hashBytes[i].ToString("X2"));
+            }
+            return sb.ToString();
+        }
+
         private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, string taskPackageGuid)
         {
             // только после того, как создан ключ с пакетом задач, можно положить этот ключ в подписной ключ eventKeyFrontGivesTask
             // записываем ключ пакета задач в ключ eventKeyFrontGivesTask, а в поле и в значение - ключ пакета задач
             // сервера подписаны на ключ eventKeyFrontGivesTask и пойдут забирать задачи, на этом тут всё
+            // сделать подписку на ключ кафе и по событию пакет в кафе сообщать тестам -
+            // вызывать финальный метод проверки результатов теста (не отсюда вызывать, а по подписке)
+            // в дальнейшем будет частью постоянной самопроверки
+            // возвращать true из метода DistributeTaskPackageInCafee только после проверки этим постоянным тестом
+            // только надо как-то узнать, какие результаты у этого теста - можно вызвать метод из класса теста, который проверит какой-нибудь флаг
+            // или более приземлённый способ с проверкой ключа (с флагом выглядит лучше - там сразу можно и подождать положенное время)
+
+            // и подписка на ключ кафе - дело шаткое, бэк-сервер быстро схватит этот ключ и удалит
+            // надо или делать задержку на сервере или вызывать тест не по подписке
+            // точнее, сначала не по подписке, а потом проконтролировать появление и исчезновение ключа кафе
+            // ну и далее регистрацию пакета на бэк-сервере
 
             string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
             double cafeKeyLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.LifeTime;

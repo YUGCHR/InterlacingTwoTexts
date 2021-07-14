@@ -128,6 +128,15 @@ namespace BooksTextsSplit.Library.Services
 
         public async Task<bool> AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
         {
+            // хранить все хэши плоских текстов в специальном ключе
+            // с полем номер/язык книги (со сдвигом другого языка)
+            // это хорошо согласуется с идеей хранить логи загрузки плоских текстов
+            // можно типа значения оставить TextSentence, добавить поле хэша, а сам плоский текст удалять для экономии места
+            // версия будет присваиваться где-то дальше, после разбора на главы и предложения или прямо здесь?
+            // старую версию оставить как есть - для совместимости
+            // новую версию, через хэш, присваивать где-то в тестах - до создания события subscribeOnFrom
+            // 
+
             // достать нужные префиксы, ключи и поля из констант
             //string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value}:test"; //TEMP FOR TEST
             string bookPlainText_KeyPrefixGuid = constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value;
