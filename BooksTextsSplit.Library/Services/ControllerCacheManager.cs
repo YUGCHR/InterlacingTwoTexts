@@ -138,9 +138,9 @@ namespace BooksTextsSplit.Library.Services
             // 
 
             // достать нужные префиксы, ключи и поля из констант
-            //string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value}:test"; //TEMP FOR TEST
+            // string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value}:test"; //TEMP FOR TEST
             string bookPlainText_KeyPrefixGuid = constantsSet.BookPlainTextConstant.KeyPrefixGuid.Value;
-            //double keyExistingTime = 1000; // constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime; //TEMP FOR TEST
+            // double keyExistingTime = 1000; // constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime; //TEMP FOR TEST
             double keyExistingTime = constantsSet.BookPlainTextConstant.KeyPrefixGuid.LifeTime;
 
             // создать ключ/поле из префикса и гуид книги

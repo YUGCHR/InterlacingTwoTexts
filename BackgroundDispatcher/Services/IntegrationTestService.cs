@@ -212,14 +212,64 @@ namespace BackgroundDispatcher.Services
             return _isTestInProgress;
         }
 
+        // метод создаёт тестовые плоские тексты для тестов
+        // берет нужное количество книг/версий для сценария из хранилища
+        // и из них делает ключи, неотличимые от приходящих из веб-интерфейса
+        // если сценарий предусматривает, то по окончанию теста новые ключи с хэшами должны быть удалены из хранилища хэшей-версий
         public async Task<bool> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0)
         {
-            string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd:test";
+            string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
+            // hget bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test bookText:bookGuid:9902e124-5dc1-4ad7-9dce-428070a97d59
+
+            string field_ = "bookText:bookGuid:9902e124-5dc1-4ad7-9dce-428070a97d59"; // 71 - 1 - 17
+            string field_ = "bookText:bookGuid:ff67769e-ef73-41e4-a317-a313d641b252"; // 71 - 0 - 15
+            string field_ = "bookText:bookGuid:058799d2-04bb-4025-baaa-561612cf9ab3"; // 73 - 1 - 28
+            string field_ = "bookText:bookGuid:45d9b924-d9d3-47cb-8154-23c659a538be";
+            string field_ = "bookText:bookGuid:0e58ba37-8d5b-456e-820c-950b7b99b1eb";
+            string field_ = "bookText:bookGuid:3d21e753-94c2-4dcc-a8e2-d9003c60ab19";
+            string field_ = "bookText:bookGuid:7604fc0b-511f-467d-8fe4-83cb60cce49e";
+            string field_ = "bookText:bookGuid:b69189d3-4da5-437e-a6fe-71a18703c3f5";
+            string field_ = "bookText:bookGuid:c407d7d0-20ab-4c98-9cfa-102196a333bf";
+            string field_ = "bookText:bookGuid:5970f94c-99bd-4b01-b628-03c2acb90074";
+            string field_ = "bookText:bookGuid:84d94f49-9c6d-44aa-b2f3-ac40b610c823";
+            string field_ = "bookText:bookGuid:d74ceb93-7519-4b22-b165-bac0ef6c3536";
+            string field_ = "bookText:bookGuid:a0e5e2fb-e1a2-4d08-99d0-95d4a2096ba0";
+            string field_ = "bookText:bookGuid:0eaa8879-6bf0-4961-8b26-c6b6ecfcd0ee";
+            string field_ = "bookText:bookGuid:9eb0544b-2f7e-4e89-a847-8cd619c08e28";
+            string field_ = "bookText:bookGuid:2f24a7af-caa8-49db-907a-32efbedce26e";
+            string field_ = "bookText:bookGuid:b1f9b81e-ffde-4244-bec8-8bdfca9fa647";
+            string field_ = "bookText:bookGuid:7b9c873d-83c1-4e94-bc9f-28a3a96aab93";
+            string field_ = "bookText:bookGuid:e3589686-eef2-49e6-94a2-e799af2fab03";
+            string field_ = "bookText:bookGuid:6a8c2d5a-552e-4833-9385-31f83f906416";
+            string field_ = "bookText:bookGuid:dade4abd-9bf4-4fc7-8db4-6f012e8b21f1";
+            string field_ = "bookText:bookGuid:71cb7a2e-a71d-43ff-968f-bcfe1fe1d0ec";
+            string field_ = "bookText:bookGuid:e031e392-9065-4ba0-84fa-1c48b3143820";
+            string field_ = "bookText:bookGuid:34c7ac9d-3934-4bd7-a554-08bc6d72587c";
+            string field_ = "bookText:bookGuid:6b79d96e-5bb7-4e86-a2eb-0311ae69bb64";
+            string field_ = "bookText:bookGuid:c4a0d1bd-a525-4095-9f23-b0a24d166422";
+            string field_ = "bookText:bookGuid:9488cd35-3e11-4675-a4c5-918fc25b25a8";
+            string field_ = "bookText:bookGuid:74e9173b-b9c5-46fd-8d6c-085923d4a523";
+            string field_ = "bookText:bookGuid:a797dc1c-42eb-4b9d-920b-63b789349f03";
+            string field_ = "bookText:bookGuid:fd18b5fd-6d32-4e31-9630-c0446ba09831";
+
+
+
+
+
+
+
+
+
+
+
+
+
             string field_79_ENG = "bookText:bookGuid:0622f50c-d1d7-4dac-af14-b2a936fa750a";
             string field_79_RUS = "bookText:bookGuid:99e02275-c842-426c-8369-3ee72b668845";
             string field_78_ENG = "bookText:bookGuid:a97346d4-1506-4b63-8f6d-4ff7afd217f4";
             string field_78_RUS = "bookText:bookGuid:2d4e3513-ee43-4ff9-8993-2eb0bff53aed";
-            string testKeBookPlainTexts = "bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd";
+
+            string testKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd";
             string[] fields = new string[4] { field_79_ENG, field_79_RUS, field_78_ENG, field_78_RUS };
 
             // Value Type is TextSentence
@@ -230,7 +280,7 @@ namespace BackgroundDispatcher.Services
 
             // проверить ключи плоского текста и тестового оповещения и, если нужно, удалить их
             // пока что удаляем при старте
-            bool resultPlainText = await RemoveWorkKeyOnStart(testKeBookPlainTexts);
+            bool resultPlainText = await RemoveWorkKeyOnStart(testKeyBookPlainTexts);
             bool resultFromTest = await RemoveWorkKeyOnStart(eventKeyFrom);
 
             Logs.Here().Information("Test plain text keys creation is started");
@@ -249,12 +299,12 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Test plain text was read from key-storage");
 
                     // создать тестовый ключ плоского текста
-                    resultPlainText = await WriteHashedAsyncWithDelayAfter<TextSentence>(testKeBookPlainTexts, fields[i], bookPlainText, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
-                    Logs.Here().Information("Test plain text was write in {@K} / {@F}", new { Key = testKeBookPlainTexts }, new { Field = fields[i] });
+                    resultPlainText = await WriteHashedAsyncWithDelayAfter<TextSentence>(testKeyBookPlainTexts, fields[i], bookPlainText, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
+                    Logs.Here().Information("Test plain text was write in {@K} / {@F}", new { Key = testKeyBookPlainTexts }, new { Field = fields[i] });
 
                     // создать тестовый ключ оповещения 
-                    resultFromTest = await WriteHashedAsyncWithDelayAfter<string>(eventKeyFrom, fields[i], testKeBookPlainTexts, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
-                    Logs.Here().Information("Test subscribeOnFrom was write in {@K} / {@F} / {@V}", new { Key = eventKeyFrom }, new { Field = fields[i] }, new { Value = testKeBookPlainTexts });
+                    resultFromTest = await WriteHashedAsyncWithDelayAfter<string>(eventKeyFrom, fields[i], testKeyBookPlainTexts, eventKeyFromTestLifeTime, stoppingToken, delayAfter);
+                    Logs.Here().Information("Test subscribeOnFrom was write in {@K} / {@F} / {@V}", new { Key = eventKeyFrom }, new { Field = fields[i] }, new { Value = testKeyBookPlainTexts });
 
                     if (SomethingWentWrong(resultPlainText, resultFromTest))
                     {
