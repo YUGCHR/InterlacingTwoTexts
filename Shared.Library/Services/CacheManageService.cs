@@ -16,7 +16,7 @@ namespace Shared.Library.Services
         public Task<bool> IsKeyExist(string key);
         public Task<bool> DelKeyAsync(string key);
         public Task<bool> DelFieldAsync(string key, string field);
-        public Task<bool> DelFieldAsync<TK>(string key, TK field);
+        public Task<bool> DelFieldAsync<TK>(string key, TK field);        
         public Task<T> FetchHashedAsync<T>(string key, string field);
         public Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
         public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);

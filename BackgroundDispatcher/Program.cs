@@ -94,6 +94,7 @@ namespace BackgroundDispatcher
                     services.AddScoped<ICacheManageService, CacheManageService>();
                     services.AddScoped<ISharedDataAccess, SharedDataAccess>();                    
                     services.AddScoped<IIntegrationTestService, IntegrationTestService>();
+                    services.AddScoped<ITestTasksPrepareAndStoreService, TestTasksPrepareAndStoreService>();
                     services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     services.AddScoped<IEventCounterHandler, EventCounterHandler>();
                     services.AddScoped<ITaskPackageFormationFromPlainText, TaskPackageFormationFromPlainText>();
