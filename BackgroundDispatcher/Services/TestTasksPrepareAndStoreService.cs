@@ -91,8 +91,9 @@ namespace BackgroundDispatcher.Services
             string testKeyBookPlainTextsPrefix = constantsSet.BookPlainTextConstant.KeyPrefix.Value; // bookPlainTexts:bookSplitGuid
             string testKeyBookPlainTextsGuid = "5a272735-4be3-45a3-91fc-152f5654e451";
             string testKeyBookPlainTexts = $"{testKeyBookPlainTextsPrefix}:{testKeyBookPlainTextsGuid}"; // bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451
-                                                                                                         //"bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd";
-                                                                                                         //string[] fields = new string[4] { field_79_ENG, field_79_RUS, field_78_ENG, field_78_RUS };
+                                                                                                         
+            //"bookPlainTexts:bookSplitGuid:f0c17236-3d50-4bce-9843-15fc9ee79bbd";                                                                                                         
+            //string[] fields = new string[4] { field_79_ENG, field_79_RUS, field_78_ENG, field_78_RUS };
 
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
             double keyBookPlainTextsHashesVersionsListLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.LifeTime; // 1000

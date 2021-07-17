@@ -32,7 +32,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface ITaskPackageFormationFromPlainText
     {
-        public Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
     public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
@@ -53,7 +53,7 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TaskPackageFormationFromPlainText>();
 
-        public async Task<bool> HandlerCallingDistributore(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // добавить счётчик потоков и проверить при большом количестве вызовов
             // 
@@ -88,7 +88,7 @@ namespace BackgroundDispatcher.Services
             // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
             // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
 
-            _ = HandlerCalling(constantsSet, stoppingToken);
+            _ = HandlerCallings(constantsSet, stoppingToken);
 
             Logs.Here().Information("{0} is returned true.", currentMethodName);
             return true;
@@ -104,7 +104,7 @@ namespace BackgroundDispatcher.Services
             return currentMethodName;
         }
 
-        public async Task<int> HandlerCalling(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<int> HandlerCallings(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // обработчик вызовов - что делает (надо переименовать - не вызовов, а событий подписки или как-то так)
             // получает сообщение о сформированном вызове по поводу subscribeOnFrom
@@ -131,7 +131,7 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("{0} started.", currentMethodName);
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
-            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTests) = await ProcessedDataOfSubscribeOnFrom(constantsSet, stoppingToken);
+            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTests) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await _test.BackgroundDispatcherCreateTasks(constantsSet, sourceKeyWithPlainTests, fieldsKeyFromDataList);
@@ -150,7 +150,7 @@ namespace BackgroundDispatcher.Services
             return 0;
         }
 
-        private async Task<(List<string>, string)> ProcessedDataOfSubscribeOnFrom(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private async Task<(List<string>, string)> ProcessDataOfSubscribeOnFrom(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // название (назначение) метода - достать ключ и поля плоских текстов из события подписки subscribeOnFrom
 

@@ -191,7 +191,7 @@ namespace BackgroundDispatcher.Services
             // с этим тоже проблема, особо взять их негде, кроме как из фронт-веба, а это ненадёжные данные, но пока будем брать оттуда
 
             // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value;
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
 
             int bookId = bookPlainText.BookId;
             int languageId = bookPlainText.LanguageId;
