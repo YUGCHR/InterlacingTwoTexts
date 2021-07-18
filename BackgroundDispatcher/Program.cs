@@ -18,6 +18,32 @@ using Serilog.Sinks.SystemConsole.Themes;
 using Shared.Library.Services;
 using BackgroundDispatcher.Services;
 
+#region Project description
+
+//описание работы сервера-диспетчера BackgroundDispatcher
+//основное назначение - собрать одиночные задачи в пакеты и отдать в обработку бэк-серверам BackgroundTasksQueue (серверам фоновой загрузки книг)
+//особенно полезно собрать минимальный пакет из пары книг - на разных языках, в большинстве случаем именно это будет основным кейсом
+
+//дополнительные задачи - 
+//хранение "вечного" лога исходников загруженных книг с контролем повтора книг
+//выполнение интеграционных тестов - несколько сценариев и различные глубины выполнения
+//контроль прохождения рабочих задач через сервер и получение их бэк-сервером
+//выполнение запроса контроллера о состоянии отправленной на загрузку книги - выполнено или нет и почему
+
+// состав проекта, классы -
+
+// MonitorLoop - стартовый класс, получает константы, проверяет количество бэк-серверов (а разработке)
+// и запускает метод SubscribingPlan план подписок из класса OnKeysEventsSubscribeService
+
+// OnKeysEventsSubscribeService - 
+// EventCounterHandler -
+// FormTaskPackageFromPlainText - 
+// IntegrationTestService - 
+// TestTasksPrepareAndStoreService - 
+// SettingConstantsService - 
+
+#endregion
+
 namespace BackgroundDispatcher
 {
     public class Program
@@ -97,7 +123,7 @@ namespace BackgroundDispatcher
                     services.AddScoped<ITestTasksPrepareAndStoreService, TestTasksPrepareAndStoreService>();
                     services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     services.AddScoped<IEventCounterHandler, EventCounterHandler>();
-                    services.AddScoped<ITaskPackageFormationFromPlainText, TaskPackageFormationFromPlainText>();
+                    services.AddScoped<IFormTaskPackageFromPlainText, FormTaskPackageFromPlainText>();
 
                 });
 

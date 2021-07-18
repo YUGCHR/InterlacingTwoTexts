@@ -29,13 +29,13 @@ namespace BackgroundDispatcher.Services
         private readonly CancellationToken _cancellationToken;
         private readonly ICacheManageService _cache;
         private readonly IIntegrationTestService _test;
-        private readonly ITaskPackageFormationFromPlainText _front;
+        private readonly IFormTaskPackageFromPlainText _front;
 
         public EventCounterHandler(
             IHostApplicationLifetime applicationLifetime,
             ICacheManageService cache,
             IIntegrationTestService test,
-            ITaskPackageFormationFromPlainText front
+            IFormTaskPackageFromPlainText front
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;

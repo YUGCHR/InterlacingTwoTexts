@@ -30,19 +30,19 @@ using System.Runtime.CompilerServices;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface ITaskPackageFormationFromPlainText
+    public interface IFormTaskPackageFromPlainText
     {
         public Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
-    public class TaskPackageFormationFromPlainText : ITaskPackageFormationFromPlainText
+    public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
     {
-        private readonly ILogger<TaskPackageFormationFromPlainText> _logger;
+        private readonly ILogger<FormTaskPackageFromPlainText> _logger;
         private readonly IIntegrationTestService _test;
         private readonly ICacheManageService _cache;
 
-        public TaskPackageFormationFromPlainText(
-            ILogger<TaskPackageFormationFromPlainText> logger,
+        public FormTaskPackageFromPlainText(
+            ILogger<FormTaskPackageFromPlainText> logger,
             IIntegrationTestService test,
             ICacheManageService cache)
         {
@@ -51,7 +51,7 @@ namespace BackgroundDispatcher.Services
             _cache = cache;
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TaskPackageFormationFromPlainText>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<FormTaskPackageFromPlainText>();
 
         public async Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
@@ -131,10 +131,10 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("{0} started.", currentMethodName);
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
-            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTests) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
+            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
-            string taskPackageGuid = await _test.BackgroundDispatcherCreateTasks(constantsSet, sourceKeyWithPlainTests, fieldsKeyFromDataList);
+            string taskPackageGuid = await _test.CreateTaskPackage(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != null)
             {

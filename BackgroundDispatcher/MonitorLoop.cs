@@ -159,7 +159,7 @@ namespace BackgroundDispatcher
 
 
 
-            _subscribe.SubscribingPlan(constantsSet);
+            _ = _subscribe.SubscribingPlan(constantsSet);
 
 
             // сделать обработку завершения работы и развеять таймер
