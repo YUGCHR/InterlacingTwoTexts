@@ -9,6 +9,8 @@ using Shared.Library.Services;
 using BooksTextsSplit.Library.Models;
 using System.Runtime.CompilerServices;
 
+#region FormTaskPackageFromPlainText description
+
 //
 // план работ -
 // в конце теста проверять ключи и поля на совпадение (в отдельном методе?)
@@ -27,6 +29,21 @@ using System.Runtime.CompilerServices;
 //
 // по кругу пока не ходить - в тестах проверить, захватываются ли все вызовы или что-то пропадает
 // 
+// 
+// namespace CachingFramework.Redis.Providers
+// public IEnumerable<KeyValuePair<string, T>> ScanHashed<T>(string key, string pattern, int pageSize = 10, ...)
+// 
+// 
+// По умолчанию для .Net Core данные хранятся как Json с использованием System.Text.Json.
+// Сериализацию можно настроить с помощью JsonSerializerOptions 
+// Пакет NuGet CachingFramework.Redis.NewtonsoftJson
+// Данные хранятся как Json с использованием Newtonsoft.Json.
+// Сериализацию можно настроить с помощью JsonSerializerSettings
+// var context = new RedisContext("localhost:6379", new JsonSerializer());
+// RedisContext.DefaultSerializer = new JsonSerializer();
+// 
+
+#endregion
 
 namespace BackgroundDispatcher.Services
 {

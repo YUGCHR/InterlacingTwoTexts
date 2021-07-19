@@ -21,7 +21,9 @@ namespace Shared.Library.Services
         public Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
         public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
         public Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl);
+        public Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl);
         public Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key);
+        public Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key);
     }
 
     public class CacheManageService : ICacheManageService
@@ -127,10 +129,20 @@ namespace Shared.Library.Services
         {
             await _cache.SetHashedAsync<TK, TV>(key, field, value, TimeSpan.FromDays(ttl));
         }
+        
+        public async Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl)
+        {
+            await _cache.SetHashedAsync<TK, TV>(key, fieldValues, TimeSpan.FromDays(ttl));
+        }
 
         public async Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key)
         {
             return await _cache.GetHashedAllAsync<T>(key);
+        }
+
+        public async Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key)
+        {// Task<IDictionary<TK, TV>> GetHashedAllAsync<TK, TV>(string key, CommandFlags flags = CommandFlags.None);
+            return await _cache.GetHashedAllAsync<TK, TV>(key);
         }
     }
 }

@@ -88,6 +88,7 @@ namespace Shared.Library.Models
                 public KeyType KeyStartTestEvent { get; set; }
                 public KeyType FieldStartTest { get; set; }
                 public KeyType SettingKey1 { get; set; }
+                public KeyType TestScenarioSequenceKey { get; set; }
                 public KeyType SettingField1 { get; set; }
                 public KeyType DepthValue1 { get; set; }
                 public KeyType DepthValue2 { get; set; }

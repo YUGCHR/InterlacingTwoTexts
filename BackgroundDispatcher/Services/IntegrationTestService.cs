@@ -133,9 +133,6 @@ namespace BackgroundDispatcher.Services
             // при дальнейшем углублении теста показывать этапы прохождения
             await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth2, testSettingKey1LifeTime);
 
-            //string testSettingField2 = "f2"; // 
-            //string testSettingField3 = "f3"; //
-
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
@@ -158,14 +155,15 @@ namespace BackgroundDispatcher.Services
             #endregion
 
 
-            // можно сделать сценарии в виде листа и вызов конкретного по индексу
-            // собирать константы в лист лучше уже в классе теста
-            // или в интерфейсе выбора сценария показывать названия полей, а потом брать их значение для вызова теста
-            // test scenario selection 
+            // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
-            //int setting2 = await _cache.FetchHashedAsync<int>(testSettingKey1, testSettingField2);
-            //int setting3 = await _cache.FetchHashedAsync<int>(testSettingKey1, testSettingField3);
+            // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
+            await _prepare.CreateTestScenarioKey(constantsSet, testScenario);
+
+            // тут создаём последовательность полей согласно плана сценария
+
+
 
 
             // узнаём сценарий теста, заданный в стартовом ключе
@@ -186,7 +184,7 @@ namespace BackgroundDispatcher.Services
                 //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
                 // загрузка тестовых плоских текстов и ключа оповещения
-                bool testStartedWithResult = await _prepare.CreateBookPlainTextsForTests(constantsSet, stoppingToken, testPairsCount, delayAfter);
+                List<int> testBookIds = await _prepare.CreateBookPlainTextsForTests(constantsSet, stoppingToken, testPairsCount, delayAfter);
 
                 Logs.Here().Information("Test scenario {0} ({1}) was started with {@S} and is waited the results.", testScenario, testScenario1description, new { TestStartedWith = testStartedWithResult });
 
