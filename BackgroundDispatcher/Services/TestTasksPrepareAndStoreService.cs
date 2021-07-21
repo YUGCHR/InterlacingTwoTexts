@@ -143,7 +143,7 @@ namespace BackgroundDispatcher.Services
             double testScenarioSequenceKeyLifeTime = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.LifeTime; // 0.001
 
             // Scenario 1
-            int[] scenario1 = new int[] { 2, 2, -3700 };
+            int[] scenario1 = new int[] { 121, 221, -3700 };
 
             // Scenario 2
             int[] scenario2 = new int[] { 121, 221, -4500, 321 };
@@ -273,7 +273,7 @@ namespace BackgroundDispatcher.Services
             for (int i = 0; i < fieldValuesResultCount; i++)
             {
                 int sequenceCell = fieldValuesResult[i];
-                Logs.Here().Information("Scenario cell {0} was fetched on step {1}", sequenceCell, i);
+                Logs.Here().Information("Scenario cell value {0} was fetched on stage {1}", sequenceCell, i);
 
                 // а когда в цикле (во входном списке) будет задержка (sequenceCell < 0) вместо книг,
                 // записать задержку в целый список и для синхронизации записать null (или лучше пустую строку) в строчный список
@@ -372,7 +372,7 @@ namespace BackgroundDispatcher.Services
             // списка полей во временном хранилище - где взять?
             // списка номеров книг оттуда
             Logs.Here().Information("List {@U}", new { UniqueBookIdsFromStorageKey = uniqueBookIdsFromStorageKey });
-            ShowListInLog(uniqueBookIdsFromStorageKey, "uniqueBookIdsFromStorageKey");
+            //ShowListInLog(uniqueBookIdsFromStorageKey, "uniqueBookIdsFromStorageKey");
 
             // списка тестовых полей в вечном логе, и вывести списки версий в каждом значении
             for (int i = 0; i < uniqueBookIdsFromStorageKeyCount; i++)
@@ -383,10 +383,10 @@ namespace BackgroundDispatcher.Services
 
                 // достать оба поля из вечного лога
                 List<TextSentence> engPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, engBookId);
-                Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = engBookId }, new { EngPlainTextHash = engPlainTextHash });
+                //Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = engBookId }, new { EngPlainTextHash = engPlainTextHash });
 
                 List<TextSentence> rusPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, rusBookId);
-                Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = rusBookId }, new { RusPlainTextHash = rusPlainTextHash });
+                //Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = rusBookId }, new { RusPlainTextHash = rusPlainTextHash });
 
                 int engPlainTextHashCount = engPlainTextHash.Count;
                 int rusPlainTextHashCount = rusPlainTextHash.Count;
@@ -417,11 +417,11 @@ namespace BackgroundDispatcher.Services
             }
 
             // списка пунктов сценария
+            //ShowDictionaryInLog<int>(fieldValuesResult, "fieldValuesResult", "Step", "Action");
             Logs.Here().Information("Dictionary {@F}", new { FieldValuesResult = fieldValuesResult });
-            ShowDictionaryInLog<int>(fieldValuesResult, "fieldValuesResult", "Step", "Action");
 
             // выходных списков полей и задержек (параллельно)
-            ShowListsInLog(rawPlainTextFields, "rawPlainTextFields", delayList, "delayList");
+            //ShowListsInLog(rawPlainTextFields, "rawPlainTextFields", delayList, "delayList");
             Logs.Here().Information("List {@R} - List {@D}", new { RawPlainTextFields = rawPlainTextFields }, new { DelayList = delayList });
 
             return (rawPlainTextFields, delayList);
@@ -597,7 +597,7 @@ namespace BackgroundDispatcher.Services
             string bookPlainTextMD5Hash = CreateMD5(bookPlainText.BookPlainText);
 
             // отдать методу хэш, номер и язык книги, получить номер версии, если такой хэш уже есть, то что вернуть? можно -1
-            int versionHash = await ChechPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
+            int versionHash = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
             Logs.Here().Information("Hash version {0} was returned.", versionHash);
 
             // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся
@@ -612,14 +612,9 @@ namespace BackgroundDispatcher.Services
             {
                 List<TextSentence> bookPlainTextsHash = new List<TextSentence>();
                 // положить первый элемент - заглушку, иначе CachingFramework.Redis сохраняет не List с одним элементом, а просто один элемент (!?)
-                TextSentence bookPlainTextHash = new TextSentence()
-                {
-                    BookId = bookPlainText.BookId,
-                    LanguageId = bookPlainText.LanguageId,
-                    HashVersion = 0,
-                    BookPlainTextHash = "00000000000000000000000000000000",
-                    BookPlainText = null
-                };
+
+                TextSentence bookPlainTextHash = RemoveTextFromTextSentence(bookPlainText); // hashVersion = 0, bookPlainTextHash = "00000000000000000000000000000000"
+                bookPlainTextsHash.Add(bookPlainTextHash);
 
                 bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
                 return bookPlainText;
@@ -635,6 +630,23 @@ namespace BackgroundDispatcher.Services
             return default;
         }
 
+        private static TextSentence RemoveTextFromTextSentence(TextSentence bookPlainText, int hashVersion = 0, string bookPlainTextHash = "00000000000000000000000000000000")
+        {
+            TextSentence bookPlainTextWithHash = new TextSentence() // RemoveTextFromTextSentence(bookPlainText)
+            {
+                Id = bookPlainText.Id,
+                RecordActualityLevel = bookPlainText.RecordActualityLevel,
+                LanguageId = bookPlainText.LanguageId,
+                UploadVersion = bookPlainText.UploadVersion,
+                HashVersion = hashVersion,
+                BookId = bookPlainText.BookId,
+                BookGuid = bookPlainText.BookGuid,
+                BookPlainTextHash = bookPlainTextHash,
+                BookPlainText = null
+            };
+            return bookPlainTextWithHash;
+        }
+
         // метод создаёт элемент List-хранилища хэшей плоских текстов и обновляет сам плоский текст, добавляя в него хэш и версию текста
         private async Task<TextSentence> WriteBookPlainTextHash(ConstantsSet constantsSet, TextSentence bookPlainText, List<TextSentence> bookPlainTextsHash, int versionHash, string bookPlainTextMD5Hash)
         {
@@ -647,15 +659,10 @@ namespace BackgroundDispatcher.Services
             // создаём поле с номером книги и языком книги, если англ, то поле просто номер, а если рус, то поле миллион номер
             int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
 
-            TextSentence bookPlainTextHash0 = new TextSentence()
-            {
-                BookId = bookPlainText.BookId,
-                LanguageId = bookPlainText.LanguageId,
-                HashVersion = versionHash + 1,
-                BookPlainTextHash = bookPlainTextMD5Hash,
-                BookPlainText = null
-            };
-
+            TextSentence bookPlainTextHash0 = RemoveTextFromTextSentence(bookPlainText, versionHash + 1, bookPlainTextMD5Hash);
+            // может, добавление в список тоже перенести внутрь метода RemoveTextFromTextSentence
+            // если входного списка нет, будет создавать новый, если есть - добавлять
+            // сначала так запустить
             bookPlainTextsHash.Add(bookPlainTextHash0);
 
             bookPlainText.HashVersion = versionHash + 1;
@@ -677,7 +684,7 @@ namespace BackgroundDispatcher.Services
         // -1, если такой хэш есть
         // 0, если такого поля/ключа вообще нет, записывать надо первую версию
         // int последней существующей версии, записывать надо на 1 больше
-        private async Task<int> ChechPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
+        private async Task<int> CheckPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
         {
             int maxVersion = 0;
 
@@ -707,7 +714,7 @@ namespace BackgroundDispatcher.Services
             {
                 // одновременно с этим находим максимальную версию, сохраняем в maxVersion
                 int hashVersion = v.HashVersion;
-                Logs.Here().Information("{@B} is existed, version {0} was fetched.", new { Books = bookPlainTextsVersions }, hashVersion);
+                //Logs.Here().Information("{@B} is existed, version {0} was fetched.", new { Books = bookPlainTextsVersions }, hashVersion);
 
                 if (hashVersion > maxVersion)
                 {
@@ -851,11 +858,11 @@ namespace BackgroundDispatcher.Services
             // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
             // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
             int result1 = await RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
-            if(!(result1 > 0))
+            if (!(result1 > 0))
             {
                 SomethingWentWrong(true);
             }
-            
+
             // передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
             string taskPackageGuid = await CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, guidFieldsFromStorageKey);
 
