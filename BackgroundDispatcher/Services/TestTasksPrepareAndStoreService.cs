@@ -106,7 +106,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<(string, int)> CreateTestScenarioKey(ConstantsSet constantsSet, int testScenario);
         public Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds);
-        public Task<List<int>> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0);
+        public Task<List<int>> CreateTestBookPlainTexts(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0);
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "");
         public Task<bool> RemoveWorkKeyOnStart(string key);
 
@@ -195,17 +195,76 @@ namespace BackgroundDispatcher.Services
             _ => throw new ArgumentOutOfRangeException(nameof(testScenario), $"Not expected direction value: {testScenario}"),
         };
 
-        // 
-        public async Task<string> CreateTestScenarioLists(ConstantsSet constantsSet, List<int> uniqueBookIdsFromStorageKey)
+        // сделать отдельные методы -
+        // на один List<string>
+        // на два параллельных List<string> / List<int>
+        // на IDictionary<int, int> (или на ключ)
+        public int ShowListInLog<T>(List<T> firstList, string nameOfFirst)
+        {
+            int firstListCount = firstList.Count;
+            Logs.Here().Information("List {0} length is {1}", nameOfFirst, firstListCount);
+
+            for (int i = 0; i < firstListCount; i++)
+            {
+                Logs.Here().Information("{0}[{1}] = {2}", nameOfFirst, i, firstList[i]);
+
+            }
+            return firstListCount;
+        }
+        public int ShowListsInLog<TK, TV>(List<TK> firstList, string nameOfFirst, List<TV> secondList, string nameOfSecond)
+        {
+            int firstListCount = firstList.Count;
+            Logs.Here().Information("List<string> {0} length is {1}", nameOfFirst, firstListCount);
+            int secondListCount = secondList.Count;
+            Logs.Here().Information("List<int> {0} length is {1}", nameOfSecond, secondListCount);
+            if (firstListCount != secondListCount)
+            {
+                return 0;
+            }
+            for (int i = 0; i < firstListCount; i++)
+            {
+                Logs.Here().Information("{0}[{1}] = {2}, {3}[{4}] = {5}", nameOfFirst, i, firstList[i], nameOfSecond, i, secondList[i]);
+
+            }
+            return firstListCount;
+        }
+        public int ShowDictionaryInLog<T>(IDictionary<int, T> fieldValuesResult, string nameOfDictionary, string nameOfFirst, string nameOfSecond)
+        {
+            int fieldValuesResultCount = fieldValuesResult.Count;
+            Logs.Here().Information("IDictionary {0} <{1}, {2}> length is {3}", nameOfDictionary, nameOfFirst, nameOfSecond, fieldValuesResultCount);
+
+            for (int i = 0; i < fieldValuesResultCount; i++)
+            {
+                Logs.Here().Information("Dictionary {0} [ Step = {1}] - Action = {2}", nameOfDictionary, i, fieldValuesResult[i]);
+
+            }
+            return fieldValuesResultCount;
+        }
+
+        // метод  из ключа описания сценария создаёт последовательность (список) гуид-полей сырых текстов и задержек между ними
+        public async Task<(List<string>, List<int>)> CreateTestScenarioLists(ConstantsSet constantsSet, List<int> uniqueBookIdsFromStorageKey)
         {
             string testScenarioSequenceKey = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.Value; // test-scenario-sequence
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
-            // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList
+            // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList - key-book-plain-texts-hashes-versions-list
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
 
             int uniqueBookIdsFromStorageKeyCount = uniqueBookIdsFromStorageKey.Count;
 
+            // выходной список для запуска выбранного тестового сценария - задержки
             List<int> delayList = new();
+            // поля сырых плоских текстов
+            List<string> rawPlainTextFields = new();
+            string emptyMeansDelay = "";
+
+            // можно выходные данные сделать а виде словаря - ключ это гуид-поле, а значение - это int задержка после этого поля
+            // вариант - меньше нуля (задержка), выравнивание хромает - задержка получается без ключа, надо смотреть на момент применения
+            // можно выходные данные сделать а виде словаря - ключ это гуид-поле, а значение - это инт задержка после этого поля
+            // проблема в том, что задержка занимает полный цикл, в котором нет гуид-полей, а задержку, получается,
+            // надо записать в предыдущий элемент словаря - предварительно проверив, что он существует
+            // длина словаря совсем не соответствует длине массива/списка исходного задания - потому что обычно в шаге задания пары книг
+            // словарь вообще не подходит, он не гарантирует сохранение порядка
+            //IDictionary<string, int> plainTextFieldsWithDelayAfter = new Dictionary<string, int>();
 
             IDictionary<int, int> fieldValuesResult = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
             int fieldValuesResultCount = fieldValuesResult.Count;
@@ -215,7 +274,23 @@ namespace BackgroundDispatcher.Services
                 int sequenceCell = fieldValuesResult[i];
                 Logs.Here().Information("Scenario cell {0} was fetched on step {1}", sequenceCell, i);
 
+                // а когда в цикле (во входном списке) будет задержка (sequenceCell < 0) вместо книг,
+                // записать задержку в целый список и для синхронизации записать null (или лучше пустую строку) в строчный список
+                if (sequenceCell < 0)
+                {
+                    delayList.Add(Math.Abs(sequenceCell));
+                    rawPlainTextFields.Add(emptyMeansDelay);
+                }
+                // тогда на выходе они будут одинаковой длины, пошагово будет считываться строчный список
+                // а когда встретится пустой элемент, сходим в целый список с таким же индексом и возьмём величину задержки
+                // и остаётся достать значение из поля в ключе временного хранилища (это будет сырой плоский текст)
+                // записать его в ключ задач контроллера с таким же полем и создать ключ события
+                // интересно, как совпадут версии из будущего
+                // надо же ещё не забыть прогнать временное хранилище через метод, создающий поля вечного лога
+                // и ещё потом удалить все лишние ключи
+
                 // меньше десяти (автоматический выбор)
+                // когда-нибудь потом сделаем (может быть)
 
                 if (sequenceCell > 100)
                 {
@@ -248,12 +323,17 @@ namespace BackgroundDispatcher.Services
                     if (tens == 2)
                     {
                         // номера сотен идут с единицы, а индексы списка с нуля
-                        int engBookId = uniqueBookIdsFromStorageKey[hundreds - 1]; 
+                        int engBookId = uniqueBookIdsFromStorageKey[hundreds - 1];
                         int rusBookId = engBookId + chapterFieldsShiftFactor;
-                        
+
                         // достать оба поля из вечного лога
                         List<TextSentence> engPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, engBookId);
                         List<TextSentence> rusPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, rusBookId);
+
+                        // вот тут можно сразу удалить эти поля из вечного лога - наверное
+                        // а, нет, нельзя, к ним могут ещё обратиться - пока версии не закончатся
+                        // тогда надо удалять поля в самом конце метода
+                        // причём удалять все тестовые - прямо по списку uniqueBookIdsFromStorageKey + производные со сдвигом
 
                         // теперь версия - они тоже нумеруются с единицы, но нулевой элемент - пустышка, поэтому единицу не вычитаем 
                         int engPlainTextHashCount = engPlainTextHash.Count;
@@ -276,33 +356,96 @@ namespace BackgroundDispatcher.Services
 
                         Logs.Here().Information("English book field-guid = {0}, rus = {1}", engBookFieldGuid, rusBookFieldGuid);
 
-                        // можно выходные данные сделать а виде словаря - ключ это гуид-поле, а значение - это int задержка после этого поля
+                        // придётся вернуться к идее с двумя синхронизированными списками - строчными и целым
+                        // можно записывать в целый список нули каждый раз, когда пишется поле-гуид
+                        rawPlainTextFields.Add(engBookFieldGuid);
+                        delayList.Add(0);
+                        rawPlainTextFields.Add(rusBookFieldGuid);
+                        delayList.Add(0);
+                    }
+                }
+            }
+
+            // для понимания всей картины можно сделать логи в отдельном методе - сравнить построчный вывод с выводом серилога
+
+            // списка полей во временном хранилище - где взять?
+            // списка номеров книг оттуда
+            Logs.Here().Information("List {@U}", new { UniqueBookIdsFromStorageKey = uniqueBookIdsFromStorageKey });
+            ShowListInLog(uniqueBookIdsFromStorageKey, "uniqueBookIdsFromStorageKey");
+
+            // списка тестовых полей в вечном логе, и вывести списки версий в каждом значении
+            for (int i = 0; i < uniqueBookIdsFromStorageKeyCount; i++)
+            {
+                // ---------- выделить в метод ----------
+                int engBookId = uniqueBookIdsFromStorageKey[i];
+                int rusBookId = engBookId + chapterFieldsShiftFactor;
+
+                // достать оба поля из вечного лога
+                List<TextSentence> engPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, engBookId);
+                Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = engBookId }, new { EngPlainTextHash = engPlainTextHash });
+
+                List<TextSentence> rusPlainTextHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, rusBookId);
+                Logs.Here().Information("In {@K} / {@F} - List<TextSentence> {@L}", new { Key = keyBookPlainTextsHashesVersionsList }, new { Field = rusBookId }, new { RusPlainTextHash = rusPlainTextHash });
+
+                int engPlainTextHashCount = engPlainTextHash.Count;
+                int rusPlainTextHashCount = rusPlainTextHash.Count;
+
+                if (engPlainTextHashCount == rusPlainTextHashCount)
+                {
+                    for (int j = 0; j < engPlainTextHashCount; j++)
+                    {
+                        int bookIdEng = engPlainTextHash[j].BookId;
+                        int bookIdRus = rusPlainTextHash[j].BookId;
+                        int verHashEng = engPlainTextHash[j].HashVersion;
+                        int verHashRus = rusPlainTextHash[j].HashVersion;
+
+                        string hashEng = engPlainTextHash[j].BookPlainTextHash;
+                        string hashRus = rusPlainTextHash[j].BookPlainTextHash;
+                        string bookGuidEng = engPlainTextHash[j].BookGuid;
+                        string bookGuidRus = rusPlainTextHash[j].BookGuid;
+
+                        Logs.Here().Information("Eng - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdEng, verHashEng, hashEng, bookGuidEng);
+                        Logs.Here().Information("Rus - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdRus, verHashRus, hashRus, bookGuidRus);
 
                     }
-
-                }
-
-                // вариант - меньше нуля (задержка), выравнивание хромает - задержка получается без ключа, надо смотреть на момент применения
-                if (sequenceCell < 0)
-                {
-                    delayList.Add(Math.Abs(sequenceCell));
                 }
                 else
                 {
-                    delayList.Add(0);
+                    SomethingWentWrong(true);
                 }
-
             }
+
+            // списка пунктов сценария
+            Logs.Here().Information("Dictionary {@F}", new { FieldValuesResult = fieldValuesResult });
+            ShowDictionaryInLog<int>(fieldValuesResult, "fieldValuesResult", "Step", "Action");
+
+            // выходных списков полей и задержек (параллельно)
+            ShowListsInLog(rawPlainTextFields, "rawPlainTextFields", delayList, "delayList");
+            Logs.Here().Information("List {@R} - List {@D}", new { RawPlainTextFields = rawPlainTextFields }, new { DelayList = delayList });
+
+            return (rawPlainTextFields, delayList);
         }
 
 
-        public async Task<string> PrepareTestBookIdsListFromEternalLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts)
+        // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+        public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, List<string> rawPlainTextFields, List<int> delayList)
+        {
+            Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
+
+
+
+
+            return 0;
+        }
+
+
+        public async Task<int> PrepareTestBookIdsListFromEternalLog(ConstantsSet constantsSet, List<string> rawPlainTextFields, List<int> delayList)
         {
 
 
 
 
-
+            return 0;
         }
 
 
@@ -612,26 +755,29 @@ namespace BackgroundDispatcher.Services
         #endregion
 
 
-
-        public async Task<List<int>> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
+        // сюда можно передать ключ временного хранилища тестовых плоских текстов, если он будет как-то вычисляться,
+        // а не генерироваться контроллером с guid BooTextSplit-а - bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test
+        public async Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
         {
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
 
             List<int> uniqueBookIdsFromStorageKey = new();
+            List<string> guidFieldsFromStorageKey = new();
 
             bool storageKeyBookPlainTextsIsExisted = await _cache.IsKeyExist(storageKeyBookPlainTexts);
             if (!storageKeyBookPlainTextsIsExisted)
             {
                 SomethingWentWrong(storageKeyBookPlainTextsIsExisted);
-                return null;
+                return (null, null);
             }
 
             IDictionary<string, TextSentence> fieldsFromStorageKeyBookPlainTexts = await _cache.FetchHashedAllAsync<TextSentence>(storageKeyBookPlainTexts);
 
             foreach (KeyValuePair<string, TextSentence> s in fieldsFromStorageKeyBookPlainTexts)
             {
-                (_, TextSentence v) = s;
+                (string f, TextSentence v) = s;
 
+                guidFieldsFromStorageKey.Add(f);
                 // пишем в уникальный список только базовые номера книг
                 int b = v.BookId;// + v.LanguageId * chapterFieldsShiftFactor;
 
@@ -646,7 +792,7 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Unique BookId {0} from StorageKey was added to List.", b);
                 }
             }
-            return uniqueBookIdsFromStorageKey;
+            return (uniqueBookIdsFromStorageKey, guidFieldsFromStorageKey);
         }
 
 
@@ -664,10 +810,8 @@ namespace BackgroundDispatcher.Services
         // эти номера хранятся в константах (массив?) и можно достать из лога нужные гуид-поля с текстами
         // нет, достаём номера книг с учётом языка (собственно, в точности, как поля в логе), сохраняем их в список и возвращаем из метода
         // сразу после метода можно использовать поля из лога - не совсем - ещё нет связи между этими полями и гуид-полями тестового хранилища
-        // на выходе можно достать тексты по цифровым полям и сравнить хэши тестов из хранилища с теми, что хранятся в логе (но непонятно, зачем)
-        // 
-
-        public async Task<List<int>> CreateBookPlainTextsForTests(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0)
+        // на выходе можно достать тексты по цифровым полям и сравнить хэши тестов из хранилища с теми, что хранятся в логе (но непонятно, зачем)        
+        public async Task<List<int>> CreateTestBookPlainTexts(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0)
         {
             string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
 
@@ -680,84 +824,29 @@ namespace BackgroundDispatcher.Services
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string testKeyBookPlainTextsHashesVersionsList = $"{keyBookPlainTextsHashesVersionsList}:{eventKeyTest}";
 
-            // сюда можно передать ключ временного хранилища тестовых плоских текстов, если он будет как-то вычисляться, а не генерироваться контроллером
-            List<int> uniqueBookIdsFromStorageKey = await CreateTestBookIdsListFromStorageKey(constantsSet); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
+            // сюда можно передать ключ временного хранилища тестовых плоских текстов,
+            // если он будет как-то вычисляться, а не генерироваться контроллером
+            (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await CreateTestBookIdsListFromStorageKey(constantsSet); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
-            await CreateTestScenarioLists(constantsSet, uniqueBookIdsFromStorageKey);
-
-
-
+            // 
 
 
+            // передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
+            string taskPackageGuid = await CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, guidFieldsFromStorageKey);
+
+            // выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки 
+            (List<string> rawPlainTextFields, List<int> delayList) = await CreateTestScenarioLists(constantsSet, uniqueBookIdsFromStorageKey);
+
+            // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+            int ttt = await CreateScenarioTasksAndEvents(constantsSet, rawPlainTextFields, delayList);
+            Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
 
 
-            List<string> fieldsFromStorageKey = new();
-            //List<int> uniqueBookIdsFromStorageKey = new();
-            int uniqueBookIdsFromStorageKeyCount = uniqueBookIdsFromStorageKey.Count;
-            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
-            Dictionary<string, int> bookIdsFromStorageKey = new();
-
-            bool storageKeyBookPlainTextsIsExisted = await _cache.IsKeyExist(storageKeyBookPlainTexts);
-            if (!storageKeyBookPlainTextsIsExisted)
-            {
-                SomethingWentWrong(storageKeyBookPlainTextsIsExisted);
-                return null;
-            }
-
-            bool testKeyBookPlainTextsHashesVersionsListIsExisted = await _cache.IsKeyExist(testKeyBookPlainTextsHashesVersionsList);
-            if (!testKeyBookPlainTextsHashesVersionsListIsExisted)
-            {
-                IDictionary<string, TextSentence> fieldsFromStorageKeyBookPlainTexts = await _cache.FetchHashedAllAsync<TextSentence>(storageKeyBookPlainTexts);
-                int fieldsFromStorageKeyBookPlainTextsCount = fieldsFromStorageKeyBookPlainTexts.Count;
-
-                foreach (var s in fieldsFromStorageKeyBookPlainTexts)
-                {
-                    (var f, var v) = s;
-                    int b = v.BookId + v.LanguageId * chapterFieldsShiftFactor;
-                    fieldsFromStorageKey.Add(f);
-                    //if (uniqueBookIdsFromStorageKeyCount == 0 || (uniqueBookIdsFromStorageKeyCount > 0 && !uniqueBookIdsFromStorageKey.Contains(b)))
-                    if (!uniqueBookIdsFromStorageKey.Contains(b))
-                    {
-                        uniqueBookIdsFromStorageKey.Add(b);
-                    }
 
 
-                    bookIdsFromStorageKey.Add(f, b);
-                    Logs.Here().Information("{@F} from Storage Key and the same as in the log {@B} were added to Dictionary.", new { Filed = f }, new { BookId = b });
-                }
-            }
-            // на выходе в словаре будут поля (ключи) и номера книг/языков (значения), каждый номер по числу версий
-            // но это мало что даёт, нужны версии
-            // всё же придётся доставать значения полей из вечного лога - с другой стороны, тогда не надо его стирать
 
-            string taskPackageGuid = await CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, fieldsFromStorageKey);
-            // если тестовые задачи уже есть в вечном логе, то тут будет нул
-            // и где-то надо взять номера книг (как минимум)
-
-            // чтобы долго не возиться, можно переписать отсюда обратно в ключ-хранилище уже готовые модифицированные тексты
-            // только сначала проверить, что там везде то, что нужно
-            // не надо ничего переписывать
-            // надо определить нужное количество полей (количество пар книг) - получили в параметрах
-            // удалить лишние поля из выходного ключа taskPackageGuid
-            // и удалить все тестовые поля <int> из вечного лога
-
-            // 1 определить, какой номер книги (пары) использовать и какую версию
-
-
-            // Value Type is TextSentence
-
-            string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
-                                                                   // пока время тестовых ключей задаётся отдельно (может, меньше, чем настоящие) - хотя реальной разницы нет
-            double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
-
-            // проверить ключи плоского текста и тестового оповещения и, если нужно, удалить их
-            // пока что удаляем при старте
-            bool resultPlainText = await RemoveWorkKeyOnStart(testKeyBookPlainTexts);
-            bool resultFromTest = await RemoveWorkKeyOnStart(eventKeyFrom);
-
-            Logs.Here().Information("Test plain text keys creation is started");
-
+            
 
             return default;
         }
@@ -767,19 +856,6 @@ namespace BackgroundDispatcher.Services
             List<T> fieldsFromStorageKey = new();
             fieldsFromStorageKey.Add(theFirstElement);
             return fieldsFromStorageKey;
-        }
-
-        private bool IsValueAlreadyInList<T>(List<T> testeeList, T testeeValue) where T : class
-        {
-            foreach (T v in testeeList)
-            {
-                if (v == testeeValue)
-                {
-
-                }
-            }
-
-            return false;
         }
 
         // можно сделать перегрузку с массивом на вход

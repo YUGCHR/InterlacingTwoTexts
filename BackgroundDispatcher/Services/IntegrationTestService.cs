@@ -184,9 +184,20 @@ namespace BackgroundDispatcher.Services
                 //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
                 // загрузка тестовых плоских текстов и ключа оповещения
-                List<int> testBookIds = await _prepare.CreateBookPlainTextsForTests(constantsSet, stoppingToken, testPairsCount, delayAfter);
+                List<int> testBookIds = await _prepare.CreateTestBookPlainTexts(constantsSet, stoppingToken, testPairsCount, delayAfter);
 
-                Logs.Here().Information("Test scenario {0} ({1}) was started with {@S} and is waited the results.", testScenario, testScenario1description, new { TestStartedWith = testStartedWithResult });
+                //Logs.Here().Information("Test scenario {0} ({1}) was started with {@S} and is waited the results.", testScenario, testScenario1description, new { TestStartedWith = testStartedWithResult });
+
+                // 
+                if(testBookIds == null)
+                {
+                    return false;
+                }
+
+
+
+
+
 
 
                 bool isTestResultAppeared = false;
