@@ -108,6 +108,7 @@ namespace BackgroundDispatcher.Services
         public Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds);
         public Task<List<int>> CreateTestBookPlainTexts(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0);
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "");
+        public Task<int> RemoveTestBookIdFieldsFromEternalLog(ConstantsSet constantsSet, string key, List<int> uniqueBookIdsFromStorageKey);
         public Task<bool> RemoveWorkKeyOnStart(string key);
 
     }
@@ -448,6 +449,30 @@ namespace BackgroundDispatcher.Services
             return 0;
         }
 
+        // при первом удалении можно проверять наличие
+        public async Task<int> RemoveTestBookIdFieldsFromEternalLog(ConstantsSet constantsSet, string keyBookPlainTextsHashesVersions, List<int> uniqueBookIdsFromStorageKey)
+        {
+            int count = 0;
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
+            if (uniqueBookIdsFromStorageKey != null && keyBookPlainTextsHashesVersions != null)
+            {
+                if (keyBookPlainTextsHashesVersions == "")
+                {
+                    keyBookPlainTextsHashesVersions = keyBookPlainTextsHashesVersionsList;
+                }
+                List<int> filedsToDelete = new();
+                foreach (var engBookId in uniqueBookIdsFromStorageKey)
+                {
+                    filedsToDelete.Add(engBookId);
+                    int rusBookId = engBookId + chapterFieldsShiftFactor;
+                    filedsToDelete.Add(rusBookId);
+                }
+                count = await _cache.DelFieldAsync<int>(keyBookPlainTextsHashesVersions, filedsToDelete);
+            }
+            return count;
+        }
+
 
 
         #region CreateTaskPackageAndSaveLog for FormTaskPackageFromPlainText (via IntegrationTestService)
@@ -551,6 +576,8 @@ namespace BackgroundDispatcher.Services
 
             return taskPackageGuid;
         }
+
+
 
         private async Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText)
         {
@@ -796,13 +823,6 @@ namespace BackgroundDispatcher.Services
         }
 
 
-
-
-
-
-
-
-
         // проверить наличие ключа-хранилища, достать из него список (словарь) полей (и значений), перегнать поля в список
         // вызвать метод, передать ему ключ и список полей - метод вернёт ключ с полями, но он не нужен
         // ещё метод запишет в вечный лог поля с номерами книг
@@ -828,27 +848,32 @@ namespace BackgroundDispatcher.Services
             // если он будет как-то вычисляться, а не генерироваться контроллером
             (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await CreateTestBookIdsListFromStorageKey(constantsSet); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
-            // 
-
-
+            // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
+            // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
+            int result1 = await RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
+            if(!(result1 > 0))
+            {
+                SomethingWentWrong(true);
+            }
+            
             // передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
             string taskPackageGuid = await CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, guidFieldsFromStorageKey);
 
             // выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки 
             (List<string> rawPlainTextFields, List<int> delayList) = await CreateTestScenarioLists(constantsSet, uniqueBookIdsFromStorageKey);
 
+            // и удалить их второй раз после завершения использования для подготовки тестовых текстов
+            int result2 = await RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
+            if (!(result2 > 0))
+            {
+                SomethingWentWrong(true);
+            }
+
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
             int ttt = await CreateScenarioTasksAndEvents(constantsSet, rawPlainTextFields, delayList);
             Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
-
-
-
-
-
-            
-
-            return default;
+            return uniqueBookIdsFromStorageKey;
         }
 
         private List<T> OperationWithListFirstElement<T>(T theFirstElement)

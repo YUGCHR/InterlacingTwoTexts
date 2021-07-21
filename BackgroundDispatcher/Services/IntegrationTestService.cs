@@ -94,7 +94,7 @@ namespace BackgroundDispatcher.Services
         // outside access to CreateTaskPackageAndSaveLog (placed in internal class TestTasksPrepareAndStoreService)
         public async Task<string> CreateTaskPackage(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
         {
-            string taskPackageGuid = await _prepare.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, taskPackageFileds);            
+            string taskPackageGuid = await _prepare.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, taskPackageFileds);
             return taskPackageGuid;
         }
 
@@ -184,13 +184,14 @@ namespace BackgroundDispatcher.Services
                 //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
                 // загрузка тестовых плоских текстов и ключа оповещения
-                List<int> testBookIds = await _prepare.CreateTestBookPlainTexts(constantsSet, stoppingToken, testPairsCount, delayAfter);
+                List<int> uniqueBookIdsFromStorageKey = await _prepare.CreateTestBookPlainTexts(constantsSet, stoppingToken, testPairsCount, delayAfter);
 
                 //Logs.Here().Information("Test scenario {0} ({1}) was started with {@S} and is waited the results.", testScenario, testScenario1description, new { TestStartedWith = testStartedWithResult });
 
                 // 
-                if(testBookIds == null)
+                if (uniqueBookIdsFromStorageKey != null)
                 {
+                    // временное прерывание для отладки, потом поменять на ==
                     return false;
                 }
 
@@ -227,7 +228,20 @@ namespace BackgroundDispatcher.Services
                 char separFalse = 'X';
                 string textFalse = $"is FAILED";
                 DisplayResultInFrame(finalResult, testDescription, separTrue, textTrue, separFalse, textFalse);
+
+                // а потом удалить их третий раз - после завершения теста и проверки его результатов
+                int result3 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, "", uniqueBookIdsFromStorageKey);
+                if (!(result3 > 0))
+                {
+                    _prepare.SomethingWentWrong(true);
+                }
+
             }
+
+
+
+
+
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
             return _isTestInProgress;

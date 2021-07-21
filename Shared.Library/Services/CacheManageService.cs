@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using CachingFramework.Redis.Contracts.Providers;
 using Shared.Library.Models;
- 
+
 namespace Shared.Library.Services
 {
     public interface ICacheManageService
@@ -16,7 +16,8 @@ namespace Shared.Library.Services
         public Task<bool> IsKeyExist(string key);
         public Task<bool> DelKeyAsync(string key);
         public Task<bool> DelFieldAsync(string key, string field);
-        public Task<bool> DelFieldAsync<TK>(string key, TK field);        
+        public Task<bool> DelFieldAsync<TK>(string key, TK field);
+        public Task<int> DelFieldAsync<TK>(string key, List<TK> fields);
         public Task<T> FetchHashedAsync<T>(string key, string field);
         public Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
         public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
@@ -98,15 +99,33 @@ namespace Shared.Library.Services
         {
             return await _cache.RemoveAsync(key);
         }
-        
+
         public async Task<bool> DelFieldAsync(string key, string field)
         {
             return await _cache.RemoveHashedAsync(key, field);
         }
-        
+
         public async Task<bool> DelFieldAsync<TK>(string key, TK field)
         {
             return await _cache.RemoveHashedAsync<TK>(key, field);
+        }
+
+        public async Task<int> DelFieldAsync<TK>(string key, List<TK> fields)
+        {
+            int count = 0;
+            if (fields != null)
+            {
+                foreach (var f in fields)
+                {
+                    bool result = await _cache.RemoveHashedAsync<TK>(key, f);
+                    if (!result)
+                    {
+                        return -1;
+                    }
+                    count++;
+                }
+            }
+            return count;
         }
 
         public async Task<T> FetchHashedAsync<T>(string key, string field)
@@ -119,17 +138,17 @@ namespace Shared.Library.Services
         {
             return await _cache.GetHashedAsync<TK, TV>(key, field);
         }
-       
+
         public async Task WriteHashedAsync<T>(string key, string field, T value, double ttl)
         {
             await _cache.SetHashedAsync<T>(key, field, value, TimeSpan.FromDays(ttl));
         }
-        
+
         public async Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl)
         {
             await _cache.SetHashedAsync<TK, TV>(key, field, value, TimeSpan.FromDays(ttl));
         }
-        
+
         public async Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl)
         {
             await _cache.SetHashedAsync<TK, TV>(key, fieldValues, TimeSpan.FromDays(ttl));
