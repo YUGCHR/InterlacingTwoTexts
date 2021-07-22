@@ -54,16 +54,19 @@ namespace BackgroundDispatcher.Services
 
     public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
     {
-        private readonly ILogger<FormTaskPackageFromPlainText> _logger;
+        private readonly IEternalLogSupportService _eternal;
+        private readonly ICollectTasksInPackage _collect;
         private readonly IIntegrationTestService _test;
         private readonly ICacheManageService _cache;
 
         public FormTaskPackageFromPlainText(
-            ILogger<FormTaskPackageFromPlainText> logger,
+            IEternalLogSupportService eternal,
+            ICollectTasksInPackage collect,
             IIntegrationTestService test,
             ICacheManageService cache)
         {
-            _logger = logger;
+            _eternal = eternal;
+            _collect = collect;
             _test = test;
             _cache = cache;
         }
@@ -151,7 +154,7 @@ namespace BackgroundDispatcher.Services
             (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
-            string taskPackageGuid = await _test.CreateTaskPackage(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
+            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != null)
             {

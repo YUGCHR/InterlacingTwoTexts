@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using BooksTextsSplit.Library.Models;
+using BooksTextsSplit.Library.Services;
 using CachingFramework.Redis.Contracts;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Hosting;
@@ -57,7 +58,6 @@ namespace BackgroundDispatcher.Services
 {
     public interface IIntegrationTestService
     {
-        public Task<string> CreateTaskPackage(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds);
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
 
@@ -78,11 +78,21 @@ namespace BackgroundDispatcher.Services
 
     public class IntegrationTestService : IIntegrationTestService
     {
+        // метод создаёт из последовательности команд в списке int (пришедшим из веб-интерфейса)
+        // ключ с полями-индексами порядка команд и нужной активностью в значениях
+        private readonly IAuxiliaryUtilsService _aux;
+        private readonly ITestScenarioService _scenario;
         private readonly ICacheManageService _cache;
-        private readonly ITestTasksPrepareAndStoreService _prepare;
+        private readonly ITestTasksPreparationService _prepare;
 
-        public IntegrationTestService(ICacheManageService cache, ITestTasksPrepareAndStoreService prepare)
+        public IntegrationTestService(
+            IAuxiliaryUtilsService aux,
+            ITestScenarioService scenario,
+            ICacheManageService cache, 
+            ITestTasksPreparationService prepare)
         {
+            _aux = aux;
+            _scenario = scenario;
             _cache = cache;
             _prepare = prepare;
         }
@@ -90,17 +100,6 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
 
         private bool _isTestInProgress;
-
-        // outside access to CreateTaskPackageAndSaveLog (placed in internal class TestTasksPrepareAndStoreService)
-        public async Task<string> CreateTaskPackage(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
-        {
-            string taskPackageGuid = await _prepare.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, taskPackageFileds);
-            return taskPackageGuid;
-        }
-
-
-
-
 
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
@@ -113,6 +112,7 @@ namespace BackgroundDispatcher.Services
             _isTestInProgress = true;
 
             #region Constants preparation
+
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
             int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;
@@ -123,7 +123,7 @@ namespace BackgroundDispatcher.Services
             string testSettingKey1 = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.Value; // testSettingKey1
             double testSettingKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.LifeTime;
 
-            bool testSettingKey1WasDeleted = await _prepare.RemoveWorkKeyOnStart(testSettingKey1);
+            bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1);
 
             string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
             string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
@@ -146,8 +146,8 @@ namespace BackgroundDispatcher.Services
 
             int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
 
-            bool testResultsKey1WasDeleted = await _prepare.RemoveWorkKeyOnStart(testResultsKey1);
-            if (_prepare.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted))
+            bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
+            if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted))
             {
                 return false;
             }
@@ -159,7 +159,7 @@ namespace BackgroundDispatcher.Services
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
-            await _prepare.CreateTestScenarioKey(constantsSet, testScenario);
+            await _scenario.CreateTestScenarioKey(constantsSet, testScenario);
 
             // тут создаём последовательность полей согласно плана сценария
 
@@ -233,7 +233,7 @@ namespace BackgroundDispatcher.Services
                 int result3 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, "", uniqueBookIdsFromStorageKey);
                 if (!(result3 > 0))
                 {
-                    _prepare.SomethingWentWrong(true);
+                    _aux.SomethingWentWrong(true);
                 }
 
             }
@@ -495,7 +495,7 @@ namespace BackgroundDispatcher.Services
 
         public async Task<bool> RemoveWorkKeyOnStart(string key)
         {
-            return await _prepare.RemoveWorkKeyOnStart(key);
+            return await _aux.RemoveWorkKeyOnStart(key);
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using BooksTextsSplit.Library.Models;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Logging;
+using Shared.Library.Services;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -15,38 +16,38 @@ namespace BooksTextsSplit.Library.Services
         public Task<T> FetchObjectAsync<T>(string redisKey, string fieldKey, Func<Task<T>> func, TimeSpan? expiry = null); // FetchHashedAsync
         public Task<T> FetchObjectAsync<T>(string key, Func<Task<T>> func, TimeSpan? expiry = null);
         public Task<T> FetchBookTable<T>(string key, int field);
+        public Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key);
+        public Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key);
         public Task SetObjectAsync<T>(string key, T value, TimeSpan? ttl = null);
         public Task SetObjectAsync<T>(string redisKey, string fieldKey, T value, TimeSpan? ttl = null); // SetHashedAsync
         public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
         public Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl);
+        public Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl);
         public Task<bool> SetObjectAsyncCheck<T>(string key, T value, TimeSpan? ttl = null);
         public Task<bool> RemoveAsync(string key);
         public Task<bool> KeyExistsAsync(string key);
         public Task<bool> KeyExistsAsync<T>(string key, string field);
         public Task<bool> KeyExpireAsync(string key, DateTime expiration);
+        public Task<bool> RemoveWorkKeyOnStart(string key);
     }
 
     public class AccessCacheData : IAccessCacheData
     {
-        private readonly ILogger<AccessCacheData> _logger;
         private readonly ISettingConstants _constant;
         private readonly ICacheProviderAsync _cache;
         private readonly ICosmosDbService _context;
 
         public AccessCacheData(
-            ILogger<AccessCacheData> logger,
             ISettingConstants constant,
             ICosmosDbService cosmosDbService,
-            //RedisContext c)
             ICacheProviderAsync cache)
         {
-            _logger = logger;
             _constant = constant;
             _cache = cache;
             _context = cosmosDbService;
         }
 
-        //private static Serilog.ILogger Logs => Serilog.Log.ForContext<CacheManageService>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<AccessCacheData>();
 
         public async Task<T> GetObjectAsync<T>(string key)
         {
@@ -119,6 +120,15 @@ namespace BooksTextsSplit.Library.Services
             return default;
         }
 
+        public async Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key)
+        {
+            return await _cache.GetHashedAllAsync<T>(key);
+        }
+
+        public async Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key)
+        {// Task<IDictionary<TK, TV>> GetHashedAllAsync<TK, TV>(string key, CommandFlags flags = CommandFlags.None);
+            return await _cache.GetHashedAllAsync<TK, TV>(key);
+        }
 
         public async Task SetObjectAsync<T>(string key, T value, TimeSpan? ttl = null)
         {
@@ -148,6 +158,10 @@ namespace BooksTextsSplit.Library.Services
 
         }
 
+        public async Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl)
+        {
+            await _cache.SetHashedAsync<TK, TV>(key, fieldValues, TimeSpan.FromDays(ttl));
+        }
 
         public async Task<bool> RemoveAsync(string key)
         {
@@ -173,6 +187,21 @@ namespace BooksTextsSplit.Library.Services
         {
             return await _cache.KeyExpireAsync(key, expiration);
         }
+
+        public async Task<bool> RemoveWorkKeyOnStart(string key)
+        {
+            // can use Task RemoveAsync(string[] keys, CommandFlags flags = CommandFlags.None);
+            bool result = await KeyExistsAsync(key);
+            if (result)
+            {
+                result = await RemoveAsync(key);
+                Logs.Here().Information("{@K} was removed with result {0}.", new { Key = key }, result);
+                return result;
+            }
+            Logs.Here().Information("{@K} does not exist.", new { Key = key });
+            return !result;
+        }
+
 
         //public async Task<TimeSpan?> KeyTimeToLiveAsync(string key)
         //public async Task<bool> KeyPersistAsync(string key)

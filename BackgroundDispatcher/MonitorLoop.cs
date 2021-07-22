@@ -15,14 +15,14 @@ namespace BackgroundDispatcher
     public class MonitorLoop
     {
         private readonly CancellationToken _cancellationToken;
-        private readonly ISettingConstantsS _constants;
+        private readonly ISettingConstantsService _constants;
         private readonly ISharedDataAccess _data;
         private readonly ICacheManageService _cache;
         private readonly IOnKeysEventsSubscribeService _subscribe;
 
         public MonitorLoop(
             IHostApplicationLifetime applicationLifetime,
-            ISettingConstantsS constants,
+            ISettingConstantsService constants,
             ISharedDataAccess data,
             ICacheManageService cache,
             IOnKeysEventsSubscribeService subscribe)

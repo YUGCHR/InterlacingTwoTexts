@@ -17,6 +17,7 @@ using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Shared.Library.Services;
 using BackgroundDispatcher.Services;
+//using BooksTextsSplit.Library.Services;
 
 #region Project description
 
@@ -35,12 +36,18 @@ using BackgroundDispatcher.Services;
 // MonitorLoop - стартовый класс, получает константы, проверяет количество бэк-серверов (а разработке)
 // и запускает метод SubscribingPlan план подписок из класса OnKeysEventsSubscribeService
 
-// OnKeysEventsSubscribeService - 
-// EventCounterHandler -
-// FormTaskPackageFromPlainText - 
+// SettingConstantsS - 
+// MonitorLoop - 
+// GenerateThisInstanceGuidService - 
+// CacheManageService - 
+// SharedDataAccess - 
 // IntegrationTestService - 
+// TestRawBookTextsStorageService - 
+// EternalLogSupportService - 
 // TestTasksPrepareAndStoreService - 
-// SettingConstantsService - 
+// OnKeysEventsSubscribeService - 
+// EventCounterHandler - 
+// FormTaskPackageFromPlainText - 
 
 #endregion
 
@@ -114,13 +121,24 @@ namespace BackgroundDispatcher
                         throw;
                     }
 
-                    services.AddSingleton<ISettingConstantsS, SettingConstantsService>(); // new one
+                    services.AddSingleton<ISettingConstantsService, SettingConstantsService>(); // new one
                     services.AddScoped<MonitorLoop>();
                     services.AddScoped<GenerateThisInstanceGuidService>();
+                    services.AddScoped<IAuxiliaryUtilsService, AuxiliaryUtilsService>();
+
+                    // ControllerCacheManager is injected temporary - to start method to convert list with test scenario to key
+                    // The Controller will fetch the list with test scenario from web-interface
+                    // services.AddScoped<IControllerCacheManager, ControllerCacheManager>(); // for temp!
+
                     services.AddScoped<ICacheManageService, CacheManageService>();
-                    services.AddScoped<ISharedDataAccess, SharedDataAccess>();                    
+                    services.AddScoped<ISharedDataAccess, SharedDataAccess>();
+                    services.AddScoped<ICollectTasksInPackage, CollectTasksInPackage>();
+                    services.AddScoped<ITestScenarioService, TestScenarioService>();
                     services.AddScoped<IIntegrationTestService, IntegrationTestService>();
-                    services.AddScoped<ITestTasksPrepareAndStoreService, TestTasksPrepareAndStoreService>();
+                    services.AddScoped<ITestRawBookTextsStorageService, TestRawBookTextsStorageService>();
+                    services.AddScoped<IEternalLogSupportService, EternalLogSupportService>();
+                    services.AddScoped<ICollectTasksInPackage, CollectTasksInPackage>();
+                    services.AddScoped<ITestTasksPreparationService, TestTasksPreparationService>();
                     services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     services.AddScoped<IEventCounterHandler, EventCounterHandler>();
                     services.AddScoped<IFormTaskPackageFromPlainText, FormTaskPackageFromPlainText>();
