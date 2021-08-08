@@ -60,8 +60,7 @@ namespace BooksTextsSplit.Library.Services
     {
         private readonly ILogger<ControllerDataManager> _logger;
         private readonly IControllerCacheManager _cache;
-        private readonly ISettingConstants _constant;
-        private readonly ISettingConstantsS _constants;
+        private readonly ISettingConstantsService _constants;
         private readonly CancellationToken _cancellationToken;
         private readonly IAccessCacheData _access;
         private readonly ICosmosDbService _context;
@@ -69,15 +68,13 @@ namespace BooksTextsSplit.Library.Services
         public ControllerDataManager(
             ILogger<ControllerDataManager> logger,
             IControllerCacheManager cache,
-            ISettingConstants constant,
-            ISettingConstantsS constants,
+            ISettingConstantsService constants,
             IHostApplicationLifetime applicationLifetime,
             ICosmosDbService cosmosDbService,
             IAccessCacheData access)
         {
             _logger = logger;
             _cache = cache;
-            _constant = constant;
             _constants = constants;
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _access = access;
@@ -91,7 +88,7 @@ namespace BooksTextsSplit.Library.Services
         #region Set Constants
 
 
-        public async Task<ConstantsSet> ConstantInit() // not used
+        private async Task<ConstantsSet> FetchTheConstants()
         {
             // первый раз вызвать из хостид?
             ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
@@ -229,7 +226,7 @@ namespace BooksTextsSplit.Library.Services
             // не лист, а ключ!
             // держать переменную класса с текущим значением счётчика задач и while по истечению времени или нужного приращения этого счётчика
 
-            ConstantsSet constantsSet = await _constants.ConstantInitializer(_cancellationToken);
+            ConstantsSet constantsSet = await FetchTheConstants();
 
             JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true, };
             TextSentence bookPlainTextWithDescription = JsonSerializer.Deserialize<TextSentence>(jsonBookDescription, options);
@@ -256,6 +253,8 @@ namespace BooksTextsSplit.Library.Services
 
         public TaskUploadPercents CreateTaskGuidPercentsKeys(string guid, TextSentence bookDescription = null, int textSentencesLength = 0, [CallerMemberName] string currentMethodNameName = "")
         {
+            //ConstantsSet constantsSet = await FetchTheConstants();
+
             if (guid == null)
             {
                 string message = $"Attempt of {currentMethodNameName} to start CreateTaskGuidPercentsKeys was failed (guid is null)";
@@ -263,14 +262,14 @@ namespace BooksTextsSplit.Library.Services
                 return null;
             }
 
-            string keyBookId = _constant.GetKeyBookId; // bookId
-            string keyBookIdAction = _constant.GetKeyBookIdAction; // upload
+            string keyBookId = "bookId"; // bookId
+            string keyBookIdAction = "upload"; // upload
             string redisKey = keyBookId.KeyBaseRedisKey(keyBookIdAction); // bookId:upload
 
-            string keyTaskPercents = _constant.GetKeyTaskPercents; // percents
+            string keyTaskPercents = "percents"; // percents
             string fieldKeyPercents = guid.KeyBaseRedisKey(keyTaskPercents); // guid:percents
 
-            string keyIsTaskRunning = _constant.GetKeyIsTaskRunning; // isRunning - UNUSED
+            string keyIsTaskRunning = "isRunning"; // isRunning - UNUSED
             string fieldKeyState = guid.KeyBaseRedisKey(keyIsTaskRunning); // guid:isRunning
 
             bookDescription ??= new TextSentence // if null
@@ -295,7 +294,7 @@ namespace BooksTextsSplit.Library.Services
                 RedisKey = redisKey,
                 FieldKeyPercents = fieldKeyPercents,
                 FieldKeyState = fieldKeyState,
-                KeysExistingTime = TimeSpan.FromMinutes(_constant.GetPercentsKeysExistingTimeInMinutes)
+                KeysExistingTime = TimeSpan.FromMinutes(5)//_constant.GetPercentsKeysExistingTimeInMinutes)
             };
 
             return uploadPercents;

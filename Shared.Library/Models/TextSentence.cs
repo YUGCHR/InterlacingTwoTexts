@@ -2,7 +2,7 @@
 //using System.Text.Json;
 using Newtonsoft.Json;
 
-namespace BooksTextsSplit.Library.Models
+namespace Shared.Library.Models
 {
     public class TextSentence
     {

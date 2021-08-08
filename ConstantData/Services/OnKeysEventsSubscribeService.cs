@@ -17,11 +17,11 @@ namespace ConstantData.Services
 
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
     {
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly IKeyEventsProvider _keyEvents;
 
         public OnKeysEventsSubscribeService(
-            IKeyEventsProvider keyEvents, ICacheManageService cache)
+            IKeyEventsProvider keyEvents, ICacheManagerService cache)
         {
             _keyEvents = keyEvents;
             _cache = cache;

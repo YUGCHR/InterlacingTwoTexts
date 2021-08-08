@@ -8,13 +8,13 @@ using Shared.Library.Services;
 
 namespace BooksTextsSplit.Library.Services
 {
-    public interface ISettingConstantsS
+    public interface ISettingConstantsService
     {        
         public void SubscribeOnBaseConstantEvent();
         public Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
     }
 
-    public class SettingConstantsService : ISettingConstantsS
+    public class SettingConstantsService : ISettingConstantsService
     {
         private readonly ISharedDataAccess _data;
         private readonly string _guid;

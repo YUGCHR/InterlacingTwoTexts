@@ -15,14 +15,14 @@ namespace BackgroundTasksQueue.Services
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
     {
         private readonly ISettingConstants _constants;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly IKeyEventsProvider _keyEvents;
         private readonly ITasksPackageCaptureService _captures;
         private readonly ITasksBatchProcessingService _processing;
 
         public OnKeysEventsSubscribeService(
             ISettingConstants constants,
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IKeyEventsProvider keyEvents,
             ITasksPackageCaptureService captures,
             ITasksBatchProcessingService processing)

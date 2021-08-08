@@ -17,14 +17,14 @@ namespace BackgroundTasksQueue.Services
 
     public class SettingConstantsService : ISettingConstants
     {
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly ISharedDataAccess _data;
         private readonly string _guid;
 
         public SettingConstantsService(
             GenerateThisInstanceGuidService thisGuid,
             ISharedDataAccess data,
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _data = data;
             _cache = cache;

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using BooksTextsSplit.Library.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Shared.Library.Models;
 
 namespace BooksTextsSplit.Library.Services
 {

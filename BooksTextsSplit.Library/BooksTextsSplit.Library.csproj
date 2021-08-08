@@ -34,7 +34,7 @@
     <PackageReference Include="StackExchange.Redis" Version="2.2.4" />
   </ItemGroup>
 
-  <ItemGroup>    
+  <ItemGroup>
     <ProjectReference Include="..\Shared.Library\Shared.Library.csproj" />
   </ItemGroup>
 

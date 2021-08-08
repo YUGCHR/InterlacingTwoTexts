@@ -81,18 +81,21 @@ namespace BackgroundDispatcher.Services
         // метод создаёт из последовательности команд в списке int (пришедшим из веб-интерфейса)
         // ключ с полями-индексами порядка команд и нужной активностью в значениях
         private readonly IAuxiliaryUtilsService _aux;
+        private readonly IConvertArrayToKeyWithIndexFields _convert;
         private readonly ITestScenarioService _scenario;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly ITestTasksPreparationService _prepare;
 
         public IntegrationTestService(
             IAuxiliaryUtilsService aux,
+            IConvertArrayToKeyWithIndexFields convert,
             ITestScenarioService scenario,
-            ICacheManageService cache, 
+            ICacheManagerService cache, 
             ITestTasksPreparationService prepare)
         {
             _aux = aux;
             _scenario = scenario;
+            _convert = convert;
             _cache = cache;
             _prepare = prepare;
         }
@@ -159,7 +162,7 @@ namespace BackgroundDispatcher.Services
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
-            await _scenario.CreateTestScenarioKey(constantsSet, testScenario);
+            await _convert.CreateTestScenarioKey(constantsSet, testScenario);
 
             // тут создаём последовательность полей согласно плана сценария
 

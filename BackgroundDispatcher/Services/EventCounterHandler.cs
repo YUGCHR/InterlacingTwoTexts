@@ -27,13 +27,13 @@ namespace BackgroundDispatcher.Services
     public class EventCounterHandler : IEventCounterHandler
     {
         private readonly CancellationToken _cancellationToken;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly IIntegrationTestService _test;
         private readonly IFormTaskPackageFromPlainText _front;
 
         public EventCounterHandler(
             IHostApplicationLifetime applicationLifetime,
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IIntegrationTestService test,
             IFormTaskPackageFromPlainText front
             )

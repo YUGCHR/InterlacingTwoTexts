@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Shared.Library.Models;
 
 namespace BooksTextsSplit.Library.Models
 {

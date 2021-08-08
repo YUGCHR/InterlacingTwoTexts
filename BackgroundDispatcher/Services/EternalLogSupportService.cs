@@ -31,11 +31,11 @@ namespace BackgroundDispatcher.Services
     public class EternalLogSupportService : IEternalLogSupportService
     {
         private readonly IAuxiliaryUtilsService _aux;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public EternalLogSupportService(
             IAuxiliaryUtilsService aux,
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _aux = aux;
             _cache = cache;

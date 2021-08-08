@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.Threading;
 using BooksTextsSplit.Library.BookAnalysis;
 using BooksTextsSplit.Library.Models;
+using Shared.Library.Models;
 
 namespace BooksTextsSplit.Library.Services
 {
@@ -21,7 +22,7 @@ namespace BooksTextsSplit.Library.Services
     {
         private readonly IBackgroundTaskQueue _taskQueue;
         private readonly ILogger<BackgroundTasksService> _logger;
-        private readonly ISettingConstants _constant;
+        private readonly ISettingConstantsService _constants;
         private readonly IControllerDataManager _data;
         private readonly IAccessCacheData _access;
         private readonly ICosmosDbService _context;
@@ -29,14 +30,14 @@ namespace BooksTextsSplit.Library.Services
         public BackgroundTasksService(
             IBackgroundTaskQueue taskQueue,
             ILogger<BackgroundTasksService> logger,
-            ISettingConstants constant,
+            ISettingConstantsService constants,
             IControllerDataManager data,
             ICosmosDbService cosmosDbService,
             IAccessCacheData access)
         {
             _taskQueue = taskQueue;
             _logger = logger;
-            _constant = constant;
+            _constants = constants;
             _data = data;
             _access = access;
             _context = cosmosDbService;
@@ -151,7 +152,7 @@ namespace BooksTextsSplit.Library.Services
 
                             if (textSentencesLength < 20)
                             {
-                                await Task.Delay(_constant.GetTaskDelayTimeInSeconds * 1000, tokenDelay); // delay to emulate upload of a real book - 
+                                //await Task.Delay(_constants.GetTaskDelayTimeInSeconds * 1000, tokenDelay); // delay to emulate upload of a real book - 
                             }
 
                             await _context.AddItemAsync(textSentences[tsi]); // возвращать значение charges - если не нулевое, значит что-то записалось
@@ -265,7 +266,7 @@ namespace BooksTextsSplit.Library.Services
                         Id = Guid.NewGuid().ToString(),
                         BookId = bookDescription.BookId,
                         //RecordActualityLevel = Constants.RecordActualityLevel, // Model TextSentence ver.6
-                        RecordActualityLevel = _constant.GetRecordActualityLevel, // Constants.RecordActualityLevel;
+                        //RecordActualityLevel = _constants.GetRecordActualityLevel, // Constants.RecordActualityLevel;
                         BookProperties = new TextSentence.BookPropertiesInLanguage
                         {
                             AuthorNameId = bookDescription.BookProperties.AuthorNameId,

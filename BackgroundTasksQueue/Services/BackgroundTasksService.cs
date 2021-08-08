@@ -20,11 +20,11 @@ namespace BackgroundTasksQueue.Services
     public class BackgroundTasksService : IBackgroundTasksService
     {
         private readonly IBackgroundTaskQueue _taskQueue;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public BackgroundTasksService(
             IBackgroundTaskQueue taskQueue,
-            ICacheManageService cache
+            ICacheManagerService cache
         )
         {
             _taskQueue = taskQueue;

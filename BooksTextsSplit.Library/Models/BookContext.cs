@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Shared.Library.Models;
 
 namespace BooksTextsSplit.Library.Models
 {

@@ -1,9 +1,10 @@
-﻿using BooksTextsSplit.Controllers;
-using BooksTextsSplit.Library.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Text;
+using System.Collections.Generic;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using BooksTextsSplit.Controllers;
+using BooksTextsSplit.Library.Models;
+using Shared.Library.Models;
 
 namespace BooksTextsSplitTests.BookAnalysis.UnitTests
 {

@@ -16,10 +16,10 @@ namespace BackgroundTasksQueue.Services
     {
         private readonly IBackgroundTasksService _task2Queue;
         private readonly IBackgroundTaskQueue _taskQueue;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public TasksBatchProcessingService(
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IBackgroundTasksService task2Queue, 
             IBackgroundTaskQueue taskQueue)
         {

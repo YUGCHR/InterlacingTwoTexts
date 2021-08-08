@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using BooksTextsSplit.Library.Models;
+//using BooksTextsSplit.Library.Models;
+using Shared.Library.Models;
+
 
 namespace BooksTextsSplit.Library.Services
 {

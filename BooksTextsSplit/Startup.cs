@@ -36,7 +36,8 @@ namespace BooksTextsSplit
             //services.AddLocalization(opts => { opts.ResourcesPath = "Resources"; });
             services.AddLocalization(options => options.ResourcesPath = "Resources");
 
-            services.AddSingleton<ISettingConstants, SettingConstants>();            
+            //services.AddSingleton<ISettingConstants, SettingConstants>();
+            services.AddSingleton<ISettingConstantsService, SettingConstantsService>(); // new one
 
             services.Configure<CookiePolicyOptions>(options =>
             {
@@ -48,7 +49,7 @@ namespace BooksTextsSplit
             //services.AddAuthentication("BasicAuthentication")
             //    .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>("BasicAuthentication", null);
 
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>(); // (was AddSingleton)
 
             // configure DI for application services            
             services.AddScoped<IAuthService, AuthService>();
@@ -97,10 +98,13 @@ namespace BooksTextsSplit
                 throw;
             }
 
-            services.AddSingleton<ISettingConstantsS, SettingConstantsService>(); // new one
+            // namespace Shared.Library.Services
             services.AddSingleton<GenerateThisInstanceGuidService>();
-            services.AddSingleton<ICacheManageService, CacheManageService>();
+            services.AddSingleton<ICacheManagerService, CacheManagerService>();
             services.AddSingleton<ISharedDataAccess, SharedDataAccess>();
+            services.AddScoped<IAuxiliaryUtilsService, AuxiliaryUtilsService>();
+            services.AddScoped<IRawBookTextAddAndNotifyService, RawBookTextAddAndNotifyService>();
+            services.AddScoped<IConvertArrayToKeyWithIndexFields, ConvertArrayToKeyWithIndexFields>();
 
             // Consuming a scoped service in a background task
             //services.AddSingleton<MonitorLoop>();

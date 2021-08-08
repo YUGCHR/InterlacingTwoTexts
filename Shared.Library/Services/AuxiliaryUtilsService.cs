@@ -1,18 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using BooksTextsSplit.Library.Models;
-using CachingFramework.Redis.Contracts;
-using CachingFramework.Redis.Contracts.Providers;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
-using Shared.Library.Services;
 
 #region TestRawBookTextsStorageService description
 
@@ -21,19 +12,20 @@ using Shared.Library.Services;
 
 #endregion
 
-namespace BackgroundDispatcher.Services
+namespace Shared.Library.Services
 {
     public interface IAuxiliaryUtilsService
     {
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "");
+        public Task<bool> IsTestInProgress(ConstantsSet constantsSet);
         public Task<bool> RemoveWorkKeyOnStart(string key);
     }
 
     public class AuxiliaryUtilsService : IAuxiliaryUtilsService
     {
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
-        public AuxiliaryUtilsService(ICacheManageService cache)
+        public AuxiliaryUtilsService(ICacheManagerService cache)
         {
             _cache = cache;
         }
@@ -59,6 +51,47 @@ namespace BackgroundDispatcher.Services
                 }
             }
             return false;
+        }
+
+
+        public async Task<bool> IsTestInProgress(ConstantsSet constantsSet)
+        {
+            // здесь проверить тестовый ключ и, если выполняется тест, ждать
+            // можно ждать стандартные 5 сек (или свое время) и, если не освободилось, возвращать пользователю отлуп
+            string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
+            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
+            int totalTimeOfTestEndWaiting = (int)(timerIntervalInMilliseconds * 2.001) / delayTimeForTest1;
+            int currentTimeToWaitEndOfTest = 0;
+
+            bool isTestInProgress = true;
+            // крутимся в цикле, пока существует ключ запуска теста
+            while (isTestInProgress)
+            {
+                isTestInProgress = await _cache.IsKeyExist(eventKeyTest);
+                Logs.Here().Information("Test {@K} is existed - {0}", new { Key = eventKeyTest }, isTestInProgress);
+
+                if (!isTestInProgress)
+                {
+                    // если ключа теста нет, возвращаем, что теста нет - без ожидания
+                    Logs.Here().Information("Test {@K} is not found - {0}", new { Key = eventKeyTest }, !isTestInProgress);
+                    return false;
+                }
+
+                await Task.Delay(delayTimeForTest1);
+                currentTimeToWaitEndOfTest++;
+                Logs.Here().Information("Test {@K} is existed - {0}, it is waited {1} msec for {2} times", new { Key = eventKeyTest }, isTestInProgress, delayTimeForTest1, currentTimeToWaitEndOfTest);
+
+                if (currentTimeToWaitEndOfTest > totalTimeOfTestEndWaiting)
+                {
+                    // время ожидания вышло, тест почему-то не закончился - всё плохо, больше не ждём
+                    Logs.Here().Information("The waiting time {0} was expired {1}, the test {@K} for some reason is {2} yet", currentTimeToWaitEndOfTest, totalTimeOfTestEndWaiting, new { Key = eventKeyTest }, isTestInProgress);
+
+                    return true;
+                }
+            }
+            // вообще всё пропало
+            return true;
         }
 
 

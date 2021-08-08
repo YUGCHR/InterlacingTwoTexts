@@ -32,12 +32,12 @@ namespace BackgroundDispatcher.Services
     {
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IEternalLogSupportService _eternal;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public CollectTasksInPackage(
             IAuxiliaryUtilsService aux,
             IEternalLogSupportService eternal,
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _aux = aux;
             _eternal = eternal;

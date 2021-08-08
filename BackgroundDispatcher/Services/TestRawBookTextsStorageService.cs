@@ -33,11 +33,11 @@ namespace BackgroundDispatcher.Services
     public class TestRawBookTextsStorageService : ITestRawBookTextsStorageService
     {
         private readonly IAuxiliaryUtilsService _aux;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public TestRawBookTextsStorageService(
             IAuxiliaryUtilsService aux, 
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _aux = aux;
             _cache = cache;

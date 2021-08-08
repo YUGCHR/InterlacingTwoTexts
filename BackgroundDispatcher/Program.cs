@@ -121,17 +121,19 @@ namespace BackgroundDispatcher
                         throw;
                     }
 
+                    // namespace BackgroundDispatcher.Services
                     services.AddSingleton<ISettingConstantsService, SettingConstantsService>(); // new one
                     services.AddScoped<MonitorLoop>();
+
+                    // namespace Shared.Library.Services
                     services.AddScoped<GenerateThisInstanceGuidService>();
                     services.AddScoped<IAuxiliaryUtilsService, AuxiliaryUtilsService>();
-
-                    // ControllerCacheManager is injected temporary - to start method to convert list with test scenario to key
-                    // The Controller will fetch the list with test scenario from web-interface
-                    // services.AddScoped<IControllerCacheManager, ControllerCacheManager>(); // for temp!
-
-                    services.AddScoped<ICacheManageService, CacheManageService>();
+                    services.AddScoped<ICacheManagerService, CacheManagerService>();
+                    services.AddScoped<IRawBookTextAddAndNotifyService, RawBookTextAddAndNotifyService>();
+                    services.AddScoped<IConvertArrayToKeyWithIndexFields, ConvertArrayToKeyWithIndexFields>();
                     services.AddScoped<ISharedDataAccess, SharedDataAccess>();
+
+                    // namespace BackgroundDispatcher.Services
                     services.AddScoped<ICollectTasksInPackage, CollectTasksInPackage>();
                     services.AddScoped<ITestScenarioService, TestScenarioService>();
                     services.AddScoped<IIntegrationTestService, IntegrationTestService>();

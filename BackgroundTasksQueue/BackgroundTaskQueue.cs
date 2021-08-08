@@ -29,7 +29,7 @@ namespace BackgroundTasksQueue
     public class BackgroundTaskQueue : IBackgroundTaskQueue
     {
         private readonly ILogger<BackgroundTaskQueue> _logger;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private ConcurrentQueue<Func<CancellationToken, Task>> _workItems = new ConcurrentQueue<Func<CancellationToken, Task>>();
         private SemaphoreSlim _signal = new SemaphoreSlim(0);
 
@@ -37,7 +37,7 @@ namespace BackgroundTasksQueue
 
         public BackgroundTaskQueue(
             ILogger<BackgroundTaskQueue> logger,
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _logger = logger;
             _cache = cache;

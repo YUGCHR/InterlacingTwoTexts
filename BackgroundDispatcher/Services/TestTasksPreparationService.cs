@@ -114,19 +114,22 @@ namespace BackgroundDispatcher.Services
         private readonly ICollectTasksInPackage _collect;
         private readonly ITestScenarioService _scenario;
         private readonly ITestRawBookTextsStorageService _store;
-        private readonly ICacheManageService _cache;
+        private readonly IRawBookTextAddAndNotifyService _add;
+        private readonly ICacheManagerService _cache;
 
         public TestTasksPreparationService(
             IAuxiliaryUtilsService aux,
             ICollectTasksInPackage collect,
             ITestScenarioService scenario,
             ITestRawBookTextsStorageService store,
-            ICacheManageService cache)
+            IRawBookTextAddAndNotifyService add,
+            ICacheManagerService cache)
         {
             _aux = aux;
             _collect = collect;
             _scenario = scenario;
             _store = store;
+            _add = add;
             _cache = cache;
         }
 
@@ -146,11 +149,16 @@ namespace BackgroundDispatcher.Services
 
 
 
+
         // план работ -
         // _1 разделить методы по новым классам
         // _2 методы логов списков выбросить
         // 3 добавить в метод нового элемента списка само создание списка, если на вход не дали готовый
         // 4 посмотреть класс создания ключа пакета и потом ключа кафе - они явно должны подойти для теста (нет)
+        // метод, который пишет в ключ текста и события, есть в контроллере, чтобы его (их) сделать общим, надо вынести в общую библиотеку
+        // 5 и, кстати, надо туда же вынести все операции с Redis (AccessCacheData from BooksTextsSplit.Library)
+        // (а потом и базой - возможно) с базой всё же один сервер работает, всем остальным про неё знать не нужно
+        // 6 перенести общие модели в общую библиотеку
 
 
 
@@ -160,7 +168,7 @@ namespace BackgroundDispatcher.Services
         {
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
 
-
+            //_add.AddPainBookText(constantsSet, TextSentence, bookGuid);
 
 
             return 0;

@@ -6,7 +6,7 @@ using Shared.Library.Models;
 
 namespace Shared.Library.Services
 {
-    public interface ICacheManageService
+    public interface ICacheManagerService
     {
         public Task SetStartConstants(KeyType startConstantKey, string startConstantField, ConstantsSet constantsSet);
         public Task SetConstantsStartGuidKey(KeyType startConstantKey, string startConstantField, string constantsStartGuidKey);
@@ -27,16 +27,16 @@ namespace Shared.Library.Services
         public Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key);
     }
 
-    public class CacheManageService : ICacheManageService
+    public class CacheManagerService : ICacheManagerService
     {
         private readonly ICacheProviderAsync _cache;
 
-        public CacheManageService(ICacheProviderAsync cache)
+        public CacheManagerService(ICacheProviderAsync cache)
         {
             _cache = cache;
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<CacheManageService>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<CacheManagerService>();
 
         public async Task SetStartConstants(KeyType keyTime, string field, ConstantsSet constantsSet)
         {

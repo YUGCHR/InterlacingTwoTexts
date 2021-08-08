@@ -12,7 +12,7 @@ namespace ConstantData
     {
         private readonly IConstantsCollectionService _collection;
         private readonly ISharedDataAccess _data;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly CancellationToken _cancellationToken;
         private readonly IOnKeysEventsSubscribeService _subscribe;
         private readonly string _guid;
@@ -20,7 +20,7 @@ namespace ConstantData
         public MonitorLoop(
             GenerateThisInstanceGuidService thisGuid,
             ISharedDataAccess data,
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IHostApplicationLifetime applicationLifetime,
             IOnKeysEventsSubscribeService subscribe,
             IConstantsCollectionService collection)

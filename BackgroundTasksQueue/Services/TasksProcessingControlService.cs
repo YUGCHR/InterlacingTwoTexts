@@ -20,11 +20,11 @@ namespace BackgroundTasksQueue.Services
     {
         private readonly IBackgroundTasksService _task2Queue;
         private readonly ILogger<TasksProcessingControlService> _logger;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public TasksProcessingControlService(
             ILogger<TasksProcessingControlService> logger,
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IBackgroundTasksService task2Queue)
         {
             _task2Queue = task2Queue;

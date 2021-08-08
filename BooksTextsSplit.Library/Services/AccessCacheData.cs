@@ -33,12 +33,12 @@ namespace BooksTextsSplit.Library.Services
 
     public class AccessCacheData : IAccessCacheData
     {
-        private readonly ISettingConstants _constant;
+        private readonly ISettingConstantsService _constant;
         private readonly ICacheProviderAsync _cache;
         private readonly ICosmosDbService _context;
 
         public AccessCacheData(
-            ISettingConstants constant,
+            ISettingConstantsService constant,
             ICosmosDbService cosmosDbService,
             ICacheProviderAsync cache)
         {

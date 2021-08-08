@@ -10,14 +10,14 @@ namespace BooksTextsSplit.Library.Services
 {
     public class QueuedHostedService : BackgroundService
     {
-        private readonly ISettingConstantsS _constants;
+        private readonly ISettingConstantsService _constants;
         private readonly ILogger<QueuedHostedService> _logger;
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<QueuedHostedService>();
 
         public QueuedHostedService(
             IBackgroundTaskQueue taskQueue,
-            ISettingConstantsS constants,
+            ISettingConstantsService constants,
             ILogger<QueuedHostedService> logger)
         {
             TaskQueue = taskQueue;

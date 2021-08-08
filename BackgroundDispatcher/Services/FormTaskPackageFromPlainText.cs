@@ -57,13 +57,13 @@ namespace BackgroundDispatcher.Services
         private readonly IEternalLogSupportService _eternal;
         private readonly ICollectTasksInPackage _collect;
         private readonly IIntegrationTestService _test;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
 
         public FormTaskPackageFromPlainText(
             IEternalLogSupportService eternal,
             ICollectTasksInPackage collect,
             IIntegrationTestService test,
-            ICacheManageService cache)
+            ICacheManagerService cache)
         {
             _eternal = eternal;
             _collect = collect;

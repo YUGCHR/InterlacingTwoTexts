@@ -19,12 +19,12 @@ namespace Shared.Library.Services
 
     public class SharedDataAccess : ISharedDataAccess
     {
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         //private readonly ICacheProviderAsync _cache;
         private readonly IKeyEventsProvider _keyEvents;
 
         public SharedDataAccess(
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IKeyEventsProvider keyEvents)
         {
             _cache = cache;

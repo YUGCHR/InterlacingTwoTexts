@@ -17,14 +17,14 @@ namespace BackgroundDispatcher
         private readonly CancellationToken _cancellationToken;
         private readonly ISettingConstantsService _constants;
         private readonly ISharedDataAccess _data;
-        private readonly ICacheManageService _cache;
+        private readonly ICacheManagerService _cache;
         private readonly IOnKeysEventsSubscribeService _subscribe;
 
         public MonitorLoop(
             IHostApplicationLifetime applicationLifetime,
             ISettingConstantsService constants,
             ISharedDataAccess data,
-            ICacheManageService cache,
+            ICacheManagerService cache,
             IOnKeysEventsSubscribeService subscribe)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
