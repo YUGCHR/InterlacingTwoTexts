@@ -272,7 +272,7 @@ namespace BackgroundDispatcher.Services
                 // достать все поля и значения из ключа, в значениях текст, сравнить его (хэш?) с исходным
                 IDictionary<string, TextSentence> plainTextsDataList = await _cache.FetchHashedAllAsync<TextSentence>(v);
 
-                foreach (var t in keyEventDataList)
+                foreach (var t in plainTextsDataList)
                 {
                     (var bookGuid, var bookPlainText) = t;
                     Logs.Here().Information("Dictionary element is {@G} {@T}.", new { BookGuid = bookGuid }, new { BookPlainText = bookPlainText });
