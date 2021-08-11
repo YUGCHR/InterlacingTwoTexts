@@ -116,6 +116,8 @@ namespace BackgroundDispatcher.Services
 
             #region Constants preparation
 
+            // проверить обновление констант перед вызовом теста
+
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
             int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;

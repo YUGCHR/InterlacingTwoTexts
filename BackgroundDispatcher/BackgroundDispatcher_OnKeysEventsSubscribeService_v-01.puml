@@ -1,0 +1,108 @@
+@startuml
+state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pink {
+state "Start This Server" as ProgramCS #red
+
+state Monitor
+state RedisKeyEventsProvider #red
+state EventKeyFrom #yellow
+state EventСafeKey #yellow
+state EventKeyUpdate #yellow
+state EventKeyTest #yellow
+
+RedisKeyEventsProvider --> EventKeyFrom
+RedisKeyEventsProvider --> EventСafeKey
+RedisKeyEventsProvider --> EventKeyUpdate
+RedisKeyEventsProvider --> EventKeyTest
+
+ProgramCS -down[#blue,bold]-> Monitor
+
+EventKeyFrom -down[#darkred,dashed]-> EventFromOccured
+EventСafeKey -down[#darkred,dashed]-> EventEventСafeOccured
+EventKeyUpdate -down[#darkred,dashed]-> EventEventUpdateOccured
+EventKeyTest -down[#darkred,dashed]-> _isTestInProgressAlready
+
+state "OnKeysEventsSubscribeService" as SubscribeService #lightblue {
+Monitor -[#blue,bold]-> SubscribingPlan
+
+SubscribingPlan -[#blue,bold]-> SubscribeOnEventFrom
+SubscribingPlan -[#blue,bold]-> SubscribeOnEventСafeKey
+SubscribingPlan -[#blue,bold]-> SubscribeOnEventUpdateKey
+SubscribingPlan -[#blue,bold]-> SubscribeOnEventKeyTest
+
+state SubscribeOnEventFrom #lightgreen {
+    state EventFromOccured #coral{        
+    }
+}
+EventFromOccured --> EventCounterOccurred
+
+state SubscribeOnEventСafeKey #lightgreen {
+    state EventEventСafeOccured #coral{        
+    }
+}
+EventEventСafeOccured --> IsTestResultAsserted
+
+state SubscribeOnEventUpdateKey #lightgreen {
+    state EventEventUpdateOccured #coral{
+        state EventCounterOccurred3
+    }
+}
+
+state SubscribeOnEventKeyTest #lightgreen {        
+    _isTestInProgressAlready -[#green]-> Exit : true
+    _isTestInProgressAlready -[#green]-> EventEventTestOccured : false
+
+    state EventEventTestOccured #coral{
+        state blockDual{
+
+        }
+        blockDual --> _isTestInProgressAlready
+        state isTestStarted{            
+        }
+    }
+}
+isTestStarted --> IsCounterZeroReading
+EventEventTestOccured --> IntegrationTestStart
+
+
+}
+
+state "EventCounterHandler" as CounterService #lightblue {
+
+state IsCounterZeroReading #lightgreen {    
+        state _callingNumOfEventFrom    
+}
+
+state EventCounterOccurred #lightgreen {
+    state StartTimerOnce #coral{
+        
+    }
+    state HandlerMergeOfCalling #coral{
+        
+    }
+}
+
+}
+
+state "IntegrationTestService" as TestService #lightblue {
+
+state IntegrationTestStart #lightgreen {    
+        state _isTestInPrgoress    
+}
+
+IntegrationTestStart --> _isTestInProgressAlready
+
+state IsTestResultAsserted #lightgreen {
+    state foreachEvent #green{
+    state keyEventDataList #coral{
+        state foreachText #green{
+    state plainTextsDataList #coral{
+        
+    }     
+    }       
+    }
+    }
+}
+
+}
+
+@enduml

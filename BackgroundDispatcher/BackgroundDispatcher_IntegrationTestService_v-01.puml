@@ -1,0 +1,128 @@
+@startuml
+
+state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pink {
+state "Start This Server" as ProgramCS #red
+
+state Monitor
+state RedisKeyEventsProvider #red
+state RedisICacheProviderAsync #orange{
+    state Fetch_EventKeyTest <<entryPoint>>
+    state TestScenarioValue <<exitPoint>>
+}
+
+state EventKeyTest #yellow
+
+RedisKeyEventsProvider --> EventKeyTest
+
+ProgramCS -down[#blue,bold]-> Monitor
+state _isTestInProgressAlready {
+    state Set_1 <<entryPoint>>
+    state Set_2 <<entryPoint>>
+    state Set_3 <<entryPoint>>
+    state Check_isTestInProgress <<exitPoint>>
+}
+EventKeyTest -down[#darkred,dashed]-> Set_2
+
+state "OnKeysEventsSubscribeService" as SubscribeService #lightblue {
+Monitor -[#blue,bold]-> SubscribingPlan
+
+SubscribingPlan -[#blue,bold]-> SubscribeOnEventKeyTest
+
+state SubscribeOnEventKeyTest #lightgreen {        
+    Check_isTestInProgress -[#red]-> Exit : true
+    Check_isTestInProgress -right[#green,bold]-> EventEventTestOccured : false
+
+    state EventEventTestOccured #coral{
+     state testStartRequest <<exitPoint>>        
+
+        state blockDual{
+
+        }
+        blockDual -left[#darkblue,dashed]-> Set_3
+    }
+}
+
+}
+
+state "ConvertArrayToKeyWithIndexFields" as _convert #lightblue {
+state CreateTestScenarioKey #lightgreen { 
+       
+}
+}
+state "AuxiliaryUtilsService" as _aux #lightblue {
+state RemoveWorkKeyOnStart #lightgreen {    
+}
+}
+state "TestTasksPreparationService" as _prepare #lightblue {
+state CreateTestBookPlainTexts #lightgreen {
+    state testPairsCount <<entryPoint>>
+    state BookIdsList <<exitPoint>>
+
+}
+}
+
+
+state "IntegrationTestService" as _test #lightblue {
+
+state IntegrationTestStart #lightgreen {
+    state testStart <<entryPoint>>
+    state _isTestInProgress_set_true <<exitPoint>>
+     state removeKeys <<exitPoint>>        
+        
+testStartRequest --> testStart
+state testScenario{
+state uniqueBookIdsFromStorageKey <<entryPoint>>
+state CreationTestBooksRequest <<exitPoint>>
+
+    state readTestScenarioNum{
+    }
+
+    state testScenario1{        
+    }
+    state testScenario2{
+    }
+    state testScenario3{
+    }
+    state tempCreateScenario{
+    state selectedScenario <<exitPoint>>
+    }
+    testScenario1 --> tempCreateScenario
+    testScenario2 --> tempCreateScenario
+    testScenario3 --> tempCreateScenario
+
+selectedScenario --> CreateTestScenarioKey
+CreationTestBooksRequest --> testPairsCount
+
+}
+}
+
+readTestScenarioNum -[#green,bold]-> Fetch_EventKeyTest
+'Fetch_EventKeyTest --> RedisICacheProviderAsync
+TestScenarioValue --> testScenario1
+TestScenarioValue --> testScenario2
+TestScenarioValue --> testScenario3
+
+_isTestInProgress_set_true --> Set_1
+
+'IntegrationTestStart --> _isTestInProgress_set_true
+removeKeys --> RemoveWorkKeyOnStart
+
+BookIdsList --> uniqueBookIdsFromStorageKey
+
+
+
+state IsTestResultAsserted #lightgreen {
+    state foreachEvent #green{
+    state keyEventDataList #coral{
+        state foreachText #green{
+    state plainTextsDataList #coral{
+        
+                }     
+            }       
+        }
+    }
+}
+
+}
+
+@enduml
