@@ -23,18 +23,18 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface ICollectTasksInPackage
+    public interface ICollectTasksInPackageService
     {        
         public Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds);        
     }
 
-    public class CollectTasksInPackage : ICollectTasksInPackage
+    public class CollectTasksInPackageService : ICollectTasksInPackageService
     {
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IEternalLogSupportService _eternal;
         private readonly ICacheManagerService _cache;
 
-        public CollectTasksInPackage(
+        public CollectTasksInPackageService(
             IAuxiliaryUtilsService aux,
             IEternalLogSupportService eternal,
             ICacheManagerService cache)
@@ -44,7 +44,7 @@ namespace BackgroundDispatcher.Services
             _cache = cache;
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<CollectTasksInPackage>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<CollectTasksInPackageService>();
 
         // метод создаёт тестовые плоские тексты для тестов
         // берет нужное количество книг/версий для сценария из хранилища

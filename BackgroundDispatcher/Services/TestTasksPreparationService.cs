@@ -111,7 +111,7 @@ namespace BackgroundDispatcher.Services
     public class TestTasksPreparationService : ITestTasksPreparationService
     {
         private readonly IAuxiliaryUtilsService _aux;
-        private readonly ICollectTasksInPackage _collect;
+        private readonly ICollectTasksInPackageService _collect;
         private readonly ITestScenarioService _scenario;
         private readonly ITestRawBookTextsStorageService _store;
         private readonly IRawBookTextAddAndNotifyService _add;
@@ -119,7 +119,7 @@ namespace BackgroundDispatcher.Services
 
         public TestTasksPreparationService(
             IAuxiliaryUtilsService aux,
-            ICollectTasksInPackage collect,
+            ICollectTasksInPackageService collect,
             ITestScenarioService scenario,
             ITestRawBookTextsStorageService store,
             IRawBookTextAddAndNotifyService add,

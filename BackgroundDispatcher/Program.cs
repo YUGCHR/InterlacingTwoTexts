@@ -134,12 +134,12 @@ namespace BackgroundDispatcher
                     services.AddScoped<ISharedDataAccess, SharedDataAccess>();
 
                     // namespace BackgroundDispatcher.Services
-                    services.AddScoped<ICollectTasksInPackage, CollectTasksInPackage>();
+                    services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestScenarioService, TestScenarioService>();
                     services.AddScoped<IIntegrationTestService, IntegrationTestService>();
                     services.AddScoped<ITestRawBookTextsStorageService, TestRawBookTextsStorageService>();
                     services.AddScoped<IEternalLogSupportService, EternalLogSupportService>();
-                    services.AddScoped<ICollectTasksInPackage, CollectTasksInPackage>();
+                    services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestTasksPreparationService, TestTasksPreparationService>();
                     services.AddScoped<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     services.AddScoped<IEventCounterHandler, EventCounterHandler>();

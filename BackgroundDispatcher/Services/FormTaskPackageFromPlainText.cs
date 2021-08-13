@@ -55,13 +55,13 @@ namespace BackgroundDispatcher.Services
     public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
     {
         private readonly IEternalLogSupportService _eternal;
-        private readonly ICollectTasksInPackage _collect;
+        private readonly ICollectTasksInPackageService _collect;
         private readonly IIntegrationTestService _test;
         private readonly ICacheManagerService _cache;
 
         public FormTaskPackageFromPlainText(
             IEternalLogSupportService eternal,
-            ICollectTasksInPackage collect,
+            ICollectTasksInPackageService collect,
             IIntegrationTestService test,
             ICacheManagerService cache)
         {

@@ -25,7 +25,7 @@ namespace Shared.Library.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<ConvertArrayToKeyWithIndexFields>();
 
-        // метод создаёт из последовательности команд в списке инт (пришедшим из веб-интерфейса)
+        // метод создаёт из последовательности команд в List<int> (пришедшим из веб-интерфейса)
         // ключ с полями-индексами порядка команд и нужной активностью в значениях
         public async Task<(string, int)> CreateTestScenarioKey(ConstantsSet constantsSet, int testScenario)
         {
@@ -55,9 +55,9 @@ namespace Shared.Library.Services
 
             await _cache.WriteHashedAsync<int, int>(testScenarioSequenceKey, fieldValues, testScenarioSequenceKeyLifeTime);
 
-            IDictionary<int, int> fieldValuesResult = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
+            IDictionary<int, int> testScenarioSequenceStepsValues = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
 
-            foreach (var p in fieldValuesResult)
+            foreach (var p in testScenarioSequenceStepsValues)
             {
                 (int i, int v) = p;
                 if (v != selectedScenario[i])
