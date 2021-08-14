@@ -43,7 +43,7 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestScenarioService>();
 
-        // метод  из ключа описания сценария создаёт последовательность (список) гуид-полей сырых текстов и задержек между ними
+        // метод из ключа описания сценария создаёт последовательность (список) гуид-полей сырых текстов и задержек между ними
         public async Task<(List<string>, List<int>)> CreateTestScenarioLists(ConstantsSet constantsSet, List<int> uniqueBookIdsFromStorageKey)
         {
             string testScenarioSequenceKey = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.Value; // test-scenario-sequence

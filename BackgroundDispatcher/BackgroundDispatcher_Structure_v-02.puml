@@ -1,0 +1,139 @@
+@startuml
+
+state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispatcher #pink {
+    state "Start This Server" as ProgramCS #red
+
+
+    state RedisKeyEventsProvider #red{
+        state EventKeyTest #yellow
+    }
+
+    state RedisICacheProviderAsync #orange{
+        state KeyTest #orange
+        state KeyBookPlainTexts : ... bookSplit_Guid_test
+        state KeyBookPlainTexts #orange
+        state testScenarioSequenceKey #orange
+        state sourceKeyWithPlainTexts #orange
+        state keyBookPlainTextsHashesVersionsList #orange
+        state DelFieldAsync #orange
+    }
+
+    state MonitorLoop #lightblue {
+        state StartMonitorLoop #lightgreen
+        state Monitor #lightgreen {
+        }
+        StartMonitorLoop -> Monitor
+    }
+    ProgramCS -[#blue,bold]-> StartMonitorLoop
+
+    state "OnKeysEventsSubscribeService" as _subscribe #lightblue {
+        state SubscribingPlan #lightgreen
+        Monitor -[#blue,bold]-> SubscribingPlan
+
+        state _isTestInProgressAlready #magenta
+
+        SubscribingPlan -[#blue,bold]-> SubscribeOnEventKeyTest
+
+        state SubscribeOnEventKeyTest #lightgreen {
+            state EventEventTestOccured #coral
+        }
+
+        EventKeyTest -[#darkred,dashed]-> _isTestInProgressAlready : check
+        _isTestInProgressAlready -[#green,bold]-> EventEventTestOccured
+    }
+
+    state "TestTasksPreparationService" as _prepare #lightblue {
+        state CreateScenarioTasksAndEvents #lightgreen {
+
+        }
+        state PrepareTestBookIdsListFromEternalLog #lightgreen {
+
+        }
+        state RemoveTestBookIdFieldsFromEternalLog #lightgreen {
+
+        }
+        state CreateTestBookPlainTexts #lightgreen {
+
+        }
+
+    }
+
+    state "TestRawBookTextsStorageService" as _store #lightblue {
+        state CreateTestBookIdsListFromStorageKey #lightgreen {
+        }
+    }
+
+    state "CollectTasksInPackageService" as _collect #lightblue {
+        state CreateTaskPackageAndSaveLog #lightgreen {
+
+        }
+    }
+
+
+    state "TestScenarioService" as _scenario #lightblue {
+        state CreateTestScenarioLists #lightgreen {
+
+            CreateTestScenarioLists  : метод из ключа описания сценария \nсоздаёт последовательность (список) \nгуид-полей сырых текстов и задержек
+        }
+    }
+
+    state "EternalLogSupportService" as _eternal #lightblue {
+        state AddVersionViaHashToPlainText #lightgreen {
+        }
+        state CheckPlainTextVersionViaHash #lightgreen {
+            CheckPlainTextVersionViaHash : метод проверяет существование \nхэша в хранилище хэшей плоских текстов
+        }
+        state RemoveTextFromTextSentence #lightgreen {
+        }
+        state WriteBookPlainTextHash #lightgreen {
+        }
+    }
+
+    state "FormTaskPackageFromPlainText" as _front #lightblue {
+        state HandlerCallingsDistributor #lightgreen {
+        }
+        state HandlerCallings #lightgreen {
+        }
+        state ProcessDataOfSubscribeOnFrom #lightgreen {
+        }
+        state DistributeTaskPackageInCafee #lightgreen {
+        }
+    }
+
+    state "IntegrationTestService" as _test #lightblue {
+        state _isTestInProgress #magenta
+
+        state IntegrationTestStart #lightgreen {
+        }
+        state testScenario #lightgreen {
+        }
+    }
+}
+
+state "Shared.Library" as Shared #pink {
+    state "ConvertArrayToKeyWithIndexFields" as _convert #lightblue {
+        state CreateTestScenarioKey #lightgreen
+        state SwitchArraySelect #lightgreen
+        CreateTestScenarioKey -> SwitchArraySelect
+        SwitchArraySelect -> CreateTestScenarioKey
+    }
+    state "AuxiliaryUtilsService" as _aux #lightblue {
+        state RemoveWorkKeyOnStart #lightgreen {
+        }
+        state CreateMD5 #lightgreen {
+        }
+    }
+}
+
+@enduml
+
+state IsTestResultAsserted #lightgreen {
+    state foreachEvent #green{
+        state keyEventDataList #coral{
+            state foreachText #green{
+                state plainTextsDataList #coral{
+                }
+            }
+        }
+    }
+}

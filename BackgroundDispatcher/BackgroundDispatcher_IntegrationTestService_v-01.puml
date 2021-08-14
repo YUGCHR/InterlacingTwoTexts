@@ -12,6 +12,7 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
         state KeyTest #orange{
             state Fetch_010 : Test Scenario Number
         }
+
         state KeyBookPlainTexts : ... bookSplit_Guid_test
 
         state KeyBookPlainTexts #orange{
@@ -21,6 +22,14 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
         state testScenarioSequenceKey #orange{
             state Fetch_030 : test scenario \nsequence - \nsteps/values
             state Write_030 : test scenario \nsequence - \nsteps/values
+        }
+
+        state sourceKeyWithPlainTexts #orange{
+            state Fetch_040 : TextSentence \nin taskPackageFileds
+        }
+
+        state keyBookPlainTextsHashesVersionsList #orange{
+            state Fetch_050 : List<TextSentence>
         }
 
         state DelFieldAsync #orange{
@@ -46,7 +55,7 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
         state SubscribeOnEventKeyTest #lightgreen {
 
             state check_isTestInProgressAlready <<choice>>
-            
+
             check_isTestInProgressAlready -[#red]-> Exit : true
             check_isTestInProgressAlready -[#green,bold]-> EventEventTestOccured : false
 
@@ -69,14 +78,14 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
             state SwitchArraySelect
             state testScenarioSequenceStepsValues
             Fetch_030 -[#darkred,bold]-> testScenarioSequenceStepsValues
-
         }
         CreateTestScenarioKey --> Const_CreateTestScenarioKey
-
     }
+
     state "AuxiliaryUtilsService" as _aux #lightblue {
         state RemoveWorkKeyOnStart #lightgreen {
-
+        }
+        state CreateMD5 #lightgreen {
         }
     }
 
@@ -85,6 +94,11 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
             state Const_CreateTestBookPlainTexts : Prepare local constants
             state Lists_021 : uniqueBookIdsFromStorageKey \nguidFieldsFromStorageKey
             state taskPackageGuid : not used here
+            note right of taskPackageGuid
+                все необходимые действия совершаются
+                в CreateTaskPackageAndSaveLog -
+                отпечатки задач сохраняются в вечном логе
+            end note
             state Lists_022 : rawPlainTextFields \ndelayList
             state uniqueBookIdsFromStorageKey
             CreateTestBookPlainTexts -down-> Const_CreateTestBookPlainTexts
@@ -95,50 +109,113 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
             'используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
             'здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
             'передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
-            taskPackageGuid --> CreateTaskPackageAndSaveLog : call
             CreateTaskPackageAndSaveLog --> taskPackageGuid : return
             taskPackageGuid --> Lists_022
             'выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки
             Lists_022 --> CreateTestScenarioLists : call
             CreateTestScenarioLists --> Lists_022 : return
             Lists_022 -> uniqueBookIdsFromStorageKey
-
-
         }
 
-        state RemoveTestBookId #lightgreen {
+        state RemoveTestBookIdFieldsFromEternalLog #lightgreen {
             state FieldList : BookIds from \nStorage Key
             note left of FieldList
-                this is
-                note test
+                здесь для первичной очистки и для контроля
+                (вдруг по дороге упадёт и ключи останутся)
             end note
             state AddLang1Ids : Add Russian BookIds
+            note right of AddLang1Ids
+                используя список уникальных BookIds,
+                создать парные им Ids для русских книг
+            end note
         }
-        RemoveTestBookId : Remove test bookId \nfields from eternal log
+
+        RemoveTestBookIdFieldsFromEternalLog : используя List uniqueBookIdsFromStorageKey, \nнадо удалить все тестовые ключи из вечного лога
         FieldList -> AddLang1Ids
         AddLang1Ids -[#black,dotted]-> ListOfFiledsToDelete
-
         ' создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
         state CreateScenarioTasksAndEvents
         Lists_021 --> FieldList
-        'RemoveTestBookId --> Lists_021
+        'RemoveTestBookIdFieldsFromEternalLog --> Lists_021
         Lists_022 --> FieldList
-        'RemoveTestBookId --> Lists_022
+        'RemoveTestBookIdFieldsFromEternalLog --> Lists_022
         Lists_022 --> CreateScenarioTasksAndEvents
         CreateScenarioTasksAndEvents --> uniqueBookIdsFromStorageKey
     }
+
     state "TestRawBookTextsStorageService" as _store #lightblue {
         state CreateTestBookIdsListFromStorageKey #lightgreen {
         }
     }
+
     state "CollectTasksInPackageService" as _collect #lightblue {
         state CreateTaskPackageAndSaveLog #lightgreen {
+            state taskPackageFileds : in sourceKeyWithPlainTexts
+            state Const_CreateTaskPackageAndSaveLog : Prepare local constants
+            state foreach_in_taskPackageFileds{
+                state bookPlainText : TextSentence
+                Fetch_040 -[#darkred,bold]-> bookPlainText
+            }
+            taskPackageGuid --> taskPackageFileds : call
+            taskPackageFileds -> Const_CreateTaskPackageAndSaveLog
+            Const_CreateTaskPackageAndSaveLog -> foreach_in_taskPackageFileds
         }
     }
+
     state "TestScenarioService" as _scenario #lightblue {
         state CreateTestScenarioLists #lightgreen {
         }
     }
+
+    state "EternalLogSupportService" as _eternal #lightblue {
+        state AddVersionViaHashToPlainText #lightgreen {
+            state Const_AddVersionViaHashToPlainText : Prepare local constants
+            state bookPlainTextMD5Hash
+            state return_null : так нельзя делать, \nнадо как-то изменить
+            state create_bookPlainTextsHash : create new List \nwith first element
+            state add_bookPlainTextsHash : add element to \nthe existed List
+        }
+        state CheckPlainTextVersionViaHash #lightgreen {
+            CheckPlainTextVersionViaHash : метод проверяет существование \nхэша в хранилище хэшей плоских текстов
+            state bookPlainTextsVersions : List<TextSentence>
+            state bookPlainTextsVersions_not_null <<choice>>
+            state result0
+            state Return
+            bookPlainTextsVersions -> bookPlainTextsVersions_not_null
+            bookPlainTextsVersions_not_null -[#red]->foreach_in_bookPlainTextsVersions : true
+            bookPlainTextsVersions_not_null -[#red]->result0 : false
+
+            state foreach_in_bookPlainTextsVersions{
+                state maxVersion
+                state bookPlainTextHash : String.Equals with \nbookPlainTextMD5Hash
+                state isThisHashExisted  <<choice>>
+                state minus1
+                foreach_in_bookPlainTextsVersions -> bookPlainTextHash
+                bookPlainTextHash -> isThisHashExisted
+                isThisHashExisted -[#red]->minus1 : true
+                isThisHashExisted -[#green,bold]-> maxVersion : false
+            }
+        }
+        Fetch_050 --> bookPlainTextsVersions
+        minus1 --> return_null
+        result0 --> create_bookPlainTextsHash
+        maxVersion --> add_bookPlainTextsHash
+        bookPlainTextMD5Hash --> CheckPlainTextVersionViaHash
+        state RemoveTextFromTextSentence #lightgreen {
+
+        }
+        state WriteBookPlainTextHash #lightgreen {
+
+        }
+        create_bookPlainTextsHash --> RemoveTextFromTextSentence
+        RemoveTextFromTextSentence --> WriteBookPlainTextHash
+        add_bookPlainTextsHash --> WriteBookPlainTextHash : is it necessary to remove too?
+    }
+
+    CreateMD5 --> bookPlainTextMD5Hash
+    bookPlainText --> Const_AddVersionViaHashToPlainText
+    Const_AddVersionViaHashToPlainText --> CreateMD5
+
     state "FormTaskPackageFromPlainText" as _front #lightblue {
         state HandlerCallingsDistributor #lightgreen {
             state isTestInProgress
@@ -146,57 +223,43 @@ state "сервер-диспетчер BackgroundDispatcher" as CurrentSite #pin
     }
 
     state "IntegrationTestService" as _test #lightblue {
-
         state _isTestInProgress : boolean
 
         state IntegrationTestStart #lightgreen {
             state Const_IntegrationTestStart : Prepare local constants
             IntegrationTestStart --> Const_IntegrationTestStart
             Const_IntegrationTestStart -[#darkblue,dashed]-> _isTestInProgress : true
-            EventEventTestOccured --> IntegrationTestStart
-
-            state testScenario{
-                state List_011 : uniqueBookIdsFromStorageKey
-
-
-                state readTestScenarioNum
-
-                state tempCreateScenario
-                Fetch_010 -[#darkred,bold]-> tempCreateScenario
-                tempCreateScenario --> SwitchArraySelect
-                List_011 -[#orange,bold]-> CreateTestBookPlainTexts
-                uniqueBookIdsFromStorageKey -[#orange,bold]-> List_011
-
-            }
-
             state testResult
-
             Const_IntegrationTestStart --> testScenario
             testScenario --> testResult
             testResult -[#red,dashed]-> _isTestInProgress : false
             _isTestInProgress -[#green,bold]-> isTestInProgress : check
         }
 
-        Fetch_020 -[#green,bold]-> readTestScenarioNum
-
+        state testScenario #lightgreen {
+            state List_011 : uniqueBookIdsFromStorageKey
+            state readTestScenarioNum
+            state tempCreateScenario
+            Fetch_010 -[#darkred,bold]-> tempCreateScenario
+            tempCreateScenario --> SwitchArraySelect
+            List_011 -[#orange,bold]-> CreateTestBookPlainTexts
+            uniqueBookIdsFromStorageKey -[#orange,bold]-> List_011
+            Fetch_020 -[#green,bold]-> readTestScenarioNum
+        }
         Const_IntegrationTestStart -[#red,dashed]-> _isTestInProgressAlready : false
+    }
+    EventEventTestOccured --> IntegrationTestStart
+    IntegrationTestStart --> RemoveWorkKeyOnStart
+}
+@enduml
 
-        IntegrationTestStart --> RemoveWorkKeyOnStart
-
-
-        state IsTestResultAsserted #lightgreen {
-            state foreachEvent #green{
-                state keyEventDataList #coral{
-                    state foreachText #green{
-                        state plainTextsDataList #coral{
-
-                        }
-
-                    }
-
+state IsTestResultAsserted #lightgreen {
+    state foreachEvent #green{
+        state keyEventDataList #coral{
+            state foreachText #green{
+                state plainTextsDataList #coral{
                 }
             }
         }
     }
 }
-@enduml
