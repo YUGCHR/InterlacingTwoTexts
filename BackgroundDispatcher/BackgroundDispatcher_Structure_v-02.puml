@@ -1,22 +1,48 @@
 @startuml
 
+state "Shared.Library" as Shared #pink {
+    state "ConvertArrayToKeyWithIndexFields" as _convert #lightblue {
+        state CreateTestScenarioKey #lightgreen
+        state SwitchArraySelect #lightgreen
+        CreateTestScenarioKey -> SwitchArraySelect
+        SwitchArraySelect -> CreateTestScenarioKey
+    }
+    state "AuxiliaryUtilsService" as _aux #lightblue {
+        state RemoveWorkKeyOnStart #lightgreen {
+        }
+        state CreateMD5 #lightgreen {
+        }
+    }
+    state CacheManagerService #orange{
+        state SetStartConstants #orange
+        state SetConstantsStartGuidKey #orange
+        state SetLifeTimeFromKey #orange
+        state FetchUpdatedConstant #orange
+        state FetchUpdatedConstantsAndDeleteKey #orange
+        state DeleteKeyIfCancelled #orange
+        state IsKeyExist #orange
+        state DelKeyAsync #orange
+        state DelFieldAsync #orange
+        state DelFieldAsync #orange
+        state DelFieldAsync #orange
+        state FetchHashedAsync #orange
+        state WriteHashedAsync #orange
+        state FetchHashedAllAsync #orange
+        state FetchHashedAllAsync #orange
+    }
+}
+
 state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispatcher #pink {
     state "Start This Server" as ProgramCS #red
 
 
     state RedisKeyEventsProvider #red{
+        state EventKeyFrom #yellow
+        state EventСafeKey #yellow
+        state EventKeyUpdate #yellow
         state EventKeyTest #yellow
     }
 
-    state RedisICacheProviderAsync #orange{
-        state KeyTest #orange
-        state KeyBookPlainTexts : ... bookSplit_Guid_test
-        state KeyBookPlainTexts #orange
-        state testScenarioSequenceKey #orange
-        state sourceKeyWithPlainTexts #orange
-        state keyBookPlainTextsHashesVersionsList #orange
-        state DelFieldAsync #orange
-    }
 
     state MonitorLoop #lightblue {
         state StartMonitorLoop #lightgreen
@@ -24,38 +50,98 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
         }
         StartMonitorLoop -> Monitor
     }
-    ProgramCS -[#blue,bold]-> StartMonitorLoop
+    ProgramCS -[#blue,dotted]-> StartMonitorLoop
 
     state "OnKeysEventsSubscribeService" as _subscribe #lightblue {
         state SubscribingPlan #lightgreen
-        Monitor -[#blue,bold]-> SubscribingPlan
+        Monitor -[#blue,dotted]-> SubscribingPlan
 
         state _isTestInProgressAlready #magenta
 
-        SubscribingPlan -[#blue,bold]-> SubscribeOnEventKeyTest
+        SubscribingPlan -[#blue,dotted]-> SubscribeOnEventFrom
+        SubscribingPlan -[#blue,dotted]-> SubscribeOnEventСafeKey
+        SubscribingPlan -[#blue,dotted]-> SubscribeOnEventUpdateKey
+        SubscribingPlan -[#blue,dotted]-> SubscribeOnEventKeyTest
 
+        state SubscribeOnEventFrom #lightgreen {
+            state EventFromOccured #coral{
+            }
+        }
+        state SubscribeOnEventСafeKey #lightgreen {
+            state EventEventСafeOccured #coral{
+            }
+        }
+        state SubscribeOnEventUpdateKey #lightgreen {
+            state EventEventUpdateOccured #coral{
+            }
+        }
         state SubscribeOnEventKeyTest #lightgreen {
             state EventEventTestOccured #coral
         }
-
+        EventKeyFrom -down[#darkred,dashed]-> EventFromOccured
+        EventСafeKey -down[#darkred,dashed]-> EventEventСafeOccured
+        EventKeyUpdate -down[#darkred,dashed]-> EventEventUpdateOccured
         EventKeyTest -[#darkred,dashed]-> _isTestInProgressAlready : check
         _isTestInProgressAlready -[#green,bold]-> EventEventTestOccured
     }
 
+    state "EventCounterHandler" as _count #lightblue {
+        state Timer #magenta
+        state EventCounterInit #lightgreen {
+        }
+        state IsCounterZeroReading #lightgreen {
+        }
+        state EventCounterOccurred #lightgreen {
+        }
+        state HandlerMergeOfCalling #lightgreen {
+        }
+        state StartTimerOnce #lightgreen {
+        }
+        state DoWork #lightgreen {
+        }
+        state StopTimer #lightgreen {
+        }
+        state TestIsFinished #lightgreen {
+        }
+    }
+    EventFromOccured -[#blue,dotted]-> EventCounterOccurred
+    EventCounterOccurred -[#blue,dotted]> StartTimerOnce
+    StartTimerOnce -[#magenta,dashed]> Timer
+    StopTimer -[#magenta,dashed]> Timer
+    Timer -[#magenta,dashed]> DoWork
+    EventCounterOccurred -[#blue,dotted]-> HandlerMergeOfCalling
+    HandlerMergeOfCalling -[#blue,dotted]> StopTimer
+    SubscribingPlan -[#blue,dotted]-> EventCounterInit
+    DoWork -[#blue,dotted]> HandlerMergeOfCalling
+
+    state "FormTaskPackageFromPlainText" as _front #lightblue {
+        state HandlerCallingsDistributor #lightgreen {
+        }
+        state FetchCurrentMethodName #lightgreen {
+        }
+        state HandlerCallings #lightgreen {
+        }
+        state ProcessDataOfSubscribeOnFrom #lightgreen {
+        }
+        ProcessDataOfSubscribeOnFrom : достать ключ и поля плоских текстов \nиз события подписки subscribeOnFrom
+        state DistributeTaskPackageInCafee #lightgreen {
+        }
+    }
+    HandlerCallingsDistributor --> FetchCurrentMethodName
+    HandlerCallings --> FetchCurrentMethodName
+    HandlerCallings -[#red,bold]-> ProcessDataOfSubscribeOnFrom : await
+    HandlerCallingsDistributor -[#blue,dotted]-> HandlerCallings
+    HandlerMergeOfCalling -[#red,bold]-> HandlerCallingsDistributor : await
+
     state "TestTasksPreparationService" as _prepare #lightblue {
         state CreateScenarioTasksAndEvents #lightgreen {
-
         }
         state PrepareTestBookIdsListFromEternalLog #lightgreen {
-
         }
         state RemoveTestBookIdFieldsFromEternalLog #lightgreen {
-
         }
         state CreateTestBookPlainTexts #lightgreen {
-
         }
-
     }
 
     state "TestRawBookTextsStorageService" as _store #lightblue {
@@ -65,14 +151,11 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
 
     state "CollectTasksInPackageService" as _collect #lightblue {
         state CreateTaskPackageAndSaveLog #lightgreen {
-
         }
     }
 
-
     state "TestScenarioService" as _scenario #lightblue {
         state CreateTestScenarioLists #lightgreen {
-
             CreateTestScenarioLists  : метод из ключа описания сценария \nсоздаёт последовательность (список) \nгуид-полей сырых текстов и задержек
         }
     }
@@ -89,51 +172,32 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
         }
     }
 
-    state "FormTaskPackageFromPlainText" as _front #lightblue {
-        state HandlerCallingsDistributor #lightgreen {
-        }
-        state HandlerCallings #lightgreen {
-        }
-        state ProcessDataOfSubscribeOnFrom #lightgreen {
-        }
-        state DistributeTaskPackageInCafee #lightgreen {
-        }
-    }
-
     state "IntegrationTestService" as _test #lightblue {
         state _isTestInProgress #magenta
 
+        state IsTestInProgress #lightgreen {
+        }
         state IntegrationTestStart #lightgreen {
+        }
+        state IsTestResultAsserted #lightgreen {
+        }
+        state IsPreassignedDepthReached #lightgreen {
         }
         state testScenario #lightgreen {
         }
-    }
-}
-
-state "Shared.Library" as Shared #pink {
-    state "ConvertArrayToKeyWithIndexFields" as _convert #lightblue {
-        state CreateTestScenarioKey #lightgreen
-        state SwitchArraySelect #lightgreen
-        CreateTestScenarioKey -> SwitchArraySelect
-        SwitchArraySelect -> CreateTestScenarioKey
-    }
-    state "AuxiliaryUtilsService" as _aux #lightblue {
-        state RemoveWorkKeyOnStart #lightgreen {
+        state DisplayResultInFrame #lightgreen {
         }
-        state CreateMD5 #lightgreen {
+        state SetIsTestInProgress #lightgreen {
         }
     }
+    SubscribingPlan -[#red,bold]-> RemoveWorkKeyOnStart : await
+    'to remove SetIsTestInProgress
+    SubscribingPlan -[#blue,dotted]-> SetIsTestInProgress
+    HandlerCallingsDistributor -[#red,bold]-> IsTestInProgress : await
+    HandlerCallingsDistributor --> IsPreassignedDepthReached
+    EventEventСafeOccured -[#blue,dotted]-> IsTestResultAsserted
+    EventEventTestOccured -[#red,bold]-> IsCounterZeroReading : await
+    EventEventTestOccured -[#red,bold]-> IntegrationTestStart : await
 }
 
 @enduml
-
-state IsTestResultAsserted #lightgreen {
-    state foreachEvent #green{
-        state keyEventDataList #coral{
-            state foreachText #green{
-                state plainTextsDataList #coral{
-                }
-            }
-        }
-    }
-}
