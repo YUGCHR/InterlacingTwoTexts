@@ -3,7 +3,7 @@ BookTextsSplit with backservers
 
 1. Схема взаимодействия классов и методов 
 
-https://github.com/YUGCHR/InterlacingTwoTexts/blob/invisible-embedded-integration-test/BackgroundDispatcher/Diagrams/BackgroundDispatcher_Structure_v-03.png
+![BackgroundDispatcher_Structure_v-03](https://github.com/YUGCHR/InterlacingTwoTexts/blob/invisible-embedded-integration-test/BackgroundDispatcher/Diagrams/BackgroundDispatcher_Structure_v-03.png)
 
 2. Оописание работы сервера-диспетчера BackgroundDispatcher
 
