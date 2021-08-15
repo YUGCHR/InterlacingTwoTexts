@@ -1,7 +1,11 @@
 # InterlacingTwoTexts
 BookTextsSplit with backservers
 
-1. Оописание работы сервера-диспетчера BackgroundDispatcher
+1. Схема взаимодействия классов и методов 
+
+https://github.com/YUGCHR/InterlacingTwoTexts/blob/invisible-embedded-integration-test/BackgroundDispatcher/Diagrams/BackgroundDispatcher_Structure_v-03.png
+
+2. Оописание работы сервера-диспетчера BackgroundDispatcher
 
 основное назначение - собрать одиночные задачи в пакеты и отдать в обработку бэк-серверам BackgroundTasksQueue (серверам фоновой загрузки книг)
 особенно полезно собрать минимальный пакет из пары книг - на разных языках, в большинстве случаем именно это будет основным кейсом
