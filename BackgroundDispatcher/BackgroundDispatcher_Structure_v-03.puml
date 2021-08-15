@@ -266,41 +266,41 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     HandlerCallingsDistributor --> IsPreassignedDepthReached
     HandlerMergeOfCalling -[#red,bold]-> HandlerCallingsDistributor : await
     HandlerCallings -[#red,bold]-> CreateTaskPackageAndSaveLog : await
-    ProcessDataOfSubscribeOnFrom -[#orange,dotted]-> FetchHashedAllAsync : await
-    ProcessDataOfSubscribeOnFrom -[#orange,dotted]-> DelFieldAsync : await
-    DistributeTaskPackageInCafee -[#orange,dotted]-> WriteHashedAsync : await
+    ProcessDataOfSubscribeOnFrom -[#darkorange,dashed]-> FetchHashedAllAsync : await
+    ProcessDataOfSubscribeOnFrom -[#darkorange,dashed]-> DelFieldAsync : await
+    DistributeTaskPackageInCafee -[#darkorange,dashed]-> WriteHashedAsync : await
 
     AddVersionViaHashToPlainText --> CreateMD5
-    AddVersionViaHashToPlainText -[#orange,dotted]-> FetchHashedAsync : await
-    WriteBookPlainTextHash -[#orange,dotted]-> WriteHashedAsync : await
-    CheckPlainTextVersionViaHash -[#orange,dotted]-> IsKeyExist : await
-    CheckPlainTextVersionViaHash -[#orange,dotted]-> FetchHashedAsync : await
-    CreateTaskPackageAndSaveLog -[#orange,dotted]-> FetchHashedAsync : await
+    AddVersionViaHashToPlainText -[#darkorange,dashed]-> FetchHashedAsync : await
+    WriteBookPlainTextHash -[#darkorange,dashed]-> WriteHashedAsync : await
+    CheckPlainTextVersionViaHash -[#darkorange,dashed]-> IsKeyExist : await
+    CheckPlainTextVersionViaHash -[#darkorange,dashed]-> FetchHashedAsync : await
+    CreateTaskPackageAndSaveLog -[#darkorange,dashed]-> FetchHashedAsync : await
     CreateTaskPackageAndSaveLog -[#red,bold]-> AddVersionViaHashToPlainText : await
-    CreateTaskPackageAndSaveLog -[#orange,dotted]-> WriteHashedAsync : await
+    CreateTaskPackageAndSaveLog -[#darkorange,dashed]-> WriteHashedAsync : await
 
-    RemoveTestBookIdFieldsFromEternalLog -[#orange,dotted]-> DelFieldAsync : await
+    RemoveTestBookIdFieldsFromEternalLog -[#darkorange,dashed]-> DelFieldAsync : await
     CreateTestBookPlainTexts -[#red,bold]-> CreateTestBookIdsListFromStorageKey : await
     CreateTestBookPlainTexts -[#red,bold]-> CreateTaskPackageAndSaveLog : await
     CreateTestBookPlainTexts -[#red,bold]-> CreateTestScenarioLists : await
 
-    CreateTestBookIdsListFromStorageKey -[#orange,dotted]-> IsKeyExist : await
-    CreateTestBookIdsListFromStorageKey -[#orange,dotted]-> FetchHashedAllAsync : await
+    CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> IsKeyExist : await
+    CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> FetchHashedAllAsync : await
 
-    CreateTestScenarioLists -[#orange,dotted]-> FetchHashedAllAsync : await
-    CreateTestScenarioLists -[#orange,dotted]-> FetchHashedAsync : await
+    CreateTestScenarioLists -[#darkorange,dotted]-> FetchHashedAllAsync : await
+    CreateTestScenarioLists -[#darkorange,dashed]-> FetchHashedAsync : await
 
     IntegrationTestStart -[#red,bold]-> RemoveWorkKeyOnStart : await
     IntegrationTestStart -[#red,bold]-> CreateTestScenarioKey : TEMP
     IntegrationTestStart -[#red,bold]-> CreateTestBookPlainTexts : await
-    IntegrationTestStart -[#orange,dotted]-> FetchHashedAsync : await
-    IntegrationTestStart -[#orange,dotted]-> DeleteKeyIfCancelled : await
+    IntegrationTestStart -[#darkorange,dashed]-> FetchHashedAsync : await
+    IntegrationTestStart -[#darkorange,dashed]-> DeleteKeyIfCancelled : await
     IntegrationTestStart -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
 
-    RemoveWorkKeyOnStart -[#orange,dotted]-> WriteHashedAsync : await
-    RemoveWorkKeyOnStart -[#orange,dotted]-> FetchHashedAsync : await
+    RemoveWorkKeyOnStart -[#darkorange,dashed]-> WriteHashedAsync : await
+    RemoveWorkKeyOnStart -[#darkorange,dashed]-> FetchHashedAsync : await
 
-    IsTestResultAsserted -[#orange,dotted]-> FetchHashedAllAsync : await
+    IsTestResultAsserted -[#darkorange,dashed]-> FetchHashedAllAsync : await
 
     '_prepare --> _store
 }
