@@ -164,6 +164,8 @@ namespace BackgroundDispatcher.Services
 
 
         // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+        // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
+        // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
         public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, List<string> rawPlainTextFields, List<int> delayList)
         {
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
