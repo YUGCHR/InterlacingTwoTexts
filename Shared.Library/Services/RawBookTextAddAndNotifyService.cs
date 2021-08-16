@@ -28,12 +28,6 @@ namespace Shared.Library.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<RawBookTextAddAndNotifyService>();
 
-        // сохранить исходный метод
-        // разделить его на два метода - 
-        // 1 создание ключа с книгой
-        // 2 создание ключа оповещения
-        // оба метода в интерфейс
-        // в исходном методе вызвать их оба
         public async Task<bool> AddPainBookText(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid)
         {
             // здесь проверить тестовый ключ и ждать, если идет тест
@@ -55,7 +49,6 @@ namespace Shared.Library.Services
 
         // параметр bool thisIsTheTest нужен для записи тестовых книг в специальное хранилище для них
         // записать текст в ключ bookPlainTextKeyPrefix + this Server Guid и поле bookTextFieldPrefix + BookGuid
-        // 
         public async Task<(string, string)> AddPlainTextGuidKey(ConstantsSet constantsSet, TextSentence bookPlainTextWithDescription, string bookGuid, bool thisIsTheTest = false)
         {
             string bookPlainText_KeyPrefixGuid = "";

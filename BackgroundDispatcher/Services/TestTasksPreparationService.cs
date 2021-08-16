@@ -171,6 +171,36 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
 
             //_add.AddPainBookText(constantsSet, TextSentence, bookGuid);
+            int rawPlainTextFieldsCount = rawPlainTextFields.Count;
+            int delayListCount = delayList.Count;
+            bool areTheListsLengthDifferent = rawPlainTextFieldsCount != delayListCount;
+            // ещё проверить списки на нул и на нулевую длину
+            if (areTheListsLengthDifferent)
+            {
+                _aux.SomethingWentWrong(areTheListsLengthDifferent);
+            }
+
+            for (int i = 0; i < rawPlainTextFieldsCount; i++)
+            {
+                string currentField = rawPlainTextFields[i];
+                int currentDelay = delayList[i];
+                if (String.Equals(currentField, ""))
+                {
+                    if (currentDelay == 0)
+                    {
+                        _aux.SomethingWentWrong(true);
+                    }
+                    //delay(currentDelay) here
+                }
+                else
+                {
+                    //create the key with the plain text
+                }
+            }
+
+            // create the key From
+
+
 
 
             return 0;
