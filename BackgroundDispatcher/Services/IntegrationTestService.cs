@@ -78,8 +78,70 @@ namespace BackgroundDispatcher.Services
 
     public class IntegrationTestService : IIntegrationTestService
     {
-        // метод создаёт из последовательности команд в списке int (пришедшим из веб-интерфейса)
-        // ключ с полями-индексами порядка команд и нужной активностью в значениях
+        #region Health Check operating procedure
+
+        // порядок работы встроенного интеграционного теста (далее health check) -
+        // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
+        // устанавливаются необходимые константы
+        // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
+        // *** потом надо переделать глубину в список контрольных точек, в которых тест будет отчитываться о достижении их
+        // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
+        // достаётся из ключа запуска теста номер (вариант) сценария
+        // вызывается _convert.CreateTestScenarioKey и создаётся сценарий - временно по номеру
+        // *** потом из веба будет приходить массив инт с описанием сценария
+        // *** добавить в метод необязательный параметр массив инт
+        // *** дальше надо думать с определением номера сценария - по идее больше это не нужно, выбранный сценарий хранится в ключе
+
+        // вызывается _prepare.CreateTestBookPlainTexts и создается комплект тестовых книг
+        // для этого обращаемся к стационарному хранилищу тестовых книг в ключе storageKeyBookPlainTexts
+        // *** потом их надо уметь удобно обновлять и хранить копии в базе (в специальном разделе?)
+        // вызывается _store.CreateTestBookIdsListFromStorageKey
+        // общее назначение метода - создать два списка - номеров книг и мест хранения (название поля в хранилище)
+        // для этого создаём два новых списка -
+        // int uniqueBookIdsFromStorageKey - уникальные номера книг и string guidFieldsFromStorageKey - названия полей в хранилище
+        // проверяем наличие ключа хранилища
+        // выгружаем всё хранилище в словарь
+        // перебираем пары <string, TextSentence>
+        // название поля string сразу записываем в новый список
+        // достаём номер книги из очередного TextSentence и проверяем его наличие в новом списке номеров
+        // если такого номера ещё нет, добавляем его в список
+        // возвращаем из метода два списка (очевидно несинхронные и разной длины)
+
+        // вызывается RemoveTestBookIdFieldsFromEternalLog
+        // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
+        // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
+
+        // вызывается _collect.CreateTaskPackageAndSaveLog
+        // вне теста этот метод используется для для создания ключа готового пакета задач -
+        // с последующей генерацией (другим методом) ключа кафе для оповещения о задачах бэк-сервера
+        // сохраняются названия гуид-полей книг, созданные контроллером, но они перезаписываются в новый ключ, уникальный для собранного пакета
+        // одновременно, при перезаписи содержимого книг, оно анализируется (вычисляется хэш текста) и проверяется на уникальность
+        // если такая книга уже есть, это гуид-поле удаляется
+        // здесь этот метод используется для записи хэшей в вечный лог -
+        // при этом вычисляются номера версий загружаемых книг, что и нужно вызывающему методу
+
+        // вызывается _scenario.CreateTestScenarioLists - этот метод из ключа описания сценария
+        // создаёт последовательность (список string rawPlainTextFields) гуид-полей сырых текстов
+        // и задержек между ними (List<int> delayList) - и это синхронные списки
+        // используется значение из того, где оно не нулевое
+        // 
+        // и опять вызывается RemoveTestBookIdFieldsFromEternalLog - удалить все тестовые ключи из вечного лога второй раз -
+        // после завершения использования для подготовки тестовых текстов
+        // 
+        // вызывается CreateScenarioTasksAndEvents
+        // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+
+
+
+
+
+
+
+
+
+
+        #endregion
+
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IConvertArrayToKeyWithIndexFields _convert;
         private readonly ITestScenarioService _scenario;
@@ -128,7 +190,7 @@ namespace BackgroundDispatcher.Services
             string testSettingKey1 = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.Value; // testSettingKey1
             double testSettingKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.LifeTime;
 
-            bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1);
+            bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1); // TO REMOVE
 
             string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
             string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
@@ -199,6 +261,9 @@ namespace BackgroundDispatcher.Services
                     // временное прерывание для отладки, потом поменять на ==
                     return false;
                 }
+
+
+
 
 
 
