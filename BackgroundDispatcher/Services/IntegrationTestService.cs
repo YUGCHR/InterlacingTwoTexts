@@ -86,12 +86,7 @@ namespace BackgroundDispatcher.Services
         // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
         // *** потом надо переделать глубину в список контрольных точек, в которых тест будет отчитываться о достижении их
         // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
-        // достаётся из ключа запуска теста номер (вариант) сценария
-        // вызывается _convert.CreateTestScenarioKey и создаётся сценарий - временно по номеру
-        // *** потом из веба будет приходить массив инт с описанием сценария
-        // *** добавить в метод необязательный параметр массив инт
-        // *** дальше надо думать с определением номера сценария - по идее больше это не нужно, выбранный сценарий хранится в ключе
-
+        
         // вызывается _prepare.CreateTestBookPlainTexts и создается комплект тестовых книг
         // для этого обращаемся к стационарному хранилищу тестовых книг в ключе storageKeyBookPlainTexts
         // *** потом их надо уметь удобно обновлять и хранить копии в базе (в специальном разделе?)
@@ -131,7 +126,11 @@ namespace BackgroundDispatcher.Services
         // вызывается CreateScenarioTasksAndEvents
         // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
 
-
+        // *** отчёт по тесту -
+        // *** надо создавать в контрольных точках по мере прохождения теста
+        // *** и сохранять в ключе тест_отчёт с полями номерам шагов
+        // *** или названиями контрольных точек
+        // *** (но номера тоже хотелось бы)
 
 
 
@@ -225,6 +224,10 @@ namespace BackgroundDispatcher.Services
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
+            // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
+            // *** потом из веба будет приходить массив инт с описанием сценария
+            // *** добавить в метод необязательный параметр массив инт
+            // *** дальше надо думать с определением номера сценария - по идее больше это не нужно, выбранный сценарий хранится в ключе
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
             await _convert.CreateTestScenarioKey(constantsSet, testScenario);
 
@@ -342,7 +345,7 @@ namespace BackgroundDispatcher.Services
                 foreach (var t in plainTextsDataList)
                 {
                     (var bookGuid, var bookPlainText) = t;
-                    Logs.Here().Information("Dictionary element is {@G} {@T}.", new { BookGuid = bookGuid }, new { BookPlainText = bookPlainText });
+                    Logs.Here().Information("Dictionary element is HashVersion = {0}, BookId = {1}, LanguageId = {2}, \n BookGuidField = {3}, \n BookGuid = {4}, \n BookPlainTextHash = {5}", bookPlainText.HashVersion, bookPlainText.BookId, bookPlainText.LanguageId, bookGuid, bookPlainText.BookGuid, bookPlainText.BookPlainTextHash);
 
 
                 }

@@ -166,11 +166,17 @@ namespace BackgroundDispatcher.Services
         // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
         // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
         // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
-        public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, List<string> rawPlainTextFields, List<int> delayList)
+        public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList)
         {
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
+            //string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
+            // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и имитации(!) bookTextSplit server Guid
+            string bookTextSplitGuid = Guid.NewGuid().ToString();
+            string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefix.Value}:{bookTextSplitGuid}";
+            double keyExistingTimePlain = constantsSet.BookPlainTextConstant.KeyPrefix.LifeTime;
+            string eventKeyFrom = constantsSet.EventKeyFrom.Value;
+            double keyExistingTimeFrom = constantsSet.EventKeyFrom.LifeTime;
 
-            //_add.AddPainBookText(constantsSet, TextSentence, bookGuid);
             int rawPlainTextFieldsCount = rawPlainTextFields.Count;
             int delayListCount = delayList.Count;
             bool areTheListsLengthDifferent = rawPlainTextFieldsCount != delayListCount;
@@ -194,11 +200,24 @@ namespace BackgroundDispatcher.Services
                 }
                 else
                 {
-                    //create the key with the plain text
+                    // имитация получения книги от контроллера
+                    TextSentence bookPlainTextWithDescription = await _cache.FetchHashedAsync<TextSentence>(storageKeyBookPlainTexts, currentField);
+                    string bookGuid = bookPlainTextWithDescription.BookGuid;
+                    Logs.Here().Information("BookGuid comparing - currentField = {0}, bookGuid = {1} ", currentField, bookGuid);
+
+                    // create the key with the plain text
+                    // key - тестовый ключ, имитирующий ключ-гуид фронт-сервера записи книг
+                    // можно прямо в этом методе генерировать произвольный ключ -
+                    // скажем, соответствующий префикс фронт-сервера и созданный здесь гуид
+                    await _cache.WriteHashedAsync<TextSentence>(bookPlainText_KeyPrefixGuid, currentField, bookPlainTextWithDescription, keyExistingTimePlain);
+                    Logs.Here().Information("Key bookPlainText with BookId = {0} was created - {@K} \n {@F}", bookPlainTextWithDescription.BookId, new { Key = bookPlainText_KeyPrefixGuid }, new { Field = currentField });
+
+                    // create the key From
+                    await _cache.WriteHashedAsync<string>(eventKeyFrom, currentField, bookPlainText_KeyPrefixGuid, keyExistingTimeFrom);
+                    Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V}", new { Key = eventKeyFrom }, new { Field = currentField }, new { Value = bookPlainText_KeyPrefixGuid });
+
                 }
             }
-
-            // create the key From
 
 
 
@@ -251,6 +270,9 @@ namespace BackgroundDispatcher.Services
         // на выходе можно достать тексты по цифровым полям и сравнить хэши тестов из хранилища с теми, что хранятся в логе (но непонятно, зачем)        
         public async Task<List<int>> CreateTestBookPlainTexts(ConstantsSet constantsSet, CancellationToken stoppingToken, int testPairsCount = 1, int delayAfter = 0)
         {
+            // есть способ сделать этот ключ заранее известным -
+            // надо в режим записи тестовых книг добавить изменение ключа записи в стандартный (стабильный) из констант
+            // тогда можно всюду не передавать, но можно уже и не менять (наверное)
             string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
 
             string testKeyBookPlainTextsPrefix = constantsSet.BookPlainTextConstant.KeyPrefix.Value; // bookPlainTexts:bookSplitGuid
@@ -264,7 +286,7 @@ namespace BackgroundDispatcher.Services
 
             // сюда можно передать ключ временного хранилища тестовых плоских текстов,
             // если он будет как-то вычисляться, а не генерироваться контроллером
-            (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
+            (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet, storageKeyBookPlainTexts); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
             // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
             // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
@@ -288,7 +310,7 @@ namespace BackgroundDispatcher.Services
             }
 
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
-            int ttt = await CreateScenarioTasksAndEvents(constantsSet, rawPlainTextFields, delayList);
+            int ttt = await CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
             Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
             return uniqueBookIdsFromStorageKey;

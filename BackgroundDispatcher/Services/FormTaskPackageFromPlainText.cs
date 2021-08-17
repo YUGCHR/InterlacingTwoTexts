@@ -200,7 +200,7 @@ namespace BackgroundDispatcher.Services
 
                 // удаляем текущее поле (для точности и скорости перед удалением можно проверить существование? и, если есть, то удалять)
                 bool isFieldRemovedSuccessful = await _cache.DelFieldAsync(eventKeyFrom, f);
-                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom });
+                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom }, isFieldRemovedSuccessful);
 
                 // если не удалилось - и фиг с ним, удаляем его из словаря
                 // можно убрать, всё равно словарь больше не используется
