@@ -103,6 +103,8 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     HandlerCallingsDistributor -[#blue,dotted]-> HandlerCallings
 
     state "TestTasksPreparationService" as _prepare #lightblue {
+        state TestDepthSetting #lightgreen {
+        }
         state CreateScenarioTasksAndEvents #lightgreen {
         }
         CreateScenarioTasksAndEvents : in progress
@@ -155,13 +157,28 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
         state IsTestInProgress #lightgreen {
         }
         state IntegrationTestStart #lightgreen {
+            state ITS_1
+            state ITS_2
+            state ITS_3
+            state ITS_4
+            state ITS_5
+            state ITS_6
+            state ITS_7
+            state ITS_8
+            state ITS_9
+            ITS_1 -down-> ITS_2
+            ITS_2 -down-> ITS_3
+            ITS_3 -down-> ITS_4
+            ITS_4 -down-> ITS_5
+            ITS_5 -down-> ITS_6
+            ITS_6 -down-> ITS_7
+            ITS_7 -down-> ITS_8
+            ITS_8 -down-> ITS_9
         }
         state IsTestResultAsserted #lightgreen {
         }
         state IsPreassignedDepthReached #lightgreen {
-        }
-        state testScenario #lightgreen {
-        }
+        }        
         state DisplayResultInFrame #lightgreen {
         }
         state SetIsTestInProgress #lightgreen {
@@ -210,45 +227,14 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
         state DelKeyAsync #orange
         DelKeyAsync : Shared.Library \nCacheManagerService
     }
-    ' state SetStartConstants #orange
-    ' state SetConstantsStartGuidKey #orange
-    ' state SetLifeTimeFromKey #orange
-    ' state FetchUpdatedConstant #orange
-    ' state FetchUpdatedConstantsAndDeleteKey #orange
-
-    ' _convert -down[hidden]-> _aux
-    ' _aux -down[hidden]-> GenerateMessageInFrame
-    ' GenerateMessageInFrame -down[hidden]-> CacheManagerService
-
+    
     CacheManagerService -[#red,bold]-> ICacheProviderAsync : await
-    ' SetStartConstants -down[hidden]-> SetConstantsStartGuidKey
-    ' SetConstantsStartGuidKey -down[hidden]-> SetLifeTimeFromKey
-    ' SetLifeTimeFromKey -down[hidden]-> FetchUpdatedConstant
-    ' FetchUpdatedConstant -down[hidden]-> FetchUpdatedConstantsAndDeleteKey
-    ' FetchUpdatedConstantsAndDeleteKey -down[hidden]-> DeleteKeyIfCancelled
-    ' DeleteKeyIfCancelled -down[hidden]-> IsKeyExist
-    ' IsKeyExist -down[hidden]-> DelKeyAsync
-    ' DelKeyAsync -down[hidden]-> DelFieldAsync
-    ' DelFieldAsync -down[hidden]-> FetchHashedAsync
-    ' FetchHashedAsync -down[hidden]-> WriteHashedAsync
-    ' WriteHashedAsync -down[hidden]-> FetchHashedAllAsync
-
-
-    ' RedisKeyEventsProvider -down[hidden]-> _subscribe
-    ' _subscribe -down[hidden]-> _count
-    ' _count -down[hidden]-> _front
-    '_front -down[hidden]-> Shared
-    ' _front -> _prepare
-
-    ' _eternal -> _test
-    ' _test -> Shared
-    ' BackgroundDispatcher -> Shared
-    IntegrationTestStart --> _isTestInProgress
+        
+    ITS_1 --> _isTestInProgress
     SetIsTestInProgress --> _isTestInProgress
     IsTestInProgress --> _isTestInProgress
-    IntegrationTestStart --> DisplayResultInFrame
-    IntegrationTestStart --> testScenario
-    'IntegrationTestStart -down[hidden]-> IsTestResultAsserted
+    ITS_9 --> DisplayResultInFrame
+    
     DisplayResultInFrame --> CreateMeassageInFrame
 
     SubscribingPlan -[#red,bold]-> RemoveWorkKeyOnStart : await
@@ -282,28 +268,30 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     CreateTaskPackageAndSaveLog -[#darkorange,dashed]-> WriteHashedAsync : await
 
     RemoveTestBookIdFieldsFromEternalLog -[#darkorange,dashed]-> DelFieldAsync : await
-    CreateTestBookPlainTexts -[#red,bold]-> CreateTestBookIdsListFromStorageKey : await
-    CreateTestBookPlainTexts -[#red,bold]-> CreateTaskPackageAndSaveLog : await
-    CreateTestBookPlainTexts -[#red,bold]-> CreateTestScenarioLists : await
-
+    
     CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> IsKeyExist : await
     CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> FetchHashedAllAsync : await
 
     CreateTestScenarioLists -[#darkorange,dotted]-> FetchHashedAllAsync : await
     CreateTestScenarioLists -[#darkorange,dashed]-> FetchHashedAsync : await
 
-    IntegrationTestStart -[#red,bold]-> RemoveWorkKeyOnStart : await
-    IntegrationTestStart -[#red,bold]-> CreateTestScenarioKey : TEMP
-    IntegrationTestStart -[#red,bold]-> CreateTestBookPlainTexts : await
-    IntegrationTestStart -[#darkorange,dashed]-> FetchHashedAsync : await
-    IntegrationTestStart -[#darkorange,dashed]-> DeleteKeyIfCancelled : await
-    IntegrationTestStart -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
+    ITS_2 -[#red,bold]-> TestDepthSetting : await
+    ITS_2 -[#red,bold]-> RemoveWorkKeyOnStart : await
+    ITS_3 -[#darkorange,dashed]-> FetchHashedAsync : await
+    ITS_3 -[#red,bold]-> CreateTestScenarioKey : TEMP
+    ITS_4 -[#red,bold]-> CreateTestBookIdsListFromStorageKey : await
+    ITS_4 -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
+    ITS_5 -[#red,bold]-> CreateTaskPackageAndSaveLog : await
+    ITS_6 -[#red,bold]-> CreateTestScenarioLists : await
+    ITS_6 -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
+    ITS_7 -[#red,bold]-> CreateScenarioTasksAndEvents : await
+    ITS_8 -[#darkorange,dashed]-> DeleteKeyIfCancelled : await
+    ITS_9 -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
 
     RemoveWorkKeyOnStart -[#darkorange,dashed]-> WriteHashedAsync : await
     RemoveWorkKeyOnStart -[#darkorange,dashed]-> FetchHashedAsync : await
 
     IsTestResultAsserted -[#darkorange,dashed]-> FetchHashedAllAsync : await
 
-    '_prepare --> _store
 }
 @enduml

@@ -104,6 +104,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface ITestTasksPreparationService
     {
+        public Task<bool> TestDepthSetting(ConstantsSet constantsSet, int testDepth = 0);
         public Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList);
         public Task<int> RemoveTestBookIdFieldsFromEternalLog(ConstantsSet constantsSet, string key, List<int> uniqueBookIdsFromStorageKey);
     }
@@ -160,13 +161,32 @@ namespace BackgroundDispatcher.Services
         // (а потом и базой - возможно) с базой всё же один сервер работает, всем остальным про неё знать не нужно
         // 6 перенести общие модели в общую библиотеку
 
+        public async Task<bool> TestDepthSetting(ConstantsSet constantsSet, int testDepth = 0)
+        {
+            string testSettingKey1 = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.Value; // testSettingKey1
+            double testSettingKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.LifeTime;
+
+            bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1); // TO REMOVE
+
+            string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
+            string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
+            string test1Depth2 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue2.Value; // DistributeTaskPackageInCafee
+
+            // to collect all depths in array and select the element via testDepth is it set (if testDepth=0 it means automatic mode)
+
+            // здесь задаётся глубина теста - название метода, в котором надо закончить тест
+            // при дальнейшем углублении теста показывать этапы прохождения
+            await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth2, testSettingKey1LifeTime);
+
+            return testSettingKey1WasDeleted;
+        }
 
 
 
-        // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
-        // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
-        // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
-        public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList)
+            // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+            // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
+            // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
+            public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList)
         {
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
             //string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";

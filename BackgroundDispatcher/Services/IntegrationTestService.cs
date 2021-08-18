@@ -233,18 +233,7 @@ namespace BackgroundDispatcher.Services
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
 
-            string testSettingKey1 = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.Value; // testSettingKey1
-            double testSettingKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.SettingKey1.LifeTime;
-
-            bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1); // TO REMOVE
-
-            string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
-            string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
-            string test1Depth2 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue2.Value; // DistributeTaskPackageInCafee
-
-            // здесь задаётся глубина теста - название метода, в котором надо закончить тест
-            // при дальнейшем углублении теста показывать этапы прохождения
-            await _cache.WriteHashedAsync<string>(testSettingKey1, testSettingField1, test1Depth2, testSettingKey1LifeTime);
+            bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
 
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
@@ -280,18 +269,7 @@ namespace BackgroundDispatcher.Services
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
             await _convert.CreateTestScenarioKey(constantsSet, testScenario);
 
-
             Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
-
-
-            // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
-            int testPairsCount = countTrackingStart / 2;
-            int delayAfter = 10;
-            //string key = eventKeyFromTest;
-            //string[] field = new string[2] { "count", "count" };
-            //string[] value = new string[2] { "1", "2" };
-            //double lifeTime = eventKeyFromTestLifeTime;
-            //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
             // можно (нужно) убрать в главный метод IntegrationTestService.IntegrationTestStart
             (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet, storageKeyBookPlainTexts); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
