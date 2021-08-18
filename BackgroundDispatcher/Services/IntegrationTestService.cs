@@ -81,12 +81,39 @@ namespace BackgroundDispatcher.Services
         #region Health Check operating procedure
 
         // порядок работы встроенного интеграционного теста (далее health check) -
-        // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
-        // устанавливаются необходимые константы
-        // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
-        // *** потом надо переделать глубину в список контрольных точек, в которых тест будет отчитываться о достижении их
-        // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
-        
+
+        // _convert.CreateTestScenarioKey
+        // создание сценария производится из выбранного (по номеру сценария) заранее заданного массива с действиями
+        // каждый элемент массива означает книгу или пару с номером и версией (не конкретными, а по порядку) или время задержки
+        // метод записывает этот массив сценария в ключ testScenarioSequenceKey = test-scenario-sequence,
+        // снабжая его номерами шагов (номера полей) - в будущем это будет общение между серверами
+
+        // List<int> uniqueBookIdsFromStorageKey = _prepare.CreateTestBookPlainTexts(constantsSet, stoppingToken, testPairsCount, delayAfter);
+        // тут неправильно указание количества пар и задержка - теперь всё из сценария
+        // и вообще, переделать на последовательное выполнение, а не цепочка вглубь - фиг, что поймёшь потом
+
+        // TestTasksPreparationService CreateTestBookPlainTexts
+        // берёт ключ хранилища тестовых книг, указанный явным образом (временно, потом что-то придумать)
+        // 
+
+
+
+
+
+        // производим инвентаризацию хранилища тестовых книг - составляем список полей (всех хранящихся книг) и список уникальных номеров книг (английских, русская книга из пары вычисляется)
+        // 
+
+
+
+
+
+
+
+
+
+
+
+
         // вызывается _prepare.CreateTestBookPlainTexts и создается комплект тестовых книг
         // для этого обращаемся к стационарному хранилищу тестовых книг в ключе storageKeyBookPlainTexts
         // *** потом их надо уметь удобно обновлять и хранить копии в базе (в специальном разделе?)
@@ -144,6 +171,8 @@ namespace BackgroundDispatcher.Services
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IConvertArrayToKeyWithIndexFields _convert;
         private readonly ITestScenarioService _scenario;
+        private readonly ITestRawBookTextsStorageService _store;
+        private readonly ICollectTasksInPackageService _collect;
         private readonly ICacheManagerService _cache;
         private readonly ITestTasksPreparationService _prepare;
 
@@ -151,12 +180,16 @@ namespace BackgroundDispatcher.Services
             IAuxiliaryUtilsService aux,
             IConvertArrayToKeyWithIndexFields convert,
             ITestScenarioService scenario,
-            ICacheManagerService cache, 
+            ITestRawBookTextsStorageService store,
+            ICollectTasksInPackageService collect,
+            ICacheManagerService cache,
             ITestTasksPreparationService prepare)
         {
             _aux = aux;
-            _scenario = scenario;
             _convert = convert;
+            _scenario = scenario;
+            _store = store;
+            _collect = collect;
             _cache = cache;
             _prepare = prepare;
         }
@@ -165,6 +198,12 @@ namespace BackgroundDispatcher.Services
 
         private bool _isTestInProgress;
 
+        // 
+        // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
+        // устанавливаются необходимые константы
+        // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
+        // *** потом надо переделать глубину в список контрольных точек, в которых тест будет отчитываться о достижении их
+        // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // написать разные сценарии тестирования и на разные глубины
@@ -176,6 +215,14 @@ namespace BackgroundDispatcher.Services
             _isTestInProgress = true;
 
             #region Constants preparation
+
+
+            // есть способ сделать этот ключ заранее известным -
+            // надо в режим записи тестовых книг добавить изменение ключа записи в стандартный (стабильный) из констант
+            // тогда можно всюду не передавать, но можно уже и не менять (наверное)
+            string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
+
+
 
             // проверить обновление констант перед вызовом теста
 
@@ -212,6 +259,8 @@ namespace BackgroundDispatcher.Services
 
             int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
 
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted))
             {
@@ -231,85 +280,99 @@ namespace BackgroundDispatcher.Services
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
             await _convert.CreateTestScenarioKey(constantsSet, testScenario);
 
-            // тут создаём последовательность полей согласно плана сценария
+
+            Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
 
 
+            // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
+            int testPairsCount = countTrackingStart / 2;
+            int delayAfter = 10;
+            //string key = eventKeyFromTest;
+            //string[] field = new string[2] { "count", "count" };
+            //string[] value = new string[2] { "1", "2" };
+            //double lifeTime = eventKeyFromTestLifeTime;
+            //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
 
+            // можно (нужно) убрать в главный метод IntegrationTestService.IntegrationTestStart
+            (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet, storageKeyBookPlainTexts); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
-            // узнаём сценарий теста, заданный в стартовом ключе
-            // наверное, какой номер сценария, такой номер результата ждём
-            // или номер результата - это глубина теста, надо разобраться
-            if (testScenario == testScenario1)
+            // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
+            // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
+            int result1 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
+            if (!(result1 > 0))
             {
-                Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
-
-
-                // выделить в метод и дать внешний доступ с регулировкой количества - вызвать из временных тестов
-                int testPairsCount = countTrackingStart / 2;
-                int delayAfter = 10;
-                //string key = eventKeyFromTest;
-                //string[] field = new string[2] { "count", "count" };
-                //string[] value = new string[2] { "1", "2" };
-                //double lifeTime = eventKeyFromTestLifeTime;
-                //bool result = await TestKeysCreationInQuantityWithDelay(delayBetweenMsec, key, field, value, lifeTime);
-
-                // загрузка тестовых плоских текстов и ключа оповещения
-                List<int> uniqueBookIdsFromStorageKey = await _prepare.CreateTestBookPlainTexts(constantsSet, stoppingToken, testPairsCount, delayAfter);
-
-                //Logs.Here().Information("Test scenario {0} ({1}) was started with {@S} and is waited the results.", testScenario, testScenario1description, new { TestStartedWith = testStartedWithResult });
-
-                // 
-                if (uniqueBookIdsFromStorageKey != null)
-                {
-                    // временное прерывание для отладки, потом поменять на ==
-                    return false;
-                }
-
-
-
-
-
-
-
-
-
-
-                bool isTestResultAppeared = false;
-                while (!isTestResultAppeared)
-                {
-                    await Task.Delay(delayTimeForTest1);
-                    Logs.Here().Information("Test scenario {0} results are still waiting.", testScenario);
-                    isTestResultAppeared = await _cache.IsKeyExist(testResultsKey1);
-                }
-
-                Logs.Here().Information("Test scenario {0} finished and the results will come soon.", testScenario);
-
-                // в выходном (окончательном) сообщении указывать глубину теста
-
-                int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
-
-                // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
-                // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
-                bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
-                bool testResultIsAsserted = testResult == test1IsPassed;
-                bool finalResult = eventKeyTestWasDeleted && testResultIsAsserted;
-
-                // все константы или убрать в константы и/или перенести в метод DisplayResultInFrame
-                string testDescription = $"Test scenario <{testScenario1description}>";
-                char separTrue = '+';
-                string textTrue = $"passed successfully";
-                char separFalse = 'X';
-                string textFalse = $"is FAILED";
-                DisplayResultInFrame(finalResult, testDescription, separTrue, textTrue, separFalse, textFalse);
-
-                // а потом удалить их третий раз - после завершения теста и проверки его результатов
-                int result3 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, "", uniqueBookIdsFromStorageKey);
-                if (!(result3 > 0))
-                {
-                    _aux.SomethingWentWrong(true);
-                }
-
+                _aux.SomethingWentWrong(true);
             }
+
+            // передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
+            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, guidFieldsFromStorageKey);
+
+            // выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки 
+            (List<string> rawPlainTextFields, List<int> delayList) = await _scenario.CreateTestScenarioLists(constantsSet, uniqueBookIdsFromStorageKey);
+
+            // и удалить их второй раз после завершения использования для подготовки тестовых текстов
+            int result2 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
+            if (!(result2 > 0))
+            {
+                _aux.SomethingWentWrong(true);
+            }
+
+            // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+            int ttt = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
+            Logs.Here().Information("CreateScenarioTasksAndEvents finished");
+
+            // 
+            if (uniqueBookIdsFromStorageKey != null)
+            {
+                // временное прерывание для отладки, потом поменять на ==
+                return false;
+            }
+
+
+
+
+
+
+
+
+
+
+            bool isTestResultAppeared = false;
+            while (!isTestResultAppeared)
+            {
+                await Task.Delay(delayTimeForTest1);
+                Logs.Here().Information("Test scenario {0} results are still waiting.", testScenario);
+                isTestResultAppeared = await _cache.IsKeyExist(testResultsKey1);
+            }
+
+            Logs.Here().Information("Test scenario {0} finished and the results will come soon.", testScenario);
+
+            // в выходном (окончательном) сообщении указывать глубину теста
+
+            int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
+
+            // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
+            // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
+            bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
+            bool testResultIsAsserted = testResult == test1IsPassed;
+            bool finalResult = eventKeyTestWasDeleted && testResultIsAsserted;
+
+            // все константы или убрать в константы и/или перенести в метод DisplayResultInFrame
+            string testDescription = $"Test scenario <{testScenario1description}>";
+            char separTrue = '+';
+            string textTrue = $"passed successfully";
+            char separFalse = 'X';
+            string textFalse = $"is FAILED";
+            DisplayResultInFrame(finalResult, testDescription, separTrue, textTrue, separFalse, textFalse);
+
+            // а потом удалить их третий раз - после завершения теста и проверки его результатов
+            int result3 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, "", uniqueBookIdsFromStorageKey);
+            if (!(result3 > 0))
+            {
+                _aux.SomethingWentWrong(true);
+            }
+
+
 
 
 

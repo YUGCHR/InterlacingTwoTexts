@@ -1,0 +1,309 @@
+@startuml
+
+state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispatcher #pink {
+    state "Start This Server" as ProgramCS #red
+
+    state RedisKeyEventsProvider #red{
+        state EventKeyFrom #yellow
+        state EventСafeKey #yellow
+        state EventKeyUpdate #yellow
+        state EventKeyTest #yellow
+    }
+    state ICacheProviderAsync #red{
+
+    }
+    ICacheProviderAsync : CachingFramework.Redis.\nContracts.Providers
+
+    state MonitorLoop #lightblue {
+        state StartMonitorLoop #lightgreen
+        state Monitor #lightgreen {
+        }
+        StartMonitorLoop -> Monitor
+    }
+    ProgramCS -[#blue,dotted]-> StartMonitorLoop
+
+    state "OnKeysEventsSubscribeService" as _subscribe #lightblue {
+        state SubscribingPlan #lightgreen
+        Monitor -[#blue,dotted]-> SubscribingPlan
+        state _isTestInProgressAlready #magenta
+
+        state SubscribeOnEventFrom #lightgreen {
+            state EventFromOccured #coral{
+            }
+        }
+        state SubscribeOnEventСafeKey #lightgreen {
+            state EventEventСafeOccured #coral{
+            }
+        }
+        state SubscribeOnEventUpdateKey #lightgreen {
+            state EventEventUpdateOccured #coral{
+            }
+        }
+        state SubscribeOnEventKeyTest #lightgreen {
+            state EventEventTestOccured #coral
+        }
+        _isTestInProgressAlready -[#green,bold]-> EventEventTestOccured
+    }
+    SubscribingPlan -[#blue,dotted]-> SubscribeOnEventFrom
+    SubscribingPlan -[#blue,dotted]-> SubscribeOnEventСafeKey
+    SubscribingPlan -[#blue,dotted]-> SubscribeOnEventUpdateKey
+    SubscribingPlan -[#blue,dotted]-> SubscribeOnEventKeyTest
+
+    state "EventCounterHandler" as _count #lightblue {
+        state Timer #magenta
+        state _callingNumOfEventFrom #magenta
+
+        state EventCounterInit #lightgreen {
+        }
+        state IsCounterZeroReading #lightgreen {
+        }
+        state EventCounterOccurred #lightgreen {
+        }
+        state HandlerMergeOfCalling #lightgreen {
+        }
+        state StartTimerOnce #lightgreen {
+        }
+        state DoWork #lightgreen {
+        }
+        state StopTimer #lightgreen {
+        }
+        state TestIsFinished #lightgreen {
+        }
+    }
+    IsCounterZeroReading -[#black,dotted]-> _callingNumOfEventFrom : Interlocked
+    EventCounterInit -[#black,dotted]-> _callingNumOfEventFrom : Interlocked
+    EventCounterOccurred -[#black,dotted]-> _callingNumOfEventFrom : Interlocked
+    DoWork -[#black,dotted]-> _callingNumOfEventFrom : Interlocked
+    EventCounterOccurred -[#blue,dotted]> StartTimerOnce
+    StartTimerOnce -[#magenta,dashed]> Timer
+    StopTimer -[#magenta,dashed]> Timer
+    Timer -[#magenta,dashed]> DoWork
+    EventCounterOccurred -[#blue,dotted]-> HandlerMergeOfCalling
+    HandlerMergeOfCalling -[#blue,dotted]> StopTimer
+    SubscribingPlan -[#blue,dotted]-> EventCounterInit
+    DoWork -[#blue,dotted]> HandlerMergeOfCalling
+
+    state "FormTaskPackageFromPlainText" as _front #lightblue {
+        state HandlerCallingsDistributor #lightgreen {
+        }
+        state FetchCurrentMethodName #lightgreen {
+        }
+        state HandlerCallings #lightgreen {
+        }
+        state ProcessDataOfSubscribeOnFrom #lightgreen {
+        }
+        ProcessDataOfSubscribeOnFrom : достать ключ и поля плоских текстов \nиз события подписки subscribeOnFrom
+        state DistributeTaskPackageInCafee #lightgreen {
+        }
+    }
+    HandlerCallingsDistributor --> FetchCurrentMethodName
+    HandlerCallings --> FetchCurrentMethodName
+    HandlerCallings -[#red,bold]-> ProcessDataOfSubscribeOnFrom : await
+    HandlerCallings -[#red,bold]-> DistributeTaskPackageInCafee : await
+    HandlerCallingsDistributor -[#blue,dotted]-> HandlerCallings
+
+    state "TestTasksPreparationService" as _prepare #lightblue {
+        state CreateScenarioTasksAndEvents #lightgreen {
+        }
+        CreateScenarioTasksAndEvents : in progress
+        state PrepareTestBookIdsListFromEternalLog #lightgreen {
+        }
+        PrepareTestBookIdsListFromEternalLog : in progress
+        state RemoveTestBookIdFieldsFromEternalLog #lightgreen {
+        }
+        state CreateTestBookPlainTexts #lightgreen {
+        }
+    }
+    CreateTestBookPlainTexts -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
+    CreateTestBookPlainTexts -[#red,bold]-> CreateScenarioTasksAndEvents : await
+
+    state "TestRawBookTextsStorageService" as _store #lightblue {
+        state CreateTestBookIdsListFromStorageKey #lightgreen {
+        }
+    }
+
+    state "CollectTasksInPackageService" as _collect #lightblue {
+        state CreateTaskPackageAndSaveLog #lightgreen {
+        }
+    }
+
+    state "TestScenarioService" as _scenario #lightblue {
+        state CreateTestScenarioLists #lightgreen {
+            CreateTestScenarioLists  : метод из ключа описания сценария \nсоздаёт последовательность (список) \nгуид-полей сырых текстов и задержек
+        }
+    }
+
+    state "EternalLogSupportService" as _eternal #lightblue {
+        state AddVersionViaHashToPlainText #lightgreen {
+        }
+        state CheckPlainTextVersionViaHash #lightgreen {
+            CheckPlainTextVersionViaHash : метод проверяет существование \nхэша в хранилище хэшей плоских текстов
+        }
+        state RemoveTextFromTextSentence #lightgreen {
+        }
+        state WriteBookPlainTextHash #lightgreen {
+        }
+    }
+    AddVersionViaHashToPlainText -[#red,bold]-> CheckPlainTextVersionViaHash : await
+    AddVersionViaHashToPlainText --> RemoveTextFromTextSentence
+    AddVersionViaHashToPlainText --> WriteBookPlainTextHash
+    WriteBookPlainTextHash --> RemoveTextFromTextSentence
+
+    state "IntegrationTestService" as _test #lightblue {
+        state _isTestInProgress #magenta
+
+        state IsTestInProgress #lightgreen {
+        }
+        state IntegrationTestStart #lightgreen {
+        }
+        state IsTestResultAsserted #lightgreen {
+        }
+        state IsPreassignedDepthReached #lightgreen {
+        }
+        state testScenario #lightgreen {
+        }
+        state DisplayResultInFrame #lightgreen {
+        }
+        state SetIsTestInProgress #lightgreen {
+        }
+    }
+
+    state DeleteKeyIfCancelled #orange
+    DeleteKeyIfCancelled : Shared.Library \nCacheManagerService
+    state IsKeyExist #orange
+    IsKeyExist : Shared.Library \nCacheManagerService
+    state DelFieldAsync #orange
+    DelFieldAsync : Shared.Library \nCacheManagerService
+    state FetchHashedAsync #orange
+    FetchHashedAsync : Shared.Library \nCacheManagerService \nICacheProviderAsync
+    state WriteHashedAsync #orange
+    WriteHashedAsync : Shared.Library \nCacheManagerService
+    state FetchHashedAllAsync #orange
+    FetchHashedAllAsync : Shared.Library \nCacheManagerService
+
+    state "ConvertArrayToKeyWithIndexFields" as _convert #lightblue {
+        _convert : Shared.Library
+        state CreateTestScenarioKey #lightgreen{
+
+        }
+        state SwitchArraySelect #lightgreen{
+
+        }
+        CreateTestScenarioKey -> SwitchArraySelect
+        SwitchArraySelect -> CreateTestScenarioKey
+    }
+    state "AuxiliaryUtilsService" as _aux #lightblue {
+        _aux : Shared.Library
+        state RemoveWorkKeyOnStart #lightgreen {
+        }
+        state CreateMD5 #lightgreen {
+        }
+    }
+    state "GenerateMessageInFrame" as GenerateMessageInFrame #lightblue {
+        GenerateMessageInFrame : Shared.Library
+        state CreateMeassageInFrame #lightgreen {
+        }
+
+    }
+    state CacheManagerService #orange{
+        CacheManagerService : Shared.Library
+        state DelKeyAsync #orange
+        DelKeyAsync : Shared.Library \nCacheManagerService
+    }
+    ' state SetStartConstants #orange
+    ' state SetConstantsStartGuidKey #orange
+    ' state SetLifeTimeFromKey #orange
+    ' state FetchUpdatedConstant #orange
+    ' state FetchUpdatedConstantsAndDeleteKey #orange
+
+    ' _convert -down[hidden]-> _aux
+    ' _aux -down[hidden]-> GenerateMessageInFrame
+    ' GenerateMessageInFrame -down[hidden]-> CacheManagerService
+
+    CacheManagerService -[#red,bold]-> ICacheProviderAsync : await
+    ' SetStartConstants -down[hidden]-> SetConstantsStartGuidKey
+    ' SetConstantsStartGuidKey -down[hidden]-> SetLifeTimeFromKey
+    ' SetLifeTimeFromKey -down[hidden]-> FetchUpdatedConstant
+    ' FetchUpdatedConstant -down[hidden]-> FetchUpdatedConstantsAndDeleteKey
+    ' FetchUpdatedConstantsAndDeleteKey -down[hidden]-> DeleteKeyIfCancelled
+    ' DeleteKeyIfCancelled -down[hidden]-> IsKeyExist
+    ' IsKeyExist -down[hidden]-> DelKeyAsync
+    ' DelKeyAsync -down[hidden]-> DelFieldAsync
+    ' DelFieldAsync -down[hidden]-> FetchHashedAsync
+    ' FetchHashedAsync -down[hidden]-> WriteHashedAsync
+    ' WriteHashedAsync -down[hidden]-> FetchHashedAllAsync
+
+
+    ' RedisKeyEventsProvider -down[hidden]-> _subscribe
+    ' _subscribe -down[hidden]-> _count
+    ' _count -down[hidden]-> _front
+    '_front -down[hidden]-> Shared
+    ' _front -> _prepare
+
+    ' _eternal -> _test
+    ' _test -> Shared
+    ' BackgroundDispatcher -> Shared
+    IntegrationTestStart --> _isTestInProgress
+    SetIsTestInProgress --> _isTestInProgress
+    IsTestInProgress --> _isTestInProgress
+    IntegrationTestStart --> DisplayResultInFrame
+    IntegrationTestStart --> testScenario
+    'IntegrationTestStart -down[hidden]-> IsTestResultAsserted
+    DisplayResultInFrame --> CreateMeassageInFrame
+
+    SubscribingPlan -[#red,bold]-> RemoveWorkKeyOnStart : await
+    'to remove SetIsTestInProgress
+    SubscribingPlan -[#blue,dotted]-> SetIsTestInProgress
+
+    EventKeyFrom -[#darkred,dashed]-> EventFromOccured
+    EventСafeKey -[#darkred,dashed]-> EventEventСafeOccured
+    EventKeyUpdate -[#darkred,dashed]-> EventEventUpdateOccured
+    EventKeyTest -[#darkred,dashed]-> _isTestInProgressAlready : check
+    EventFromOccured -[#blue,dotted]-> EventCounterOccurred
+    EventEventСafeOccured -[#blue,dotted]-> IsTestResultAsserted
+    EventEventTestOccured -[#red,bold]-> IsCounterZeroReading : await
+    EventEventTestOccured -[#red,bold]-> IntegrationTestStart : await
+
+    HandlerCallingsDistributor -[#red,bold]-> IsTestInProgress : await
+    HandlerCallingsDistributor --> IsPreassignedDepthReached
+    HandlerMergeOfCalling -[#red,bold]-> HandlerCallingsDistributor : await
+    HandlerCallings -[#red,bold]-> CreateTaskPackageAndSaveLog : await
+    ProcessDataOfSubscribeOnFrom -[#darkorange,dashed]-> FetchHashedAllAsync : await
+    ProcessDataOfSubscribeOnFrom -[#darkorange,dashed]-> DelFieldAsync : await
+    DistributeTaskPackageInCafee -[#darkorange,dashed]-> WriteHashedAsync : await
+
+    AddVersionViaHashToPlainText --> CreateMD5
+    AddVersionViaHashToPlainText -[#darkorange,dashed]-> FetchHashedAsync : await
+    WriteBookPlainTextHash -[#darkorange,dashed]-> WriteHashedAsync : await
+    CheckPlainTextVersionViaHash -[#darkorange,dashed]-> IsKeyExist : await
+    CheckPlainTextVersionViaHash -[#darkorange,dashed]-> FetchHashedAsync : await
+    CreateTaskPackageAndSaveLog -[#darkorange,dashed]-> FetchHashedAsync : await
+    CreateTaskPackageAndSaveLog -[#red,bold]-> AddVersionViaHashToPlainText : await
+    CreateTaskPackageAndSaveLog -[#darkorange,dashed]-> WriteHashedAsync : await
+
+    RemoveTestBookIdFieldsFromEternalLog -[#darkorange,dashed]-> DelFieldAsync : await
+    CreateTestBookPlainTexts -[#red,bold]-> CreateTestBookIdsListFromStorageKey : await
+    CreateTestBookPlainTexts -[#red,bold]-> CreateTaskPackageAndSaveLog : await
+    CreateTestBookPlainTexts -[#red,bold]-> CreateTestScenarioLists : await
+
+    CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> IsKeyExist : await
+    CreateTestBookIdsListFromStorageKey -[#darkorange,dashed]-> FetchHashedAllAsync : await
+
+    CreateTestScenarioLists -[#darkorange,dotted]-> FetchHashedAllAsync : await
+    CreateTestScenarioLists -[#darkorange,dashed]-> FetchHashedAsync : await
+
+    IntegrationTestStart -[#red,bold]-> RemoveWorkKeyOnStart : await
+    IntegrationTestStart -[#red,bold]-> CreateTestScenarioKey : TEMP
+    IntegrationTestStart -[#red,bold]-> CreateTestBookPlainTexts : await
+    IntegrationTestStart -[#darkorange,dashed]-> FetchHashedAsync : await
+    IntegrationTestStart -[#darkorange,dashed]-> DeleteKeyIfCancelled : await
+    IntegrationTestStart -[#red,bold]-> RemoveTestBookIdFieldsFromEternalLog : await
+
+    RemoveWorkKeyOnStart -[#darkorange,dashed]-> WriteHashedAsync : await
+    RemoveWorkKeyOnStart -[#darkorange,dashed]-> FetchHashedAsync : await
+
+    IsTestResultAsserted -[#darkorange,dashed]-> FetchHashedAllAsync : await
+
+    '_prepare --> _store
+}
+@enduml
