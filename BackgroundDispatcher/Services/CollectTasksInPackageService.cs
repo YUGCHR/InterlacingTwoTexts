@@ -67,14 +67,14 @@ namespace BackgroundDispatcher.Services
             }
 
             string taskPackage = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.Value; // taskPackage
-            double taskPackageGuidLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.LifeTime; // 0.001
+            double taskPackageGuidLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.LifeTime; // 0.01
             string currentPackageGuid = Guid.NewGuid().ToString();
             string taskPackageGuid = $"{taskPackage}:{currentPackageGuid}"; // taskPackage:guid
 
             //List<bool> resultPlainText = new();
             int inPackageTaskCount = 0;
 
-            foreach (var f in taskPackageFileds)
+            foreach (string f in taskPackageFileds)
             {
                 // прочитать первое поле хранилища
                 TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);

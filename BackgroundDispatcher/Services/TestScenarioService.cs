@@ -75,6 +75,12 @@ namespace BackgroundDispatcher.Services
             IDictionary<int, int> fieldValuesResult = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
             int fieldValuesResultCount = fieldValuesResult.Count;
 
+
+
+            // тут же словарь приедет не обязательно в правильном порядке - надо использовать не i, а номер из поля
+            // надо вывести порядок полей и посмотреть - что-то не совсем понятно, что тут происходит
+
+
             for (int i = 0; i < fieldValuesResultCount; i++)
             {
                 int sequenceCell = fieldValuesResult[i];

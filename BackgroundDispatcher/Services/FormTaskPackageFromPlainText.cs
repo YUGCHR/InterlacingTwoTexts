@@ -155,8 +155,13 @@ namespace BackgroundDispatcher.Services
                 bool isTestInProgress = _test.IsTestInProgress();
                 if (isTestInProgress)
                 {
-                    // вызываем метод из теста и передаём ему ключ пакета задач
+                    Logs.Here().Information("The state of _isTestInProgress was fetched. It is {0}.", isTestInProgress);
 
+                    // вызываем метод из теста и передаём ему ключ пакета задач
+                    // он вернёт количество оставшихся полей (если есть ещё задачи после задержки) или 0, если все тестовые задачи выполнены
+                    int remaindedFields = await _test.CollectProcessedBookIdFields(constantsSet, taskPackageGuid, stoppingToken);
+
+                    Logs.Here().Information("Current result of the test is - {0} remained tasks.", remaindedFields);
 
 
 

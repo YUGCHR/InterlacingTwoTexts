@@ -59,7 +59,7 @@ namespace BackgroundDispatcher.Services
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> CollectPeocessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken);
+        public Task<int> CollectProcessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken);
         public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
@@ -405,7 +405,7 @@ namespace BackgroundDispatcher.Services
         private async Task<int> SetKeyWithControlListOfTestBookFields(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> rawPlainTextFields, CancellationToken stoppingToken)
         {
             string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
-            double keyExistTime = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.LifeTime; // 0.001
+            double keyExistTime = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.LifeTime; // 0.01
             Logs.Here().Information("Control list was fetched in list rawPlainTextFields - total {0} fields were fetched.", rawPlainTextFields.Count);
 
             int rawPlainTextFieldsCount = 0;
@@ -415,7 +415,7 @@ namespace BackgroundDispatcher.Services
                 if (f != "")
                 {
                     int bookId = bookPlainText.BookId;
-                    await _cache.WriteHashedAsync<string, int>(controlListOfTestBookFieldsKey, f, bookId, keyExistTime);
+                    await _cache.WriteHashedAsync<int>(controlListOfTestBookFieldsKey, f, bookId, keyExistTime);
                     rawPlainTextFieldsCount++;
                     Logs.Here().Information("Control list of test books - field {0} / value {1} was set in key {2}.", f, bookId, controlListOfTestBookFieldsKey);
                 }
@@ -431,9 +431,39 @@ namespace BackgroundDispatcher.Services
         // и при проверке прохождения теста удалять из него поля, предварительно сравнивая bookId, bookGuid и bookHash
         // как все поля исчезнут, так тест прошёл нормально - если, конечно, не осталось лишних на проверку после теста
         // в смысле, ненайденных в стартовом списке теста
-        public async Task<bool> CollectPeocessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken)
+        public async Task<int> CollectProcessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken)
         {
-            return default;
+            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
+            Logs.Here().Information("taskPackageGuid {0} was fetched.", taskPackageGuid);
+
+            IDictionary<string, TextSentence> fieldValuesResult = await _cache.FetchHashedAllAsync<TextSentence>(taskPackageGuid);
+            int fieldValuesResultCount = fieldValuesResult.Count;
+            int deletedFields = 0;
+            Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
+
+            foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
+            {
+                (string f, TextSentence v) = p;
+                Logs.Here().Information("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", f, controlListOfTestBookFieldsKey);
+
+                bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, f);
+                if (result1)
+                {
+                    deletedFields++;
+                    Logs.Here().Information("Field {0} / value {1} was sucessfully deleted in key {2}.", f, v.BookId, controlListOfTestBookFieldsKey);
+                }
+            }
+
+            bool result2 = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+            if (!result2)
+            {
+                Logs.Here().Information("There are no remained fields in key {1}. Test is completed.", controlListOfTestBookFieldsKey);
+                return 0;
+            }
+
+            int remaindedFields = fieldValuesResultCount - deletedFields;
+
+            return remaindedFields;
         }
 
 
