@@ -1,6 +1,6 @@
 6L1n2qR1yzE0IjTZpUksGkbzF23vVGZeR0nEXL6qKhdXBGoJzSKqE9a1g
 bookId:
-151
+153
 languageId:
 0
 authorNameId:
@@ -17,9 +17,7 @@ How to explain? How to describe? Even the omniscient viewpoint quails
 
 bookId: 151
 languageId: 0
-Hash version: 2
-0657168E9E89A380B5075A413BE829D5
-399A8DCA28D368E8788F52BFA98BF929
+Hash version: 00
 
 How to explain? How to describe? Even the omniscient viewpoint quails.
 

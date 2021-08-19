@@ -49,7 +49,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface IFormTaskPackageFromPlainText
     {
-        public Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
     }
 
     public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
@@ -69,48 +69,34 @@ namespace BackgroundDispatcher.Services
             _collect = collect;
             _test = test;
             _cache = cache;
+            _callingNumOfHandlerCallingsDistributor = 0;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<FormTaskPackageFromPlainText>();
 
-        public async Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private int _callingNumOfHandlerCallingsDistributor;
+
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // добавить счётчик потоков и проверить при большом количестве вызовов
-            // 
+            // (это надо быстро (без задержек) сформировать две группы по 6 книг всего 6 пар)
+            int lastCountStart = Interlocked.Increment(ref _callingNumOfHandlerCallingsDistributor);
+            Logs.Here().Information("HandlerCallingsDistributor started {0} time.", lastCountStart);
 
-            // получить в строку название метода, чтобы сообщить тесту
-            string currentMethodName = FetchCurrentMethodName();
-            Logs.Here().Information("{0} started.", currentMethodName);
+            // убрать отсюда тестовую часть - тут сильно спешим и тут нечего делать с тестами, всё перенести в HandlerCallings
 
-            // можно добавить задержку для тестирования
-
-            // уже обработанное поле сразу удалить, чтобы не накапливались
-
-            // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
-            // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
-            bool isTestInProgress = _test.IsTestInProgress();
-            if (isTestInProgress)
-            {
-                // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
-                // если дальше идти не надо, то return прямо здесь
-                // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
-                // название метода из переменной - currentMethodName
-                // инвертировать возврат и переименовать переменную результата в targetDepthReached
-                bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
-                Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
-                if (!targetDepthNotReached)
-                {
-                    return true;
-                }
-            }
             // тут еще можно определить, надо ли обновить константы
             // хотя константы лучше проверять дальше
             // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
             // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
 
+            //int count = Volatile.Read(ref _callingNumOfHandlerCallingsDistributor);
+
             _ = HandlerCallings(constantsSet, stoppingToken);
 
-            Logs.Here().Information("{0} is returned true.", currentMethodName);
+            int lastCountEnd = Interlocked.Decrement(ref _callingNumOfHandlerCallingsDistributor);
+            Logs.Here().Information("HandlerCallingsDistributor ended {0} time.", lastCountEnd);
+
             return true;
         }
 
@@ -147,6 +133,7 @@ namespace BackgroundDispatcher.Services
 
             // вообще-то это всё - разместить пакет задач для бэк-сервера и дальше только контролировать выполнение
 
+            // получить в строку название метода, чтобы сообщить тесту
             string currentMethodName = FetchCurrentMethodName();
             Logs.Here().Information("{0} started.", currentMethodName);
 
@@ -155,9 +142,36 @@ namespace BackgroundDispatcher.Services
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
+            
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != null)
             {
+                // вот тут подходяще проверить/вызвать тест, отдать ему ключ пакета и пусть сравнивает с тем, что он отдавал на тест
+                // ----------------------------------
+                // тестовая часть - вынести всё в отдельный метод
+
+                // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
+                // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
+                bool isTestInProgress = _test.IsTestInProgress();
+                if (isTestInProgress)
+                {
+                    // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
+                    // если дальше идти не надо, то return прямо здесь
+                    // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
+                    // название метода из переменной - currentMethodName
+                    // инвертировать возврат и переименовать переменную результата в targetDepthReached
+                    bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
+                    Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
+                    if (!targetDepthNotReached)
+                    {
+                        //return true;
+                    }
+                }
+                // ----------------------------------
+
+                // здесь может быть нужна небольшая задержка, чтобы тест уверенно успел считать пакет задач
+                // (проверить, его удалят сразу, как схватят или нет)
+
                 // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
                 bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
 

@@ -94,6 +94,8 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
             SubsPln_4 : subscribe on \nevent Сafe
             state SubsPln_5 #yellow
             SubsPln_5 : subscribe on \nevent Test
+            state SubsPln_6 #yellow
+            SubsPln_6 : subscribe on \nevent Update
         }
 
         Monitor -[#blue,dotted]-> SubscribingPlan
@@ -110,11 +112,11 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
         state SubscribeOnEventKeyTest #lightgreen {
             state EventEventTestOccured #coral
         }
-        ' state SubscribeOnEventUpdateKey #lightgreen {
-            '     state EventEventUpdateOccured #coral{
-                '
+        state SubscribeOnEventUpdateKey #lightgreen {
+            state EventEventUpdateOccured #coral{
+
             }
-            '
+
         }
         _isTestInProgressAlready -[#green,bold]-> EventEventTestOccured
     }
@@ -124,13 +126,15 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     SubsPln_2 --> SubsPln_3
     SubsPln_3 --> SubsPln_4
     SubsPln_4 --> SubsPln_5
+    SubsPln_5 --> SubsPln_6
     SubsPln_1b -[#blue,dotted]-> _isTestInProgressAlready
     SubsPln_3 -[#blue,dotted]-> SubscribeOnEventFrom
     SubsPln_4 -[#blue,dotted]-> SubscribeOnEventСafeKey
     SubsPln_5 -[#blue,dotted]-> SubscribeOnEventKeyTest
-    'SubscribingPlan -[#blue,dotted]-> SubscribeOnEventUpdateKey
+    SubsPln_6 -[#blue,dotted]-> SubscribeOnEventUpdateKey
     SubscribeOnEventFrom -down[hidden]-> SubscribeOnEventСafeKey
     SubscribeOnEventСafeKey -down[hidden]-> SubscribeOnEventKeyTest
+    SubscribeOnEventKeyTest -down[hidden]-> SubscribeOnEventUpdateKey
 
     state "EventCounterHandler" as _count #lightblue {
         state Timer #magenta
@@ -343,7 +347,6 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
 
     RemoveWorkKeyOnStart -[#darkorange,dashed]-> WriteHashedAsync : await
     RemoveWorkKeyOnStart -[#darkorange,dashed]-> FetchHashedAsync : await
-
     IsTestResultAsserted -[#darkorange,dashed]-> FetchHashedAllAsync : await
 
 }

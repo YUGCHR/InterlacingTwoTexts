@@ -42,10 +42,12 @@ namespace BackgroundDispatcher.Services
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestScenarioService>();
+
         // метод из ключа описания сценария создаёт
         // список string rawPlainTextFields гуид-полей сырых текстов
         // и задержек между ними (List<int> delayList)
         // и это синхронные списки (используется значение из того, где оно не пустое/нулевое)
+        // в списке полей на месте, где будет задержка стоит "", а списке задержек на месте, где загружаются книги - нули
         public async Task<(List<string>, List<int>)> CreateTestScenarioLists(ConstantsSet constantsSet, List<int> uniqueBookIdsFromStorageKey)
         {
             string testScenarioSequenceKey = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.Value; // test-scenario-sequence

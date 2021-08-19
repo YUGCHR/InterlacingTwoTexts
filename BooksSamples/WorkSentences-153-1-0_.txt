@@ -1,6 +1,6 @@
 6L1n2qR1yzE0IjTZpUksGkbzF23vVGZeR0nEXL6qKhdXBGoJzSKqE9a1g
 bookId:
-151
+153
 languageId:
 1
 authorNameId:
@@ -17,9 +17,7 @@ comment:
 
 bookId: 151
 languageId: 1
-Hash version: 2
-399A8DCA28D368E8788F52BFA98BF929
-0657168E9E89A380B5075A413BE829D5
+Hash version: 00
 
 Как объяснить? Как описать? Даже всезнание отказывает.
 

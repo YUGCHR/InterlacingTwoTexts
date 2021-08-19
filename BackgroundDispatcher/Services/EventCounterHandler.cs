@@ -241,7 +241,7 @@ namespace BackgroundDispatcher.Services
 
             // тут можно возвращать true из обработчика - с await, это будет означать, что он освободился и готов принять событие во второй поток
             // _isTestInProgress убрали из вызова, фронт класс узнает его самостоятельно
-            _handlerCallingsMergeCanBeCalled = await _front.HandlerCallingsDistributor(constantsSet, _cancellationToken);
+            _handlerCallingsMergeCanBeCalled = _front.HandlerCallingsDistributor(constantsSet, _cancellationToken);
             Logs.Here().Information("HandlerCallingDistributore returned calling unblock. {@F}", new { Flag = _handlerCallingsMergeCanBeCalled });
         }
 

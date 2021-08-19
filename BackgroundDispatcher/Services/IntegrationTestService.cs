@@ -206,10 +206,6 @@ namespace BackgroundDispatcher.Services
         // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            // написать разные сценарии тестирования и на разные глубины
-            // управлять глубиной можно тоже по ключу
-            // и в рабочем варианте отключить тестирование одной константой
-
             Logs.Here().Information("Integration test was started.");
             // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
             _isTestInProgress = true;
@@ -228,7 +224,8 @@ namespace BackgroundDispatcher.Services
 
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
-            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;
+            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
+            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
@@ -246,10 +243,9 @@ namespace BackgroundDispatcher.Services
             int testScenario1 = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Value;
             string testScenario1description = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Description;
 
-            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
-
+            // EternalLog (needs to rename)
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
-            
+
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted))
             {
@@ -257,7 +253,6 @@ namespace BackgroundDispatcher.Services
             }
 
             #endregion
-
 
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
@@ -267,14 +262,18 @@ namespace BackgroundDispatcher.Services
             // *** добавить в метод необязательный параметр массив инт
             // *** дальше надо думать с определением номера сценария - по идее больше это не нужно, выбранный сценарий хранится в ключе
             // тут временно создаём ключ с ходом сценария (потом это будет делать веб)
-            await _convert.CreateTestScenarioKey(constantsSet, testScenario);
+            _ = await _convert.CreateTestScenarioKey(constantsSet, testScenario);
 
-            Logs.Here().Information("Test scenario {0} was selected and started.", testScenario);
+            Logs.Here().Information("Test scenario {0} was selected and TestScenarioKey was created.", testScenario);
 
-            // можно (нужно) убрать в главный метод IntegrationTestService.IntegrationTestStart
+            // производим инвентаризацию хранилища тестовых книг - составляем список полей (всех хранящихся книг) и список уникальных номеров книг (английских, русская книга из пары вычисляется)
+            // storageKeyBookPlainTexts - ключ хранилища исходных текстов тестовых книг
+            // uniqueBookIdsFromStorageKey - список уникальных номеров английских книг
+            // guidFieldsFromStorageKey - список полей всех хранящихся книг
             (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet, storageKeyBookPlainTexts); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
             // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога
+            // в вечном логе отпечатки книг хранятся в полях int - с номерами bookId (русские - плюс константа сдвига)
             // здесь для первичной очистки и для контроля (вдруг по дороге упадёт и ключи останутся)
             int result1 = await _prepare.RemoveTestBookIdFieldsFromEternalLog(constantsSet, keyBookPlainTextsHashesVersionsList, uniqueBookIdsFromStorageKey);
             if (!(result1 > 0))
@@ -283,9 +282,25 @@ namespace BackgroundDispatcher.Services
             }
 
             // передаём список всех полей из временного хранилища, чтобы создать нужные записи в вечном логе
+            // вне теста этот метод используется для для создания ключа готового пакета задач -
+            // с последующей генерацией (другим методом) ключа кафе для оповещения о задачах бэк-сервера
+            // сохраняются названия гуид-полей книг, созданные контроллером, но они перезаписываются в новый ключ, уникальный для собранного пакета
+            // одновременно, при перезаписи содержимого книг, оно анализируется (вычисляется хэш текста) и проверяется на уникальность
+            // если такая книга уже есть, это гуид-поле удаляется
+            // здесь этот метод используется для записи хэшей в вечный лог -
+            // при этом вычисляются номера версий загружаемых книг, что и нужно вызывающему методу
+            // поскольку сценарий предусматривает выбор книг для тестирования по bookId, languageId и hashVersion -
+            // всё это для тестовых книг вычисляет этот метод
+            // taskPackageGuid здесь не используется и надо удалить этот ключ со всем содержимым
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, storageKeyBookPlainTexts, guidFieldsFromStorageKey);
+            if (taskPackageGuid != null)
+            {
+                bool taskPackageGuidWasDeleted = await _aux.RemoveWorkKeyOnStart(taskPackageGuid);
+                Logs.Here().Information("TaskPackageGuid Key with all storage books was deleted with result - {0}.", taskPackageGuidWasDeleted);
+            }
 
-            // выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки 
+            // выходной список для запуска выбранного тестового сценария - поля сырых плоских текстов и задержки - два синхронных списка
+            // в списке полей на месте, где будет задержка стоит "", а списке задержек на месте, где загружаются книги - нули
             (List<string> rawPlainTextFields, List<int> delayList) = await _scenario.CreateTestScenarioLists(constantsSet, uniqueBookIdsFromStorageKey);
 
             // и удалить их второй раз после завершения использования для подготовки тестовых текстов
@@ -296,11 +311,15 @@ namespace BackgroundDispatcher.Services
             }
 
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
-            int ttt = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
+            (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
             Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
+            // тест закончен и есть список ТТТ для проверки загруженных книг
+            // вернуть этот список и там его передадут в метод проверки результатов
+            // или прямо в этом методе вызвать проверку
+
             // 
-            if (uniqueBookIdsFromStorageKey != null)
+            if (uploadedBookGuids != null)
             {
                 // временное прерывание для отладки, потом поменять на ==
                 return false;
@@ -313,7 +332,14 @@ namespace BackgroundDispatcher.Services
 
 
 
-
+            // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
+            // и только после этого времени изучать результаты теста -
+            // может быть несколько созданий ключа кафе
+            // или смотреть на последнюю книгу в сценарии и ждать её появления в кафе
+            // вообще, по смыслу ожидание начинается с окончания прогона сценария
+            // или нет, ожидается специальный ключ результата - наверное, это уже устарело
+            int preliminaryDelay = timerIntervalInMilliseconds + timeOfAllDelays;
+            await Task.Delay(preliminaryDelay);
 
             bool isTestResultAppeared = false;
             while (!isTestResultAppeared)

@@ -105,7 +105,7 @@ namespace BackgroundDispatcher.Services
     public interface ITestTasksPreparationService
     {
         public Task<bool> TestDepthSetting(ConstantsSet constantsSet, int testDepth = 0);
-        public Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList);
+        public Task<(List<string>, int)> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList);
         public Task<int> RemoveTestBookIdFieldsFromEternalLog(ConstantsSet constantsSet, string key, List<int> uniqueBookIdsFromStorageKey);
     }
 
@@ -181,15 +181,14 @@ namespace BackgroundDispatcher.Services
             return testSettingKey1WasDeleted;
         }
 
-
-
-            // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
-            // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
-            // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
-            public async Task<int> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList)
+        // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
+        // получает список string rawPlainTextFields гуид-полей сырых текстов и задержек между ними (List<int> delayList)
+        // это синхронные списки (используется значение из того, где оно не пустое/нулевое)
+        public async Task<(List<string>, int)> CreateScenarioTasksAndEvents(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> rawPlainTextFields, List<int> delayList)
         {
             Logs.Here().Information("CreateScenarioTasksAndEvents started but it is still empty");
-            //string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
+            List<string> uploadedBookGuids = new();
+            int timeOfAllDelays = 0;
             // создать ключ для хранения плоского текста книги из префикса BookTextFieldPrefix и имитации(!) bookTextSplit server Guid
             string bookTextSplitGuid = Guid.NewGuid().ToString();
             string bookPlainText_KeyPrefixGuid = $"{constantsSet.BookPlainTextConstant.KeyPrefix.Value}:{bookTextSplitGuid}";
@@ -201,6 +200,7 @@ namespace BackgroundDispatcher.Services
             int delayListCount = delayList.Count;
             bool areTheListsLengthDifferent = rawPlainTextFieldsCount != delayListCount;
             // ещё проверить списки на нул и на нулевую длину
+            
             if (areTheListsLengthDifferent)
             {
                 _aux.SomethingWentWrong(areTheListsLengthDifferent);
@@ -217,12 +217,17 @@ namespace BackgroundDispatcher.Services
                         _aux.SomethingWentWrong(true);
                     }
                     //delay(currentDelay) here
+                    Logs.Here().Information("Delay on {0} msec is started.", currentDelay);
+                    await Task.Delay(currentDelay);
+                    timeOfAllDelays += currentDelay;
+                    Logs.Here().Information("Delay was finished, total time of all delays = {0} msec.", timeOfAllDelays);
                 }
                 else
                 {
                     // имитация получения книги от контроллера
                     TextSentence bookPlainTextWithDescription = await _cache.FetchHashedAsync<TextSentence>(storageKeyBookPlainTexts, currentField);
                     string bookGuid = bookPlainTextWithDescription.BookGuid;
+                    uploadedBookGuids.Add(bookGuid);
                     Logs.Here().Information("BookGuid comparing - currentField = {0}, bookGuid = {1} ", currentField, bookGuid);
 
                     // create the key with the plain text
@@ -235,16 +240,10 @@ namespace BackgroundDispatcher.Services
                     // create the key From
                     await _cache.WriteHashedAsync<string>(eventKeyFrom, currentField, bookPlainText_KeyPrefixGuid, keyExistingTimeFrom);
                     Logs.Here().Information("Key was created - {@K} \n {@F} \n {@V}", new { Key = eventKeyFrom }, new { Field = currentField }, new { Value = bookPlainText_KeyPrefixGuid });
-
                 }
             }
-
-
-
-
-            return 0;
+            return (uploadedBookGuids, timeOfAllDelays);
         }
-
 
         public async Task<int> PrepareTestBookIdsListFromEternalLog(ConstantsSet constantsSet, List<string> rawPlainTextFields, List<int> delayList)
         {
