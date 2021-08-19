@@ -144,7 +144,7 @@ namespace BackgroundDispatcher.Services
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
             
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
-            if (taskPackageGuid != null)
+            if (taskPackageGuid != "")
             {
                 // вот тут подходяще проверить/вызвать тест, отдать ему ключ пакета и пусть сравнивает с тем, что он отдавал на тест
                 // ----------------------------------
@@ -155,6 +155,11 @@ namespace BackgroundDispatcher.Services
                 bool isTestInProgress = _test.IsTestInProgress();
                 if (isTestInProgress)
                 {
+                    // вызываем метод из теста и передаём ему ключ пакета задач
+
+
+
+
                     // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
                     // если дальше идти не надо, то return прямо здесь
                     // передаем в параметрах название метода, чтобы там определили, из какого места вызвали

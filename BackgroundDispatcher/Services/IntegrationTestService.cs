@@ -59,6 +59,7 @@ namespace BackgroundDispatcher.Services
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public Task<bool> CollectPeocessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken);
         public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
@@ -218,8 +219,6 @@ namespace BackgroundDispatcher.Services
             // тогда можно всюду не передавать, но можно уже и не менять (наверное)
             string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test";
 
-
-
             // проверить обновление констант перед вызовом теста
 
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
@@ -236,6 +235,8 @@ namespace BackgroundDispatcher.Services
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
 
+            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
+
             // сделать сценарии в виде массива
             // константа - размерность массива
             // индекс - номер сценария, начиная, с первого
@@ -247,7 +248,9 @@ namespace BackgroundDispatcher.Services
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
 
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
-            if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted))
+            bool controlListOfTestBookFieldsKeyWasDeleted = await _aux.RemoveWorkKeyOnStart(controlListOfTestBookFieldsKey);
+            // как-то неправильно проверять результаты этим методом, непонятно как вообще работает
+            if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted))
             {
                 return false;
             }
@@ -309,6 +312,14 @@ namespace BackgroundDispatcher.Services
             {
                 _aux.SomethingWentWrong(true);
             }
+
+
+
+            // вот тут создать ключ для проверки теста - с входящими полями книг - в нужном порядке
+            int resultStartTest = await SetKeyWithControlListOfTestBookFields(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, stoppingToken);
+
+
+
 
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
@@ -386,6 +397,45 @@ namespace BackgroundDispatcher.Services
             _isTestInProgress = false;
             return _isTestInProgress;
         }
+
+        // создать ключ для проверки теста - с входящими полями книг - в нужном порядке
+        // нет, порядок не важен, но поля должны быть полями книг, а в значения можно записать bookId
+        // будет много одинаковых, наверное, лучше писать плоский текст без текста
+        // но это (пока) не имеет особого значения
+        private async Task<int> SetKeyWithControlListOfTestBookFields(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> rawPlainTextFields, CancellationToken stoppingToken)
+        {
+            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
+            double keyExistTime = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.LifeTime; // 0.001
+            Logs.Here().Information("Control list was fetched in list rawPlainTextFields - total {0} fields were fetched.", rawPlainTextFields.Count);
+
+            int rawPlainTextFieldsCount = 0;
+            foreach (string f in rawPlainTextFields)
+            {
+                TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);
+                if (f != "")
+                {
+                    int bookId = bookPlainText.BookId;
+                    await _cache.WriteHashedAsync<string, int>(controlListOfTestBookFieldsKey, f, bookId, keyExistTime);
+                    rawPlainTextFieldsCount++;
+                    Logs.Here().Information("Control list of test books - field {0} / value {1} was set in key {2}.", f, bookId, controlListOfTestBookFieldsKey);
+                }
+            }
+            Logs.Here().Information("Control list was created - total {0} fields were set.", rawPlainTextFieldsCount);
+
+            return rawPlainTextFieldsCount;
+        }
+
+        // метод предварительного сбора результатов теста
+        // получает ключ пакета, достаёт бук и что с ним делает?
+        // можно создать ключ типа список книг теста (важен порядок или нет?) при старте теста
+        // и при проверке прохождения теста удалять из него поля, предварительно сравнивая bookId, bookGuid и bookHash
+        // как все поля исчезнут, так тест прошёл нормально - если, конечно, не осталось лишних на проверку после теста
+        // в смысле, ненайденных в стартовом списке теста
+        public async Task<bool> CollectPeocessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken)
+        {
+            return default;
+        }
+
 
         // финальный метод проверки результатов теста
         public async Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken)

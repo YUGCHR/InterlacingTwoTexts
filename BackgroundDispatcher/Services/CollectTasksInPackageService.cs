@@ -53,17 +53,17 @@ namespace BackgroundDispatcher.Services
         // если такая книга уже есть, это гуид-поле удаляется
         // здесь этот метод используется для записи хэшей в вечный лог -
         // при этом вычисляются номера версий загружаемых книг, что и нужно вызывающему методу
-        public async Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string storageKeyBookPlainTexts, List<string> taskPackageFileds)
+        public async Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
         {            
             // план действий метода -
             // генерируем новый гуид - это будет ключ пакета задач
             // достаём по одному тексты и складываем в новый ключ
             // гуид пакета отдаём в следующий метод
 
-            if (storageKeyBookPlainTexts == null)
+            if (sourceKeyWithPlainTexts == null)
             {
                 _aux.SomethingWentWrong(false);
-                return null;
+                return "";
             }
 
             string taskPackage = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.Value; // taskPackage
@@ -77,7 +77,7 @@ namespace BackgroundDispatcher.Services
             foreach (var f in taskPackageFileds)
             {
                 // прочитать первое поле хранилища
-                TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(storageKeyBookPlainTexts, f);
+                TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);
                 Logs.Here().Information("Test plain text was read from key-storage");
 
                 // вот тут самый подходящий момент посчитать хэш
@@ -133,7 +133,7 @@ namespace BackgroundDispatcher.Services
                 // в конце, при возврате taskPackageGuid проверять счётчик
                 // если ничего не насчитал, то возвратить null - нет задач для пакета
                 Logs.Here().Information("Hash version was added in 0 cases.");
-                return null;
+                return "";
             }
 
             return taskPackageGuid;

@@ -95,6 +95,7 @@ namespace Shared.Library.Models
                 public KeyType DepthValue3 { get; set; }
                 public KeyType ResultsKey1 { get; set; }
                 public KeyType ResultsField1 { get; set; }
+                public KeyType ControlListOfTestBookFieldsKey { get; set; }
             }
         }
 
