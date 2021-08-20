@@ -120,7 +120,7 @@ namespace BackgroundDispatcher.Services
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
 
             char separatorUnit = '-';
-            string messageText = "To start Test please type from Redis console the following command - ";
+            //string messageText = "To start Test please type from Redis console the following command - ";
             string testConsoleCommand = $"127.0.0.1:6379> hset {eventKeyTest} test 1";
             (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, testConsoleCommand);
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
@@ -160,11 +160,17 @@ namespace BackgroundDispatcher.Services
         // подписка на ключ кафе и по событию сообщать тестам
         private void SubscribeOnEventСafeKey(ConstantsSet constantsSet, string cafeKey, KeyEvent eventCmd)
         {
-            _keyEvents.Subscribe(cafeKey, (key, cmd) => // async
+            bool eventCafeIsNotExisted = true;
+            _keyEvents.Subscribe(cafeKey, async (key, cmd) => // 
             {
-                if (cmd == eventCmd)
+                if (cmd == eventCmd && eventCafeIsNotExisted)
                 {
-                    _ = _test.IsTestResultAsserted(constantsSet, cafeKey, _cancellationToken);
+                    eventCafeIsNotExisted = false;
+                    Logs.Here().Information("Event Cafe occurred, subscription is blocked.");
+
+                    eventCafeIsNotExisted = await _test.EventCafeOccurred(constantsSet, _cancellationToken);
+
+                    Logs.Here().Information("Event Cafe was processed, subscription is unblocked, eventCafeIsNotExisted - {0}", eventCafeIsNotExisted);
                 }
             });
 

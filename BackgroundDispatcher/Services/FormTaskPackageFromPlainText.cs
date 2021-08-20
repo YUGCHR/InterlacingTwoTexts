@@ -147,21 +147,23 @@ namespace BackgroundDispatcher.Services
             if (taskPackageGuid != "")
             {
                 // вот тут подходяще проверить/вызвать тест, отдать ему ключ пакета и пусть сравнивает с тем, что он отдавал на тест
+                // подписка на кафе достаёт словарь и отдаёт его тому же методу
+                // не надо проверять тест или нет, тест сам разберётся
                 // ----------------------------------
                 // тестовая часть - вынести всё в отдельный метод
 
                 // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
                 // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
-                bool isTestInProgress = _test.IsTestInProgress();
-                if (isTestInProgress)
-                {
-                    Logs.Here().Information("The state of _isTestInProgress was fetched. It is {0}.", isTestInProgress);
+                //bool isTestInProgress = _test.IsTestInProgress();
+                //if (isTestInProgress)
+                //{
+                //    Logs.Here().Information("The state of _isTestInProgress was fetched. It is {0}.", isTestInProgress);
 
                     // вызываем метод из теста и передаём ему ключ пакета задач
                     // он вернёт количество оставшихся полей (если есть ещё задачи после задержки) или 0, если все тестовые задачи выполнены
-                    int remaindedFields = await _test.CollectProcessedBookIdFields(constantsSet, taskPackageGuid, stoppingToken);
+                    //int remaindedFields = await _test.AssertProcessedBookFieldsAreEqualToControl(constantsSet, taskPackageGuid, stoppingToken);
 
-                    Logs.Here().Information("Current result of the test is - {0} remained tasks.", remaindedFields);
+                    //Logs.Here().Information("Current result of the test is - {0} remained tasks.", remaindedFields);
 
 
 
@@ -170,13 +172,13 @@ namespace BackgroundDispatcher.Services
                     // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
                     // название метода из переменной - currentMethodName
                     // инвертировать возврат и переименовать переменную результата в targetDepthReached
-                    bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
-                    Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
-                    if (!targetDepthNotReached)
-                    {
-                        //return true;
-                    }
-                }
+                //    bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
+                //    Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
+                //    if (!targetDepthNotReached)
+                //    {
+                //        //return true;
+                //    }
+                //}
                 // ----------------------------------
 
                 // здесь может быть нужна небольшая задержка, чтобы тест уверенно успел считать пакет задач

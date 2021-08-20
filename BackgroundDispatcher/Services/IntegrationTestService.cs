@@ -59,7 +59,7 @@ namespace BackgroundDispatcher.Services
     public interface IIntegrationTestService
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<int> CollectProcessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken);
+        public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
@@ -425,47 +425,73 @@ namespace BackgroundDispatcher.Services
             return rawPlainTextFieldsCount;
         }
 
+        public async Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+            string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
+            
+            // выгрузить содержимое ключа кафе и сразу вернуть true в подписку, чтобы освободить место для следующего вызова
+            // и всё равно можно прозевать вызов
+            // для надёжности надо вернуть true, а потом сразу выгрузить ключ кафе, тогда точно не пропустить второй вызов
+            IDictionary<string, string> taskPackageGuids = await _cache.FetchHashedAllAsync<string>(cafeKey);
+
+            _ = AssertProcessedBookFieldsAreEqualToControl(constantsSet, taskPackageGuids, stoppingToken);
+
+            return true;
+        }
+
         // метод предварительного сбора результатов теста
         // получает ключ пакета, достаёт бук и что с ним делает?
         // можно создать ключ типа список книг теста (важен порядок или нет?) при старте теста
         // и при проверке прохождения теста удалять из него поля, предварительно сравнивая bookId, bookGuid и bookHash
         // как все поля исчезнут, так тест прошёл нормально - если, конечно, не осталось лишних на проверку после теста
         // в смысле, ненайденных в стартовом списке теста
-        public async Task<int> CollectProcessedBookIdFields(ConstantsSet constantsSet, string taskPackageGuid, CancellationToken stoppingToken)
+        private async Task<bool> AssertProcessedBookFieldsAreEqualToControl(ConstantsSet constantsSet, IDictionary<string, string> taskPackageGuids, CancellationToken stoppingToken)
         {
-            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
-            Logs.Here().Information("taskPackageGuid {0} was fetched.", taskPackageGuid);
+            // добавить счётчик потоков и проверить при большом количестве вызовов
 
-            IDictionary<string, TextSentence> fieldValuesResult = await _cache.FetchHashedAllAsync<TextSentence>(taskPackageGuid);
-            int fieldValuesResultCount = fieldValuesResult.Count;
-            int deletedFields = 0;
-            Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
+            int remaindedFields = -1;
 
-            foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
+            foreach (var g in taskPackageGuids)
             {
-                (string f, TextSentence v) = p;
-                Logs.Here().Information("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", f, controlListOfTestBookFieldsKey);
+                (string taskPackageGuid, string vG) = g;
 
-                bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, f);
-                if (result1)
+                string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
+                Logs.Here().Information("taskPackageGuid {0} was fetched.", taskPackageGuid);
+
+                IDictionary<string, TextSentence> fieldValuesResult = await _cache.FetchHashedAllAsync<TextSentence>(taskPackageGuid);
+                int fieldValuesResultCount = fieldValuesResult.Count;
+                int deletedFields = 0;
+                Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
+
+                foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
                 {
-                    deletedFields++;
-                    Logs.Here().Information("Field {0} / value {1} was sucessfully deleted in key {2}.", f, v.BookId, controlListOfTestBookFieldsKey);
+                    (string fP, TextSentence vP) = p;
+                    Logs.Here().Information("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", fP, controlListOfTestBookFieldsKey);
+
+                    bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, fP);
+                    if (result1)
+                    {
+                        deletedFields++;
+                        Logs.Here().Information("Field {0} / value {1} was sucessfully deleted in key {2}.", fP, vP.BookId, controlListOfTestBookFieldsKey);
+                    }
                 }
-            }
 
-            bool result2 = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
-            if (!result2)
+                bool result2 = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+                if (!result2)
+                {
+                    Logs.Here().Information("There are no remained fields in key {0}. Test is completed.", controlListOfTestBookFieldsKey);
+                    return true;
+                }
+
+                remaindedFields = fieldValuesResultCount - deletedFields;
+            }
+            bool assertedResult = false;
+            if (remaindedFields == 0)
             {
-                Logs.Here().Information("There are no remained fields in key {1}. Test is completed.", controlListOfTestBookFieldsKey);
-                return 0;
+                assertedResult = true;
             }
-
-            int remaindedFields = fieldValuesResultCount - deletedFields;
-
-            return remaindedFields;
+            return assertedResult;
         }
-
 
         // финальный метод проверки результатов теста
         public async Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken)
