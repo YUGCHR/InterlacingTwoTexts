@@ -198,8 +198,7 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
 
         private bool _isTestInProgress;
-
-        // 
+ 
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
         // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
@@ -313,13 +312,8 @@ namespace BackgroundDispatcher.Services
                 _aux.SomethingWentWrong(true);
             }
 
-
-
-            // вот тут создать ключ для проверки теста - с входящими полями книг - в нужном порядке
+            // вот тут создать ключ для проверки теста - с входящими полями книг
             int resultStartTest = await SetKeyWithControlListOfTestBookFields(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, stoppingToken);
-
-
-
 
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
@@ -329,20 +323,7 @@ namespace BackgroundDispatcher.Services
             // вернуть этот список и там его передадут в метод проверки результатов
             // или прямо в этом методе вызвать проверку
 
-            // 
-            if (uploadedBookGuids != null)
-            {
-                // временное прерывание для отладки, потом поменять на ==
-                return false;
-            }
-
-
-
-
-
-
-
-
+            // in method --------------------------
             // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
             // и только после этого времени изучать результаты теста -
             // может быть несколько созданий ключа кафе
@@ -350,27 +331,25 @@ namespace BackgroundDispatcher.Services
             // вообще, по смыслу ожидание начинается с окончания прогона сценария
             // или нет, ожидается специальный ключ результата - наверное, это уже устарело
             int preliminaryDelay = timerIntervalInMilliseconds + timeOfAllDelays;
+            Logs.Here().Information("Tests control will wait asserted results {0} msec.", preliminaryDelay);
             await Task.Delay(preliminaryDelay);
 
-            bool isTestResultAppeared = false;
-            while (!isTestResultAppeared)
+            Logs.Here().Information("Tests control will wait when key {0} disappear.", controlListOfTestBookFieldsKey);
+            bool isTestControlStillWaiting = true;
+            while (isTestControlStillWaiting)
             {
                 await Task.Delay(delayTimeForTest1);
-                Logs.Here().Information("Test scenario {0} results are still waiting.", testScenario);
-                isTestResultAppeared = await _cache.IsKeyExist(testResultsKey1);
+                Logs.Here().Information("Tests control is still waiting asserted results.", testScenario);
+                isTestControlStillWaiting = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+                Logs.Here().Information("Key {0} existence check result is {1}.", controlListOfTestBookFieldsKey, isTestControlStillWaiting);
             }
-
-            Logs.Here().Information("Test scenario {0} finished and the results will come soon.", testScenario);
-
-            // в выходном (окончательном) сообщении указывать глубину теста
-
-            int testResult = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
+            // --------------------------
 
             // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
             // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
             bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
-            bool testResultIsAsserted = testResult == test1IsPassed;
-            bool finalResult = eventKeyTestWasDeleted && testResultIsAsserted;
+            //bool testResultIsAsserted = testResult == test1IsPassed;
+            bool finalResult = !isTestControlStillWaiting;
 
             // все константы или убрать в константы и/или перенести в метод DisplayResultInFrame
             string testDescription = $"Test scenario <{testScenario1description}>";
@@ -386,12 +365,6 @@ namespace BackgroundDispatcher.Services
             {
                 _aux.SomethingWentWrong(true);
             }
-
-
-
-
-
-
 
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
@@ -462,6 +435,8 @@ namespace BackgroundDispatcher.Services
                 int fieldValuesResultCount = fieldValuesResult.Count;
                 int deletedFields = 0;
                 Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
+
+                // write test asserted results in the report key
 
                 foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
                 {
