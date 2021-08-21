@@ -18,8 +18,8 @@ namespace BackgroundDispatcher.Services
     {
         public void EventCounterInit(ConstantsSet constantsSet);
         public Task<bool> IsCounterZeroReading(ConstantsSet constantsSet);
-        public bool IsTestStarted();
-        public void TestIsFinished();
+        //public bool IsTestStarted();
+        //public void TestIsFinished();
         public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, CancellationToken stoppingToken);
         public void Dispose();
     }
@@ -50,7 +50,7 @@ namespace BackgroundDispatcher.Services
         private bool _timerCanBeStarted;
         private bool _handlerCallingsMergeCanBeCalled;
         private int _callingNumOfEventFrom;
-        private bool _isTestStarted;
+        private bool _isTestStarted; // can be removed
 
         public void EventCounterInit(ConstantsSet constantsSet)
         {
@@ -152,15 +152,15 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        public bool IsTestStarted()
-        {
-            return _isTestStarted;
-        }
+        //public bool IsTestStarted()
+        //{
+        //    return _isTestStarted;
+        //}
         
-        public void TestIsFinished()
-        {
-            _isTestStarted = false;
-        }
+        //public void TestIsFinished()
+        //{
+        //    _isTestStarted = false;
+        //}
 
         // методы (таймер тоже) не асинхронные и их ждут - наверное, можно работать параллельно
         public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, CancellationToken stoppingToken)
@@ -211,17 +211,17 @@ namespace BackgroundDispatcher.Services
             // рассмотреть два варианта - вызов теста до появления третьей задачи и после
             // по идее в первом варианте третья задача должна остаться проигнорироаанной
             // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
-            bool tempTestOf3rdTaskAdded = false;
+            //bool tempTestOf3rdTaskAdded = false;
 
             // tartTask3beforeTest = true - тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
             // tartTask3beforeTest = false - третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
 
-            if (tempTestOf3rdTaskAdded)
-            {
-                bool startTask3beforeTest = false;
-                bool checkValue = await _test.TempTestOf3rdTaskAdded(constantsSet, tempTestOf3rdTaskAdded, startTask3beforeTest);
-                Logs.Here().Information("to read value for awaiting when keys will be written - checkValue = {0})", checkValue);
-            }
+            //if (tempTestOf3rdTaskAdded)
+            //{
+            //    bool startTask3beforeTest = false;
+            //    bool checkValue = await _test.TempTestOf3rdTaskAdded(constantsSet, tempTestOf3rdTaskAdded, startTask3beforeTest);
+            //    Logs.Here().Information("to read value for awaiting when keys will be written - checkValue = {0})", checkValue);
+            //}
 
             // предусмотреть блокировку повторного вызова метода слияния (не повторного, а сдвоенного - от счетчика и таймера одновременно)
             while (!_handlerCallingsMergeCanBeCalled)

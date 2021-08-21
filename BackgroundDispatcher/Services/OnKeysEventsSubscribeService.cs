@@ -211,8 +211,8 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
                     // уже не нужен
-                    _count.TestIsFinished();
-                    Logs.Here().Information("New real Task can be handled.");
+                    //_count.TestIsFinished();
+                    //Logs.Here().Information("New real Task can be handled.");
 
 
 
