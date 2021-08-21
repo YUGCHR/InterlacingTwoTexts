@@ -36,7 +36,7 @@ namespace Shared.Library.Services
 
 
         // можно сделать перегрузку с массивом на вход
-        // true соответствует печали
+        // false !!! соответствует печали
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "")
         { // return true if something went wrong!
             const int resultCount = 5;

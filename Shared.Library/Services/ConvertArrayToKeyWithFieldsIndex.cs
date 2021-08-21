@@ -55,6 +55,10 @@ namespace Shared.Library.Services
 
             await _cache.WriteHashedAsync<int, int>(testScenarioSequenceKey, fieldValues, testScenarioSequenceKeyLifeTime);
 
+            // тут ещё имело бы смысл записать краткое название / описание теста - выбрать подходящий ключ
+
+            // проверка правильности записи ключа - не имеет особого смысла, можно удалить
+            // максимум можно проверить наличие ключа - что он успешно появился
             IDictionary<int, int> testScenarioSequenceStepsValues = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
 
             foreach (var p in testScenarioSequenceStepsValues)

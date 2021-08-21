@@ -210,6 +210,7 @@ namespace BackgroundDispatcher.Services
 
             bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
 
+            // key is unused
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
@@ -229,6 +230,8 @@ namespace BackgroundDispatcher.Services
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
             bool controlListOfTestBookFieldsKeyWasDeleted = await _aux.RemoveWorkKeyOnStart(controlListOfTestBookFieldsKey);
             // как-то неправильно проверять результаты этим методом, непонятно как вообще работает
+            //Logs.Here().Information("testSettingKey1WasDeleted {0}, testResultsKey1WasDeleted {1}, controlListOfTestBookFieldsKeyWasDeleted {2}.", testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted);
+
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted))
             {
                 return false;
@@ -299,10 +302,6 @@ namespace BackgroundDispatcher.Services
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
             Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
-            // тест закончен и есть список ТТТ для проверки загруженных книг
-            // вернуть этот список и там его передадут в метод проверки результатов
-            // или прямо в этом методе вызвать проверку
-
             // in method --------------------------
             // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
             // и только после этого времени изучать результаты теста -
@@ -368,7 +367,8 @@ namespace BackgroundDispatcher.Services
                 if (f != "")
                 {
                     int bookId = bookPlainText.BookId;
-                    await _cache.WriteHashedAsync<int>(controlListOfTestBookFieldsKey, f, bookId, keyExistTime);
+                    bookPlainText.BookPlainText = null;
+                    await _cache.WriteHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, f, bookPlainText, keyExistTime);
                     rawPlainTextFieldsCount++;
                     Logs.Here().Information("Control list of test books - field {0} / value {1} was set in key {2}.", f, bookId, controlListOfTestBookFieldsKey);
                 }
@@ -385,6 +385,7 @@ namespace BackgroundDispatcher.Services
             // выгрузить содержимое ключа кафе и сразу вернуть true в подписку, чтобы освободить место для следующего вызова
             // и всё равно можно прозевать вызов
             // для надёжности надо вернуть true, а потом сразу выгрузить ключ кафе, тогда точно не пропустить второй вызов
+            // для точности сделать eventCafeIsNotExisted полем класса и отсюда её поставить в true - а потом не спеша делать всё остальное
             IDictionary<string, string> taskPackageGuids = await _cache.FetchHashedAllAsync<string>(cafeKey);
 
             _ = AssertProcessedBookFieldsAreEqualToControl(constantsSet, taskPackageGuids, stoppingToken);
@@ -402,6 +403,9 @@ namespace BackgroundDispatcher.Services
         {
             // добавить счётчик потоков и проверить при большом количестве вызовов
 
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
+            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000                                                                                                
             int remaindedFields = -1;
 
             foreach (var g in taskPackageGuids)
@@ -422,17 +426,43 @@ namespace BackgroundDispatcher.Services
                 {
                     (string fP, TextSentence vP) = p;
                     Logs.Here().Information("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", fP, controlListOfTestBookFieldsKey);
-                    
-                    // здесь сравнить айди, гуид и хэш книг
+
+                    // здесь сравнить bookId, bookGuid и bookHash книг 3
+                    int bookId = vP.BookId;
+                    int languageId = vP.LanguageId;
+                    int bookHashVersion = vP.HashVersion;
+
+                    //Logs.Here().Information("Check FetchHashedAsync<TextSentence> - key {0}, field {1}, {@V}.", controlListOfTestBookFieldsKey, fP, new { Value = vP });
+                    TextSentence bookPlainFromControl = await _cache.FetchHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, fP);
+                    Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
+                    bool bookIdComparingWithControl = bookPlainFromControl.BookId == vP.BookId;
+                    bool bookGuidComparingWithControl = String.Equals(bookPlainFromControl.BookGuid, vP.BookGuid);
+                    //bool bookHashComparingWithControl = String.Equals(bookPlainFromControl.BookPlainTextHash, vP.BookPlainTextHash);
+                    //bool bookHashVersionComparingWithControl = bookPlainFromControl.HashVersion == vP.HashVersion;
 
                     // здесь ещё посмотреть и сравнить в вечном логе
+                    // здесь надо перевести bookId в вид со сдвигом
+                    int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
+                    Logs.Here().Information("Check FetchHashedAsync<int, List<TextSentence>> - key {0}, field {1}, element {2}.", keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookHashVersion);
+                    List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+                    TextSentence bookPlainFromEternalLog = bookPlainTextsVersions[bookHashVersion];
+                    Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
 
+                    bool bookIdComparingWithEternal = bookPlainFromEternalLog.BookId == vP.BookId;
+                    bool bookGuidComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookGuid, vP.BookGuid);
+                    bool bookHashComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookPlainTextHash, vP.BookPlainTextHash);
+                    bool bookHashVersionComparingWithEternal = bookPlainFromEternalLog.HashVersion == vP.HashVersion;
 
-                    bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, fP);
-                    if (result1)
+                    bool result0 = bookIdComparingWithControl && bookGuidComparingWithControl && bookIdComparingWithEternal && bookGuidComparingWithEternal && bookHashComparingWithEternal && bookHashVersionComparingWithEternal;
+
+                    if (result0)
                     {
-                        deletedFields++;
-                        Logs.Here().Information("Field {0} / value {1} was sucessfully deleted in key {2}.", fP, vP.BookId, controlListOfTestBookFieldsKey);
+                        bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, fP);
+                        if (result1)
+                        {
+                            deletedFields++;
+                            Logs.Here().Information("The comparison returned {0} and field {1} / value {2} was sucessfully deleted in key {3}.", result0, fP, vP.BookId, controlListOfTestBookFieldsKey);
+                        }
                     }
                 }
 
