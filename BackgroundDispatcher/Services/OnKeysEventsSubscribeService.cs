@@ -92,8 +92,7 @@ namespace BackgroundDispatcher.Services
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet            
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
-
+            
             // временное удаление рабочих ключей для тестирования (а может и постоянное)
             bool eventKeyFromWasDeleted = await _test.RemoveWorkKeyOnStart(eventKeyFrom);
             bool cafeKeyWasDeleted = await _test.RemoveWorkKeyOnStart(cafeKey);
@@ -112,9 +111,6 @@ namespace BackgroundDispatcher.Services
 
             // подписка на ключ создания задачи (загрузки книги)
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
-
-            // подписка на фальшивый (тестовый) ключ создания задачи
-            SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
 
             // подписка на ключ для старта тестов
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
@@ -158,6 +154,13 @@ namespace BackgroundDispatcher.Services
         }
 
         // подписка на ключ кафе и по событию сообщать тестам
+        // надо же, чтобы на событие кафе реагировало только при проведении теста
+        // можно сделать поле класса, управляемое из тестов - при старте ставить в true и потом выключать
+        // или отключать подписку, когда нет тестов - что более правильно
+        // void Unsubscribe(string key);
+        // соответственно, запуск подписки делать тоже из тестов, а отсюда убрать
+        // всё хорошо, только отсюда ходят в тесты, а наоборот нет
+        // можно запускать эту подписку из сработавшей подписки на ключ теста
         private void SubscribeOnEventСafeKey(ConstantsSet constantsSet, string cafeKey, KeyEvent eventCmd)
         {
             bool eventCafeIsNotExisted = true;
@@ -200,20 +203,19 @@ namespace BackgroundDispatcher.Services
                     bool isTestStarted = await _count.IsCounterZeroReading(constantsSet);
                     Logs.Here().Information("isZeroCount returned {0}.", isTestStarted);
 
-                    // здесь (долго быть) всегда - счётчик задач нулевой, новые задачи заблокированы
+                    // здесь (должно быть) всегда - счётчик задач нулевой, новые задачи заблокированы
 
                     // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
                     // счётчик уже сброшен и новая задача заблокирована возвратом
-                    
+                    string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
+                    SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
+
                     Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
                     _isTestInProgressAlready = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
                     Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
-                    // уже не нужен
-                    //_count.TestIsFinished();
-                    //Logs.Here().Information("New real Task can be handled.");
-
+                    _keyEvents.Unsubscribe(cafeKey);
 
 
                     // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи

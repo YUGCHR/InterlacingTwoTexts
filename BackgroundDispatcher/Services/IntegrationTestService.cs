@@ -210,7 +210,6 @@ namespace BackgroundDispatcher.Services
 
             bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
 
-            // key is unused
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
@@ -402,17 +401,16 @@ namespace BackgroundDispatcher.Services
         private async Task<bool> AssertProcessedBookFieldsAreEqualToControl(ConstantsSet constantsSet, IDictionary<string, string> taskPackageGuids, CancellationToken stoppingToken)
         {
             // добавить счётчик потоков и проверить при большом количестве вызовов
-
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
-            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000                                                                                                
+            double keyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.LifeTime; // 0.007
+            string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int remaindedFields = -1;
 
             foreach (var g in taskPackageGuids)
             {
                 (string taskPackageGuid, string vG) = g;
 
-                string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
                 Logs.Here().Information("taskPackageGuid {0} was fetched.", taskPackageGuid);
 
                 IDictionary<string, TextSentence> fieldValuesResult = await _cache.FetchHashedAllAsync<TextSentence>(taskPackageGuid);
@@ -427,33 +425,7 @@ namespace BackgroundDispatcher.Services
                     (string fP, TextSentence vP) = p;
                     Logs.Here().Information("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", fP, controlListOfTestBookFieldsKey);
 
-                    // здесь сравнить bookId, bookGuid и bookHash книг 3
-                    int bookId = vP.BookId;
-                    int languageId = vP.LanguageId;
-                    int bookHashVersion = vP.HashVersion;
-
-                    //Logs.Here().Information("Check FetchHashedAsync<TextSentence> - key {0}, field {1}, {@V}.", controlListOfTestBookFieldsKey, fP, new { Value = vP });
-                    TextSentence bookPlainFromControl = await _cache.FetchHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, fP);
-                    Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
-                    bool bookIdComparingWithControl = bookPlainFromControl.BookId == vP.BookId;
-                    bool bookGuidComparingWithControl = String.Equals(bookPlainFromControl.BookGuid, vP.BookGuid);
-                    //bool bookHashComparingWithControl = String.Equals(bookPlainFromControl.BookPlainTextHash, vP.BookPlainTextHash);
-                    //bool bookHashVersionComparingWithControl = bookPlainFromControl.HashVersion == vP.HashVersion;
-
-                    // здесь ещё посмотреть и сравнить в вечном логе
-                    // здесь надо перевести bookId в вид со сдвигом
-                    int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
-                    Logs.Here().Information("Check FetchHashedAsync<int, List<TextSentence>> - key {0}, field {1}, element {2}.", keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookHashVersion);
-                    List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
-                    TextSentence bookPlainFromEternalLog = bookPlainTextsVersions[bookHashVersion];
-                    Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
-
-                    bool bookIdComparingWithEternal = bookPlainFromEternalLog.BookId == vP.BookId;
-                    bool bookGuidComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookGuid, vP.BookGuid);
-                    bool bookHashComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookPlainTextHash, vP.BookPlainTextHash);
-                    bool bookHashVersionComparingWithEternal = bookPlainFromEternalLog.HashVersion == vP.HashVersion;
-
-                    bool result0 = bookIdComparingWithControl && bookGuidComparingWithControl && bookIdComparingWithEternal && bookGuidComparingWithEternal && bookHashComparingWithEternal && bookHashVersionComparingWithEternal;
+                    bool result0 = await CheckAssertFieldsAreEqualToControlAndEternal(constantsSet, fP, vP, stoppingToken);
 
                     if (result0)
                     {
@@ -466,23 +438,62 @@ namespace BackgroundDispatcher.Services
                     }
                 }
 
+                remaindedFields = fieldValuesResultCount - deletedFields;
+
                 bool result2 = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
                 if (!result2)
                 {
                     Logs.Here().Information("There are no remained fields in key {0}. Test is completed (but does not know about it).", controlListOfTestBookFieldsKey);
+                    
                     // исчезнувший ключ - не вполне надёжное средство оповещения,
                     // поэтому надо записать ещё ключ рез и тест дополнительно проверит его
+                    await _cache.WriteHashedAsync<int>(testResultsKey1, testResultsField1, remaindedFields, keyExistingTime);
 
                     return true;
                 }
-                remaindedFields = fieldValuesResultCount - deletedFields;
             }
+
             bool assertedResult = false;
             if (remaindedFields == 0)
             {
                 assertedResult = true;
             }
             return assertedResult;
+        }
+
+        // 
+        private async Task<bool> CheckAssertFieldsAreEqualToControlAndEternal(ConstantsSet constantsSet, string fP, TextSentence vP, CancellationToken stoppingToken)
+        {
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
+            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
+
+            // здесь сравнить bookId, bookGuid и bookHash книг 3
+            int bookId = vP.BookId;
+            int languageId = vP.LanguageId;
+            int bookHashVersion = vP.HashVersion;
+
+            TextSentence bookPlainFromControl = await _cache.FetchHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, fP);
+            Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
+            bool bookIdComparingWithControl = bookPlainFromControl.BookId == vP.BookId;
+            bool bookGuidComparingWithControl = String.Equals(bookPlainFromControl.BookGuid, vP.BookGuid);
+
+            // здесь ещё посмотреть и сравнить в вечном логе
+            // здесь надо перевести bookId в вид со сдвигом
+            int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
+            Logs.Here().Information("Check FetchHashedAsync<int, List<TextSentence>> - key {0}, field {1}, element {2}.", keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookHashVersion);
+            List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            TextSentence bookPlainFromEternalLog = bookPlainTextsVersions[bookHashVersion];
+            Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
+
+            bool bookIdComparingWithEternal = bookPlainFromEternalLog.BookId == vP.BookId;
+            bool bookGuidComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookGuid, vP.BookGuid);
+            bool bookHashComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookPlainTextHash, vP.BookPlainTextHash);
+            bool bookHashVersionComparingWithEternal = bookPlainFromEternalLog.HashVersion == vP.HashVersion;
+
+            bool result0 = bookIdComparingWithControl && bookGuidComparingWithControl && bookIdComparingWithEternal && bookGuidComparingWithEternal && bookHashComparingWithEternal && bookHashVersionComparingWithEternal;
+
+            return result0;
         }
 
         // финальный метод проверки результатов теста
