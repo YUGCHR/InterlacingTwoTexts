@@ -109,14 +109,16 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
             state EventEventСafeOccured #coral{
             }
         }
+        state UnSubscribeOnEventСafeKey #red {
+        }
         state SubscribeOnEventKeyTest #lightgreen {
-            state EventEventTestOccured #coral
+            state EventEventTestOccured #coral{
+                '  расписать ход выполнения по шагам
+            }
         }
         state SubscribeOnEventUpdateKey #lightgreen {
             state EventEventUpdateOccured #coral{
-
             }
-
         }
         _isTestInProgressAlready -[#green,bold]-> EventEventTestOccured
     }
@@ -129,7 +131,7 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     SubsPln_5 --> SubsPln_6
     SubsPln_1b -[#blue,dotted]-> _isTestInProgressAlready
     SubsPln_3 -[#blue,dotted]-> SubscribeOnEventFrom
-    SubsPln_4 -[#blue,dotted]-> SubscribeOnEventСafeKey
+    'SubsPln_4 -[#blue,dotted]-> SubscribeOnEventСafeKey
     SubsPln_5 -[#blue,dotted]-> SubscribeOnEventKeyTest
     SubsPln_6 -[#blue,dotted]-> SubscribeOnEventUpdateKey
     SubscribeOnEventFrom -down[hidden]-> SubscribeOnEventСafeKey
@@ -304,6 +306,8 @@ state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispat
     EventKeyTest -[#darkred,dashed]-> _isTestInProgressAlready : check
     EventFromOccured -[#blue,dotted]-> EventCounterOccurred
     EventEventСafeOccured -[#blue,dotted]-> IsTestResultAsserted
+    EventEventTestOccured -[#blue,dotted]-> SubscribeOnEventСafeKey
+    EventEventTestOccured -[#blue,dotted]-> UnSubscribeOnEventСafeKey
     EventEventTestOccured -[#red,bold]-> IsCounterZeroReading : await
     EventEventTestOccured -[#red,bold]-> IntegrationTestStart : await
 

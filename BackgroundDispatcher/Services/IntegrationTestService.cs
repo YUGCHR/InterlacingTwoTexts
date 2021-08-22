@@ -184,7 +184,7 @@ namespace BackgroundDispatcher.Services
         {
             Logs.Here().Information("Integration test was started.");
             // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
-            _isTestInProgress = true;
+            _isTestInProgress = true; // not used?
 
             #region Constants preparation
 
@@ -200,39 +200,46 @@ namespace BackgroundDispatcher.Services
 
             // проверить обновление констант перед вызовом теста
 
-            int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
-            int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
-
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
-
-            bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
-
-            int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
-
             string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
-
-            // сделать сценарии в виде массива
-            // константа - размерность массива
-            // индекс - номер сценария, начиная, с первого
-            // 0 - все сценарии подряд
-            int testScenario1 = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Value;
             string testScenario1description = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Description;
-
             // EternalLog (needs to rename)
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
             string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
 
+            #endregion
+
+            //вариант устарел, надо изменить способ сообщения о прохождении шага теста
+            // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
+            // он проверит тест сейчас или нет и, если надо, запишет имя вызвавшего метода в ключ результатов с полем имени метода
+            // а в конце текста проверять значение в определённом имени
+            // в качестве значения можно передавать что-то целое, что есть в текущем методе
+            // счётчик вызовов, например
+            // записывать в поле времени или в поле по порядку записывать сложный класс с местом и временем, а последний номер хранить в нулевом поле
+            // после теста посчитать все временные промежутки и сравнить с эталоном
+            // из каждого метода вызывать метод теста типа отчёт о ходе выполнения задачи, он проверит поле класса и если не тест, сразу же вернётся
+            // этому методу передавать название
+            // в классе тестов хранить поля -
+            // bool тест или нет (уже есть)
+            // int счётчик - номер поля (доступ к номеру через Interlocked)
+            // ещё нужен номер всего теста, но его можно хранить проще - где-то в ключе или классе теста, он будет нужен в конце, при записи в вечный лог
+            // при вызове метода AddStageToTestTaskProgressReport передать ему класс TextSentence или что будет доступно в этой точке
+            // внутри метода добавить текущее время (потом можно засечку секундомера)
+            // взять инкремент текущего номера и это будет имя поля в ключе отчёта
+            // дописать всё в класс текст и записать его в ключ
+            // по окончанию теста показать ход его выполнения с отклонениями от эталона
+            // и потом добавить в список и записать в вечный лог с нулевым номером (bookId)
+
+            bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
+            // сделать перегрузку для множества ключей
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
             bool controlListOfTestBookFieldsKeyWasDeleted = await _aux.RemoveWorkKeyOnStart(controlListOfTestBookFieldsKey);
-            // как-то неправильно проверять результаты этим методом, непонятно как вообще работает - оказывается, срабатывает по false
 
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted))
             {
                 return false;
             }
-
-            #endregion
 
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
@@ -331,7 +338,7 @@ namespace BackgroundDispatcher.Services
             string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
             int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
-            // in method --------------------------
+
             // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
             // и только после этого времени изучать результаты теста -
             // может быть несколько созданий ключа кафе
@@ -350,11 +357,39 @@ namespace BackgroundDispatcher.Services
 
             while (isTestControlStillWaiting)
             {
-                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу
-                await Task.Delay(delayTimeForTest1);
-                Logs.Here().Information("Tests control is still waiting asserted results.");
-                isControlListOfTestBookFieldsKeyExist = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
-                isTestControlStillWaiting = isControlListOfTestBookFieldsKeyExist;
+                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу                
+                (isControlListOfTestBookFieldsKeyExist, isTestControlStillWaiting) = await WaitIntoWhile(controlListOfTestBookFieldsKey, waitingCounter, delayTimeForTest1);
+            }
+
+            // исчезнувший ключ - не вполне надёжное средство оповещения, поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
+            // надо осветить ситуацию, что ключ не исчез, а количество полей равно нулю
+            // скажем, за время проверки в ключе добавились поля -
+            // первоначальные поля удалены, счётчик ноль, а в ключе поля остались - сообщить об ошибке
+            int remaindedFields = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
+            // при нормальном завершении теста isControlListOfTestBookFieldsKeyExist = false и пройдет мимо сообщения об ошибке
+            if (isControlListOfTestBookFieldsKeyExist)
+            {
+                Logs.Here().Error("Tests finished abnormally - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
+            }
+            bool testWasSucceeded = !isControlListOfTestBookFieldsKeyExist && remaindedFields == 0;
+            if (testWasSucceeded)
+            {
+                Logs.Here().Information("Tests finished - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
+            }
+            return testWasSucceeded;
+        }
+
+        private async Task<(bool, bool)> WaitIntoWhile(string controlListOfTestBookFieldsKey, int waitingCounter, int delayTimeForTest1)
+        {
+            Logs.Here().Information("Tests control is still waiting asserted results.");
+            bool isControlListOfTestBookFieldsKeyExist = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+            // isTestControlStillWaiting - это контроль while ожидать, пока тест не закончится или время ожидания не выйдет
+            bool isTestControlStillWaiting = isControlListOfTestBookFieldsKeyExist;
+
+            // если ключ исчез - isControlListOfTestBookFieldsKeyExist = false - сразу на выход
+            if (isControlListOfTestBookFieldsKeyExist)
+            {
+                // если ключ ещё существует, сначала проверяем запасной ключ, потом немного ожидаем
                 Logs.Here().Information("Key {0} existence check result is {1}.", controlListOfTestBookFieldsKey, isTestControlStillWaiting);
                 waitingCounter--;
                 Logs.Here().Information("Tests control still waiting {0} attempts of key checking.", waitingCounter);
@@ -362,17 +397,13 @@ namespace BackgroundDispatcher.Services
                 {
                     isTestControlStillWaiting = false;
                     Logs.Here().Information("Tests control finished waiting - while will {0}.", isTestControlStillWaiting);
-
+                    // если время истекло, выходим без лишнего ожидания, хотя разница невелика
+                    return (isControlListOfTestBookFieldsKeyExist, isTestControlStillWaiting);
                 }
+                await Task.Delay(delayTimeForTest1);
             }
 
-            // исчезнувший ключ - не вполне надёжное средство оповещения,
-            // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
-            int remaindedFields = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
-            bool testWasSucceeded = !isControlListOfTestBookFieldsKeyExist && remaindedFields == 0;
-            Logs.Here().Information("Tests finished - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
-
-            return testWasSucceeded;
+            return (isControlListOfTestBookFieldsKeyExist, isTestControlStillWaiting);
         }
 
         // создать ключ для проверки теста - с входящими полями книг - в нужном порядке
@@ -500,7 +531,7 @@ namespace BackgroundDispatcher.Services
             int bookHashVersion = vP.HashVersion;
 
             TextSentence bookPlainFromControl = await _cache.FetchHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, fP);
-            Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
+            //Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
             bool bookIdComparingWithControl = bookPlainFromControl.BookId == vP.BookId;
             bool bookGuidComparingWithControl = String.Equals(bookPlainFromControl.BookGuid, vP.BookGuid);
 
@@ -510,7 +541,7 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("Check FetchHashedAsync<int, List<TextSentence>> - key {0}, field {1}, element {2}.", keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookHashVersion);
             List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
             TextSentence bookPlainFromEternalLog = bookPlainTextsVersions[bookHashVersion];
-            Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
+            //Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
 
             bool bookIdComparingWithEternal = bookPlainFromEternalLog.BookId == vP.BookId;
             bool bookGuidComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookGuid, vP.BookGuid);
