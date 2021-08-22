@@ -314,20 +314,40 @@ namespace BackgroundDispatcher.Services
 
             Logs.Here().Information("Tests control will wait when key {0} disappear.", controlListOfTestBookFieldsKey);
             bool isTestControlStillWaiting = true;
+            bool isControlListOfTestBookFieldsKeyExist = true;
+            int waitingCounter = (int)((double)preliminaryDelay / delayTimeForTest1) + 1; // +1 - на всякий случай
+            Logs.Here().Information("Tests control will wait {0} attempts of key checking.", waitingCounter);
+
             while (isTestControlStillWaiting)
             {
+                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу
                 await Task.Delay(delayTimeForTest1);
                 Logs.Here().Information("Tests control is still waiting asserted results.", testScenario);
-                isTestControlStillWaiting = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+                isControlListOfTestBookFieldsKeyExist = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+                isTestControlStillWaiting = isControlListOfTestBookFieldsKeyExist;
                 Logs.Here().Information("Key {0} existence check result is {1}.", controlListOfTestBookFieldsKey, isTestControlStillWaiting);
+                waitingCounter--;
+                Logs.Here().Information("Tests control still waiting {0} attempts of key checking.", waitingCounter);
+                if (waitingCounter < 0)
+                {
+                    isTestControlStillWaiting = false;
+                    Logs.Here().Information("Tests control finished waiting - while will {0}.", isTestControlStillWaiting);
+
+                }
             }
             // --------------------------
 
+            // исчезнувший ключ - не вполне надёжное средство оповещения,
+            // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
+            int remaindedFields = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
+            bool testWasSucceeded = !isControlListOfTestBookFieldsKeyExist && remaindedFields == 0;
+            Logs.Here().Information("Tests finished - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
+            
             // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
             // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
             bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
             //bool testResultIsAsserted = testResult == test1IsPassed;
-            bool finalResult = !isTestControlStillWaiting;
+            bool finalResult = testWasSucceeded;
 
             // все константы или убрать в константы и/или перенести в метод DisplayResultInFrame
             string testDescription = $"Test scenario <{testScenario1description}>";
@@ -444,9 +464,9 @@ namespace BackgroundDispatcher.Services
                 if (!result2)
                 {
                     Logs.Here().Information("There are no remained fields in key {0}. Test is completed (but does not know about it).", controlListOfTestBookFieldsKey);
-                    
+
                     // исчезнувший ключ - не вполне надёжное средство оповещения,
-                    // поэтому надо записать ещё ключ рез и тест дополнительно проверит его
+                    // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
                     await _cache.WriteHashedAsync<int>(testResultsKey1, testResultsField1, remaindedFields, keyExistingTime);
 
                     return true;

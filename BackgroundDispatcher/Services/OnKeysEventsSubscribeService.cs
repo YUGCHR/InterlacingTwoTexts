@@ -92,7 +92,8 @@ namespace BackgroundDispatcher.Services
             KeyEvent eventCmd = constantsSet.EventCmd; // HashSet            
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            
+            string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
+
             // временное удаление рабочих ключей для тестирования (а может и постоянное)
             bool eventKeyFromWasDeleted = await _test.RemoveWorkKeyOnStart(eventKeyFrom);
             bool cafeKeyWasDeleted = await _test.RemoveWorkKeyOnStart(cafeKey);
