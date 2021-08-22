@@ -202,16 +202,12 @@ namespace BackgroundDispatcher.Services
 
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
-            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
-            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
 
             string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
             string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
 
             bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
 
-            string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
-            string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
             int test1IsPassed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
 
             string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
@@ -225,11 +221,11 @@ namespace BackgroundDispatcher.Services
 
             // EternalLog (needs to rename)
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
 
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
             bool controlListOfTestBookFieldsKeyWasDeleted = await _aux.RemoveWorkKeyOnStart(controlListOfTestBookFieldsKey);
-            // как-то неправильно проверять результаты этим методом, непонятно как вообще работает
-            //Logs.Here().Information("testSettingKey1WasDeleted {0}, testResultsKey1WasDeleted {1}, controlListOfTestBookFieldsKeyWasDeleted {2}.", testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted);
+            // как-то неправильно проверять результаты этим методом, непонятно как вообще работает - оказывается, срабатывает по false
 
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted))
             {
@@ -301,48 +297,8 @@ namespace BackgroundDispatcher.Services
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
             Logs.Here().Information("CreateScenarioTasksAndEvents finished");
 
-            // in method --------------------------
-            // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
-            // и только после этого времени изучать результаты теста -
-            // может быть несколько созданий ключа кафе
-            // или смотреть на последнюю книгу в сценарии и ждать её появления в кафе
-            // вообще, по смыслу ожидание начинается с окончания прогона сценария
-            // или нет, ожидается специальный ключ результата - наверное, это уже устарело
-            int preliminaryDelay = timerIntervalInMilliseconds + timeOfAllDelays;
-            Logs.Here().Information("Tests control will wait asserted results {0} msec.", preliminaryDelay);
-            await Task.Delay(preliminaryDelay);
+            bool testWasSucceeded = await WaitForTestFinishingTags(constantsSet, timeOfAllDelays, controlListOfTestBookFieldsKey, stoppingToken);
 
-            Logs.Here().Information("Tests control will wait when key {0} disappear.", controlListOfTestBookFieldsKey);
-            bool isTestControlStillWaiting = true;
-            bool isControlListOfTestBookFieldsKeyExist = true;
-            int waitingCounter = (int)((double)preliminaryDelay / delayTimeForTest1) + 1; // +1 - на всякий случай
-            Logs.Here().Information("Tests control will wait {0} attempts of key checking.", waitingCounter);
-
-            while (isTestControlStillWaiting)
-            {
-                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу
-                await Task.Delay(delayTimeForTest1);
-                Logs.Here().Information("Tests control is still waiting asserted results.", testScenario);
-                isControlListOfTestBookFieldsKeyExist = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
-                isTestControlStillWaiting = isControlListOfTestBookFieldsKeyExist;
-                Logs.Here().Information("Key {0} existence check result is {1}.", controlListOfTestBookFieldsKey, isTestControlStillWaiting);
-                waitingCounter--;
-                Logs.Here().Information("Tests control still waiting {0} attempts of key checking.", waitingCounter);
-                if (waitingCounter < 0)
-                {
-                    isTestControlStillWaiting = false;
-                    Logs.Here().Information("Tests control finished waiting - while will {0}.", isTestControlStillWaiting);
-
-                }
-            }
-            // --------------------------
-
-            // исчезнувший ключ - не вполне надёжное средство оповещения,
-            // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
-            int remaindedFields = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
-            bool testWasSucceeded = !isControlListOfTestBookFieldsKeyExist && remaindedFields == 0;
-            Logs.Here().Information("Tests finished - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
-            
             // удалили ключ запуска теста, в дальнейшем - если полем запуска будет определяться глубина, то удалять только поле
             // но лучше из веб-интерфейса загружать в значение сложный класс - сразу и сценарий и глубину (и ещё что-то)
             bool eventKeyTestWasDeleted = await _cache.DeleteKeyIfCancelled(eventKeyTest);
@@ -367,6 +323,56 @@ namespace BackgroundDispatcher.Services
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
             return _isTestInProgress;
+        }
+
+        private async Task<bool> WaitForTestFinishingTags(ConstantsSet constantsSet, int timeOfAllDelays, string controlListOfTestBookFieldsKey, CancellationToken stoppingToken)
+        {
+            string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
+            string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
+            int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value; // 5000
+            int delayTimeForTest1 = constantsSet.IntegerConstant.IntegrationTestConstant.DelayTimeForTest1.Value; // 1000
+            // in method --------------------------
+            // надо собрать (сложить) все задержки из сценария, добавить задержку таймера
+            // и только после этого времени изучать результаты теста -
+            // может быть несколько созданий ключа кафе
+            // или смотреть на последнюю книгу в сценарии и ждать её появления в кафе
+            // вообще, по смыслу ожидание начинается с окончания прогона сценария
+            // или нет, ожидается специальный ключ результата - наверное, это уже устарело
+            int preliminaryDelay = timerIntervalInMilliseconds + timeOfAllDelays;
+            Logs.Here().Information("Tests control will wait asserted results {0} msec.", preliminaryDelay);
+            await Task.Delay(preliminaryDelay);
+
+            Logs.Here().Information("Tests control will wait when key {0} disappear.", controlListOfTestBookFieldsKey);
+            bool isTestControlStillWaiting = true;
+            bool isControlListOfTestBookFieldsKeyExist = true;
+            int waitingCounter = (int)((double)preliminaryDelay / delayTimeForTest1) + 1; // +1 - на всякий случай
+            Logs.Here().Information("Tests control will wait {0} attempts of key checking.", waitingCounter);
+
+            while (isTestControlStillWaiting)
+            {
+                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу
+                await Task.Delay(delayTimeForTest1);
+                Logs.Here().Information("Tests control is still waiting asserted results.");
+                isControlListOfTestBookFieldsKeyExist = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
+                isTestControlStillWaiting = isControlListOfTestBookFieldsKeyExist;
+                Logs.Here().Information("Key {0} existence check result is {1}.", controlListOfTestBookFieldsKey, isTestControlStillWaiting);
+                waitingCounter--;
+                Logs.Here().Information("Tests control still waiting {0} attempts of key checking.", waitingCounter);
+                if (waitingCounter < 0)
+                {
+                    isTestControlStillWaiting = false;
+                    Logs.Here().Information("Tests control finished waiting - while will {0}.", isTestControlStillWaiting);
+
+                }
+            }
+
+            // исчезнувший ключ - не вполне надёжное средство оповещения,
+            // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
+            int remaindedFields = await _cache.FetchHashedAsync<int>(testResultsKey1, testResultsField1);
+            bool testWasSucceeded = !isControlListOfTestBookFieldsKeyExist && remaindedFields == 0;
+            Logs.Here().Information("Tests finished - Control List Key - {0}, Remainded Fields = {1}.", isControlListOfTestBookFieldsKeyExist, remaindedFields);
+
+            return testWasSucceeded;
         }
 
         // создать ключ для проверки теста - с входящими полями книг - в нужном порядке
