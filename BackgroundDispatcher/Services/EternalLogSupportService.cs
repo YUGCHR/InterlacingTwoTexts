@@ -181,7 +181,7 @@ namespace BackgroundDispatcher.Services
 
             (List<TextSentence> bookPlainTextsVersions, int bookPlainTextsVersionsCount) = await EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
             
-            // 2 если поля нет, возвращаем результат - первая версия 
+            // 2 если поля (или вообще ключа) нет, возвращаем результат - первая версия 
             if (bookPlainTextsVersionsCount == 0)
             {
                 Logs.Here().Information("{@F} is not existed - {@B}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, new { Books = bookPlainTextsVersions });
