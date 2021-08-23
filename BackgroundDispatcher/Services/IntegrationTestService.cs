@@ -154,13 +154,13 @@ namespace BackgroundDispatcher.Services
         private readonly ITestTasksPreparationService _prepare;
 
         public IntegrationTestService(
-            IAuxiliaryUtilsService aux,
-            IConvertArrayToKeyWithIndexFields convert,
-            ITestScenarioService scenario,
-            ITestRawBookTextsStorageService store,
-            ICollectTasksInPackageService collect,
-            ICacheManagerService cache,
-            ITestTasksPreparationService prepare)
+         IAuxiliaryUtilsService aux,
+         IConvertArrayToKeyWithIndexFields convert,
+         ITestScenarioService scenario,
+         ITestRawBookTextsStorageService store,
+         ICollectTasksInPackageService collect,
+         ICacheManagerService cache,
+         ITestTasksPreparationService prepare)
         {
             _aux = aux;
             _convert = convert;
@@ -173,7 +173,102 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
 
-        private bool _isTestInProgress; // can be removed
+        private bool _isTestInProgress;
+        private int _stageReportFieldCounter;
+        private int _currentTestSerialNum;
+
+        // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
+        // он проверит тест сейчас или нет и, если надо, запишет имя вызвавшего метода в ключ результатов с полем имени метода
+        // а в конце текста проверять значение в определённом имени
+        // в качестве значения можно передавать что-то целое, что есть в текущем методе
+        // счётчик вызовов, например
+        // записывать в поле времени или в поле по порядку записывать сложный класс с местом и временем, а последний номер хранить в нулевом поле
+        // после теста посчитать все временные промежутки и сравнить с эталоном
+        // из каждого метода вызывать метод теста типа отчёт о ходе выполнения задачи, он проверит поле класса и если не тест, сразу же вернётся
+        // этому методу передавать название
+        // в классе тестов хранить поля -
+        // bool тест или нет (уже есть)
+        // int счётчик - номер поля (доступ к номеру через Interlocked)
+        // ещё нужен номер всего теста, но его можно хранить проще - где-то в ключе или классе теста, он будет нужен в конце, при записи в вечный лог
+        // при вызове метода AddStageToTestTaskProgressReport передать ему класс TextSentence или что будет доступно в этой точке
+        // внутри метода добавить текущее время (потом можно засечку секундомера)
+        // взять инкремент текущего номера и это будет имя поля в ключе отчёта
+        // дописать всё в класс текст и записать его в ключ
+        // по окончанию теста показать ход его выполнения с отклонениями от эталона
+        // и потом добавить в список и записать в вечный лог с нулевым номером (bookId)
+        // расписать ход выполнения по шагам
+        // порядок работы -
+        // в начале integration test start инициализовать счётчик шагов
+        // очистить ключ отчёта
+        // или лучше записать в него нулевое поле с начальным временем
+        // а, сначала одно, потом другое
+        // отделить время подготовки теста и время выполнения - виртуально, на два блока в отчёте
+        // отдельно - решить вопрос с первым элементом в списке для значения в вечном логе
+        // можно хранить там эталонный, но вряд ли он будет постоянный
+        // можно текущий признанный эталонным переписывать в нулевой элемент,
+        // сохраняя на прежнем месте (можно с указанием, откуда взят - Text Sentence большой, места для всего хватит)
+        // для переписывания можно запустить тест с нулевым сценарием - работа с утилитами или можно использовать специальный ключ настроек
+        // при работе с утилитами можно управлять с консоли или ключами, но ключи активировать опять нулевым сценарием
+        // вывести список существующих отчётов с кратким описанием и предложить выбрать эталонный
+        // скорее всего последний
+        // и ещё надо чистить список - скажем при превышении длины удалять первые или ещё как
+        // при проведении теста самом начале присваивать потоку уникальный номер - он же номер поля отчёта? похоже, нет
+        // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
+        // кроме первого раза, когда вернут уникальный номер
+        // как его потом дальше передавать, надо изучить
+        // под этим уникальным номером отчёт о тестах хранится в вечном логе некоторое время
+        // можно использовать номера в определённом диапазоне, не пересекающимся с книгами
+        // но там же, возможно, делают сплошную выборку
+        // и для уникального номера брать предыдущий из вечного лога, если нет, то 1
+        // неудобно, надо делать сплошную выборку, проще хранить предыдущий номер в каком-то ключе
+        // а, в нулевом поле будет храниться список всех тестов, можно просто измерять длину списка
+        // ещё же номер сценария влияет на время выполнения
+        // в вечном логе будет номер сценария в качестве bookId - получить номер сценария
+        // приготовить все номера в другом методе и сохранить их в поля класса
+        // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
+
+        public async Task<bool> CreateAssignedSerialNum(ConstantsSet constantsSet, int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
+        {
+
+
+            _currentTestSerialNum = 1;
+            return true;
+        }
+
+        public async Task<int> FetchAssignedSerialNum(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+
+
+            return _currentTestSerialNum;
+        }
+
+        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        {
+            // 
+            
+            
+
+
+
+
+            if (_isTestInProgress)
+            {
+
+
+
+
+
+
+
+
+
+
+
+                return true;
+            }
+            return false;
+        }
+
 
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
@@ -184,7 +279,9 @@ namespace BackgroundDispatcher.Services
         {
             Logs.Here().Information("Integration test was started.");
             // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
-            _isTestInProgress = true; // not used?
+            _isTestInProgress = true;
+            _stageReportFieldCounter = 0;
+            _currentTestSerialNum = 0;
 
             #region Constants preparation
 
@@ -210,27 +307,7 @@ namespace BackgroundDispatcher.Services
 
             #endregion
 
-            //вариант устарел, надо изменить способ сообщения о прохождении шага теста
-            // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
-            // он проверит тест сейчас или нет и, если надо, запишет имя вызвавшего метода в ключ результатов с полем имени метода
-            // а в конце текста проверять значение в определённом имени
-            // в качестве значения можно передавать что-то целое, что есть в текущем методе
-            // счётчик вызовов, например
-            // записывать в поле времени или в поле по порядку записывать сложный класс с местом и временем, а последний номер хранить в нулевом поле
-            // после теста посчитать все временные промежутки и сравнить с эталоном
-            // из каждого метода вызывать метод теста типа отчёт о ходе выполнения задачи, он проверит поле класса и если не тест, сразу же вернётся
-            // этому методу передавать название
-            // в классе тестов хранить поля -
-            // bool тест или нет (уже есть)
-            // int счётчик - номер поля (доступ к номеру через Interlocked)
-            // ещё нужен номер всего теста, но его можно хранить проще - где-то в ключе или классе теста, он будет нужен в конце, при записи в вечный лог
-            // при вызове метода AddStageToTestTaskProgressReport передать ему класс TextSentence или что будет доступно в этой точке
-            // внутри метода добавить текущее время (потом можно засечку секундомера)
-            // взять инкремент текущего номера и это будет имя поля в ключе отчёта
-            // дописать всё в класс текст и записать его в ключ
-            // по окончанию теста показать ход его выполнения с отклонениями от эталона
-            // и потом добавить в список и записать в вечный лог с нулевым номером (bookId)
-
+            // вариант устарел, надо изменить способ сообщения о прохождении шага теста
             bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
             // сделать перегрузку для множества ключей
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testResultsKey1);
@@ -243,6 +320,8 @@ namespace BackgroundDispatcher.Services
 
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
+
+            bool resultSerialNum = await CreateAssignedSerialNum(constantsSet, testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
 
             // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
             // *** потом из веба будет приходить массив инт с описанием сценария
@@ -357,7 +436,7 @@ namespace BackgroundDispatcher.Services
 
             while (isTestControlStillWaiting)
             {
-                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу                
+                // вынести в отдельный метод с ранним возвратом по исчезнувшему ключу    
                 (isControlListOfTestBookFieldsKeyExist, isTestControlStillWaiting) = await WaitIntoWhile(controlListOfTestBookFieldsKey, waitingCounter, delayTimeForTest1);
             }
 
@@ -556,78 +635,78 @@ namespace BackgroundDispatcher.Services
         // финальный метод проверки результатов теста
         //public async Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken)
         //{
-        //    // можно сохранять ключи всех проверенных пакетов - в листе (за текущий сеанс) или в ключе (на произвольное время)
-        //    // если в ключе, то полем может быть дата или лучше гуид сеанса(текущий гуид сервера), а в значении лист ключей пакетов
-        //    // другой вариант - ключ пакета это поле, а в значении что-нибудь, например, лист задач пакета
-        //    // теперь пора сделать правильные тестовые тексты и проверять хэш текста при загрузке
+        // // можно сохранять ключи всех проверенных пакетов - в листе (за текущий сеанс) или в ключе (на произвольное время)
+        // // если в ключе, то полем может быть дата или лучше гуид сеанса(текущий гуид сервера), а в значении лист ключей пакетов
+        // // другой вариант - ключ пакета это поле, а в значении что-нибудь, например, лист задач пакета
+        // // теперь пора сделать правильные тестовые тексты и проверять хэш текста при загрузке
 
-        //    // рекурсия?
-        //    IDictionary<string, string> keyEventDataList = await _cache.FetchHashedAllAsync<string>(keyEvent);
-        //    int keyEventDataListCount = keyEventDataList.Count;
+        // // рекурсия?
+        // IDictionary<string, string> keyEventDataList = await _cache.FetchHashedAllAsync<string>(keyEvent);
+        // int keyEventDataListCount = keyEventDataList.Count;
 
-        //    foreach (var d in keyEventDataList)
-        //    {
-        //        // обычно должен быть один элемент, но надо рассмотреть вариант, что может успеть появиться второй
-        //        (var f, var v) = d;
-        //        Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
+        // foreach (var d in keyEventDataList)
+        // {
+        //  // обычно должен быть один элемент, но надо рассмотреть вариант, что может успеть появиться второй
+        //  (var f, var v) = d;
+        //  Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
 
-        //        // поле и значение одинаковые, там ключ пакета задач
-        //        // достать все поля и значения из ключа, в значениях текст, сравнить его (хэш?) с исходным
-        //        IDictionary<string, TextSentence> plainTextsDataList = await _cache.FetchHashedAllAsync<TextSentence>(v);
+        //  // поле и значение одинаковые, там ключ пакета задач
+        //  // достать все поля и значения из ключа, в значениях текст, сравнить его (хэш?) с исходным
+        //  IDictionary<string, TextSentence> plainTextsDataList = await _cache.FetchHashedAllAsync<TextSentence>(v);
 
-        //        foreach (var t in plainTextsDataList)
-        //        {
-        //            (var bookGuid, var bookPlainText) = t;
-        //            Logs.Here().Information("Dictionary element is HashVersion = {0}, BookId = {1}, LanguageId = {2}, \n BookGuidField = {3}, \n BookGuid = {4}, \n BookPlainTextHash = {5}", bookPlainText.HashVersion, bookPlainText.BookId, bookPlainText.LanguageId, bookGuid, bookPlainText.BookGuid, bookPlainText.BookPlainTextHash);
+        //  foreach (var t in plainTextsDataList)
+        //  {
+        //   (var bookGuid, var bookPlainText) = t;
+        //   Logs.Here().Information("Dictionary element is HashVersion = {0}, BookId = {1}, LanguageId = {2}, \n BookGuidField = {3}, \n BookGuid = {4}, \n BookPlainTextHash = {5}", bookPlainText.HashVersion, bookPlainText.BookId, bookPlainText.LanguageId, bookGuid, bookPlainText.BookGuid, bookPlainText.BookPlainTextHash);
 
 
-        //        }
-        //    }
-        //    return true;
+        //  }
+        // }
+        // return true;
         //}
 
         //private async Task<bool> WriteHashedAsyncWithDelayAfter<T>(string key, string field, T value, double lifeTime, CancellationToken stoppingToken, int delayAfter = 0)
         //{
-        //    if (lifeTime > 0)
-        //    {
-        //        Logs.Here().Information("Event {@K} {@F} will be created.", new { Key = key }, new { Field = field });
-        //        await _cache.WriteHashedAsync<T>(key, field, value, lifeTime);
+        // if (lifeTime > 0)
+        // {
+        //  Logs.Here().Information("Event {@K} {@F} will be created.", new { Key = key }, new { Field = field });
+        //  await _cache.WriteHashedAsync<T>(key, field, value, lifeTime);
 
-        //        if (delayAfter > 0)
-        //        {
-        //            Logs.Here().Information("Delay after key writing  will be {0} msec.", delayAfter);
-        //            await Task.Delay(delayAfter);
-        //        }
-        //        return true;
-        //    }
-        //    Logs.Here().Warning("{@K} with {@T} cannot be created.", new { Key = key }, new { LifeTime = lifeTime });
-        //    return false;
+        //  if (delayAfter > 0)
+        //  {
+        //   Logs.Here().Information("Delay after key writing will be {0} msec.", delayAfter);
+        //   await Task.Delay(delayAfter);
+        //  }
+        //  return true;
+        // }
+        // Logs.Here().Warning("{@K} with {@T} cannot be created.", new { Key = key }, new { LifeTime = lifeTime });
+        // return false;
         //}
 
         //public async Task<bool> IsPreassignedDepthReached(ConstantsSet constantsSet, string currentDepth, CancellationToken stoppingToken)
         //{
-        //    // создаем сообщение об успешном тесте
-        //    string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
-        //    double testResultsKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.LifeTime;
-        //    string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
-        //    int resultTest1Passed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
+        // // создаем сообщение об успешном тесте
+        // string testResultsKey1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.Value; // testResultsKey1
+        // double testResultsKey1LifeTime = constantsSet.Prefix.IntegrationTestPrefix.ResultsKey1.LifeTime;
+        // string testResultsField1 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField1.Value; // testResultsField1
+        // int resultTest1Passed = constantsSet.IntegerConstant.IntegrationTestConstant.ResultTest1Passed.Value; // 1
 
-        //    // этот ключ можно использовать как счетчик вызовов обработчика (но лучше поле)
-        //    await _cache.WriteHashedAsync<int>(testResultsKey1, testResultsField1, resultTest1Passed, testResultsKey1LifeTime);
+        // // этот ключ можно использовать как счетчик вызовов обработчика (но лучше поле)
+        // await _cache.WriteHashedAsync<int>(testResultsKey1, testResultsField1, resultTest1Passed, testResultsKey1LifeTime);
 
-        //    string testSettingKey1 = "testSettingKey1";
-        //    string testSettingField1 = "f1"; // test depth
+        // string testSettingKey1 = "testSettingKey1";
+        // string testSettingField1 = "f1"; // test depth
 
-        //    // получать в параметрах, чтобы определить, из какого места вызвали
-        //    string test1Depth1 = "HandlerCallingDistributore"; // other values - in constants
-        //    string test1Depth2 = "DistributeTaskPackageInCafee";
+        // // получать в параметрах, чтобы определить, из какого места вызвали
+        // string test1Depth1 = "HandlerCallingDistributore"; // other values - in constants
+        // string test1Depth2 = "DistributeTaskPackageInCafee";
 
-        //    // здесь задана нужная глубина теста
-        //    string targetTest1Depth = await _cache.FetchHashedAsync<string>(testSettingKey1, testSettingField1);
-        //    bool keyWasDeleted = await _cache.DelFieldAsync(testResultsKey1, testSettingField1);
+        // // здесь задана нужная глубина теста
+        // string targetTest1Depth = await _cache.FetchHashedAsync<string>(testSettingKey1, testSettingField1);
+        // bool keyWasDeleted = await _cache.DelFieldAsync(testResultsKey1, testSettingField1);
 
-        //    // this method result is returned to variable <bool> targetDepthNotReached
-        //    return currentDepth != targetTest1Depth;
+        // // this method result is returned to variable <bool> targetDepthNotReached
+        // return currentDepth != targetTest1Depth;
         //}
 
         public void SetIsTestInProgress(bool init_isTestInProgress)
@@ -639,8 +718,8 @@ namespace BackgroundDispatcher.Services
 
         //public bool IsTestInProgress()
         //{
-        //    Logs.Here().Information("The state of _isTestInProgress was requested. It is {0}.", _isTestInProgress);
-        //    return _isTestInProgress;
+        // Logs.Here().Information("The state of _isTestInProgress was requested. It is {0}.", _isTestInProgress);
+        // return _isTestInProgress;
         //}
 
         private void DisplayResultInFrame(bool result, string testDescription, char separTrue, string textTrue, char separFalse, string textFalse)
@@ -668,135 +747,135 @@ namespace BackgroundDispatcher.Services
         // rename to TestKeysCreationInQuantityWithDelayAfter
         //public async Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string field, string value, double lifeTime)
         //{// create key with field/value/lifetime one or many times (with possible delay after each key has been created)
-        //    if (keysCount > 0 && lifeTime > 0)
-        //    {
-        //        for (int i = 0; i < keysCount; i++)
-        //        {
-        //            Logs.Here().Information("Event {@K} {@F} will be created.", new { Key = key[i] }, new { Field = field[i] });
-        //            await _cache.WriteHashedAsync<string>(key, field, value, lifeTime);
+        // if (keysCount > 0 && lifeTime > 0)
+        // {
+        //  for (int i = 0; i < keysCount; i++)
+        //  {
+        //   Logs.Here().Information("Event {@K} {@F} will be created.", new { Key = key[i] }, new { Field = field[i] });
+        //   await _cache.WriteHashedAsync<string>(key, field, value, lifeTime);
 
-        //            if (delayBetweenMsec > 0)
-        //            {
-        //                await Task.Delay(delayBetweenMsec);
-        //                Logs.Here().Information("Delay between events is {0} msec.", delayBetweenMsec);
-        //            }
-        //        }
-        //        return true;
-        //    }
-        //    Logs.Here().Warning("{@K} with {@T} in {@C} cannot be created.", new { Key = key }, new { LifeTime = lifeTime }, new { KeysCount = keysCount });
-        //    return false;
+        //   if (delayBetweenMsec > 0)
+        //   {
+        //    await Task.Delay(delayBetweenMsec);
+        //    Logs.Here().Information("Delay between events is {0} msec.", delayBetweenMsec);
+        //   }
+        //  }
+        //  return true;
+        // }
+        // Logs.Here().Warning("{@K} with {@T} in {@C} cannot be created.", new { Key = key }, new { LifeTime = lifeTime }, new { KeysCount = keysCount });
+        // return false;
         //}
 
         //public async Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string[] key, string[] field, string[] value, double[] lifeTime)
         //{// create one key with many fields/values (with possible delay after each key has been created)
-        //    int keyLength = key.Length;
-        //    int fieldLength = field.Length;
-        //    int valueLength = value.Length;
-        //    int lifeTimeLength = lifeTime.Length;
+        // int keyLength = key.Length;
+        // int fieldLength = field.Length;
+        // int valueLength = value.Length;
+        // int lifeTimeLength = lifeTime.Length;
 
-        //    if (keyLength == fieldLength && fieldLength == valueLength && valueLength == lifeTimeLength)
-        //    {
-        //        for (int i = 0; i < keyLength; i++)
-        //        {
-        //            bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key[i], field[i], value[i], lifeTime[i]);
-        //            if (!createKeyI)
-        //            {
-        //                return false;
-        //            }
-        //        }
-        //        return true;
-        //    }
-        //    Logs.Here().Warning("Some arrays lengths are mismatched.");
+        // if (keyLength == fieldLength && fieldLength == valueLength && valueLength == lifeTimeLength)
+        // {
+        //  for (int i = 0; i < keyLength; i++)
+        //  {
+        //   bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key[i], field[i], value[i], lifeTime[i]);
+        //   if (!createKeyI)
+        //   {
         //    return false;
+        //   }
+        //  }
+        //  return true;
+        // }
+        // Logs.Here().Warning("Some arrays lengths are mismatched.");
+        // return false;
         //}
 
         //public async Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime)
         //{// create many keys with field/value/lifetime each (with possible delay after each key has been created)
-        //    int fieldLength = field.Length;
-        //    int valueLength = value.Length;
+        // int fieldLength = field.Length;
+        // int valueLength = value.Length;
 
-        //    if (fieldLength == valueLength)
-        //    {
-        //        for (int i = 0; i < fieldLength; i++)
-        //        {
-        //            bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key, field[i], value[i], lifeTime);
-        //            if (!createKeyI)
-        //            {
-        //                return false;
-        //            }
-        //        }
-        //        return true;
-        //    }
-        //    Logs.Here().Warning("Some arrays lengths are mismatched.");
+        // if (fieldLength == valueLength)
+        // {
+        //  for (int i = 0; i < fieldLength; i++)
+        //  {
+        //   bool createKeyI = await TestKeysCreationInQuantityWithDelay(1, delayBetweenMsec, key, field[i], value[i], lifeTime);
+        //   if (!createKeyI)
+        //   {
         //    return false;
+        //   }
+        //  }
+        //  return true;
+        // }
+        // Logs.Here().Warning("Some arrays lengths are mismatched.");
+        // return false;
         //}
 
         //public async Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest)
         //{
-        //    // создание третьей задачи, когда две только уехали на обработку по таймеру - как поведёт себя вызов теста в этот момент
-        //    // рассмотреть два варианта - вызов теста до появления третьей задачи и после
-        //    // по идее в первом варианте третья задача должна остаться проигнорироаанной
-        //    // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
-        //    // выделить в отдельный метод?
-        //    // tempTestOf3rdTaskAdded - from redis key
-        //    bool result;
-        //    if (tempTestOf3rdTaskAdded)
-        //    {
-        //        // рассмотреть два варианта - вызов теста после появления третьей задачи и до
-        //        if (startTask3beforeTest)
-        //        {
-        //            // здесь тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
-        //            Logs.Here().Information("Test will call StartTask3beforeTest {0})", startTask3beforeTest);
-        //            result = await StartTask3beforeTest(constantsSet);
-        //        }
-        //        else
-        //        {
-        //            // здесь третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
-        //            Logs.Here().Information("Test will call StartTestBeforeTask3 {0})", startTask3beforeTest);
-        //            result = await StartTestBeforeTask3(constantsSet);
-        //        }
+        // // создание третьей задачи, когда две только уехали на обработку по таймеру - как поведёт себя вызов теста в этот момент
+        // // рассмотреть два варианта - вызов теста до появления третьей задачи и после
+        // // по идее в первом варианте третья задача должна остаться проигнорироаанной
+        // // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
+        // // выделить в отдельный метод?
+        // // tempTestOf3rdTaskAdded - from redis key
+        // bool result;
+        // if (tempTestOf3rdTaskAdded)
+        // {
+        //  // рассмотреть два варианта - вызов теста после появления третьей задачи и до
+        //  if (startTask3beforeTest)
+        //  {
+        //   // здесь тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
+        //   Logs.Here().Information("Test will call StartTask3beforeTest {0})", startTask3beforeTest);
+        //   result = await StartTask3beforeTest(constantsSet);
+        //  }
+        //  else
+        //  {
+        //   // здесь третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
+        //   Logs.Here().Information("Test will call StartTestBeforeTask3 {0})", startTask3beforeTest);
+        //   result = await StartTestBeforeTask3(constantsSet);
+        //  }
 
-        //        Logs.Here().Information("Temporary test finished with result = {0}.", result);
-        //        return result;
-        //    }
+        //  Logs.Here().Information("Temporary test finished with result = {0}.", result);
+        //  return result;
+        // }
 
-        //    return false;
+        // return false;
         //}
 
         //private async Task<bool> StartTask3beforeTest(ConstantsSet constantsSet)
         //{
-        //    string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
-        //    double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
-        //    string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-        //    string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
+        // string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+        // double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
+        // string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+        // string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
 
-        //    // сначала создаём третью задачу, а потом даём команду на запуск теста
-        //    await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
+        // // сначала создаём третью задачу, а потом даём команду на запуск теста
+        // await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
 
-        //    await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
+        // await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
 
-        //    // to read value for awaiting when keys will be written
-        //    int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
+        // // to read value for awaiting when keys will be written
+        // int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
-        //    return checkValue == 1;
+        // return checkValue == 1;
         //}
 
         //private async Task<bool> StartTestBeforeTask3(ConstantsSet constantsSet)
         //{
-        //    string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
-        //    double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
-        //    string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-        //    string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
+        // string eventKeyFrom = constantsSet.EventKeyFrom.Value; // subscribeOnFrom
+        // double eventKeyFromTestLifeTime = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.LifeTime; // subscribeOnFrom:test lifeTime
+        // string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
+        // string eventFileldTest = constantsSet.Prefix.IntegrationTestPrefix.FieldStartTest.Value; // test
 
-        //    // сначала даём команду на запуск теста, а потом создаём третью задачу (успеет ли тест её заблокировать)
-        //    await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
+        // // сначала даём команду на запуск теста, а потом создаём третью задачу (успеет ли тест её заблокировать)
+        // await _cache.WriteHashedAsync<int>(eventKeyTest, eventFileldTest, 1, eventKeyFromTestLifeTime);
 
-        //    await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
+        // await _cache.WriteHashedAsync<string>(eventKeyFrom, "count", "testTask", eventKeyFromTestLifeTime);
 
-        //    // to read value for awaiting when keys will be written
-        //    int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
+        // // to read value for awaiting when keys will be written
+        // int checkValue = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
-        //    return checkValue == 1;
+        // return checkValue == 1;
         //}
 
         public async Task<bool> RemoveWorkKeyOnStart(string key)

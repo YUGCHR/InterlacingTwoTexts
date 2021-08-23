@@ -63,22 +63,22 @@ namespace BackgroundDispatcher.Services
             string bookPlainTextMD5Hash = AuxiliaryUtilsService.CreateMD5(bookPlainText.BookPlainText);
 
             // отдать методу хэш, номер и язык книги, получить номер версии, если такой хэш уже есть, то что вернуть? можно -1
-            int versionHash = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
+            (List<TextSentence> bookPlainTextsHash, int versionHash) = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
             Logs.Here().Information("Hash version {0} was returned.", versionHash);
 
             // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся
             if (versionHash < 0)
             {
                 Logs.Here().Warning("This plain text already exists. {@B} / {@L}.", new { BookId = bookId }, new { LanguageId = languageId });
-                return null;
+                return new TextSentence();
             }
 
             // получили 0, надо создать лист и первый элемент в нём и положить в ключ новое поле (возможно и сам ключ создать, но это неважно)
             if (versionHash == 0)
             {
-                List<TextSentence> bookPlainTextsHash = new List<TextSentence>();
+                //List<TextSentence> bookPlainTextsHash = new List<TextSentence>();
                 // положить первый элемент - заглушку, иначе CachingFramework.Redis сохраняет не List с одним элементом, а просто один элемент (!?)
-
+                // метод поставит нулевую версию и нулевой хэш - этого достаточно для пустышки?
                 TextSentence bookPlainTextHash = RemoveTextFromTextSentence(bookPlainText); // hashVersion = 0, bookPlainTextHash = "00000000000000000000000000000000"
                 bookPlainTextsHash.Add(bookPlainTextHash);
 
@@ -89,7 +89,7 @@ namespace BackgroundDispatcher.Services
             // получили номер версии, лист уже есть, надо его достать, создать новый элемент, добавить в лист и записать в то же место
             if (versionHash > 0)
             {
-                List<TextSentence> bookPlainTextsHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+                //List<TextSentence> bookPlainTextsHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
                 bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
                 return bookPlainText;
             }
@@ -145,14 +145,8 @@ namespace BackgroundDispatcher.Services
             return bookPlainText;
         }
 
-        // метод проверяет существование хэша в хранилище хэшей плоских текстов, может вернуть -
-        // -1, если такой хэш есть
-        // 0, если такого поля/ключа вообще нет, записывать надо первую версию
-        // int последней существующей версии, записывать надо на 1 больше
-        private async Task<int> CheckPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
+        public async Task<(List<TextSentence>, int)> EternalLogAccess(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId)
         {
-            int maxVersion = 0;
-
             // 1 проверить существование ключа вообще и полученного поля (это уже только его чтением)
             bool soughtKey = await _cache.IsKeyExist(keyBookPlainTextsHashesVersionsList); // искомый ключ
             Logs.Here().Information("{@K} existing is {0}.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
@@ -162,16 +156,36 @@ namespace BackgroundDispatcher.Services
                 // _prepare.SomethingWentWrong(!soughtKey);
                 // если ключа вообще нет, тоже возвращаем 0, будет первая книга с первой версией в ключе
                 Logs.Here().Information("{@K} existing is {0}, 0 is returned.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
-                return 0;
+                return (new List<TextSentence>(), 0);
             }
 
             List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
 
+            bool soughtFiled = bookPlainTextsVersions != null;
+            if (!soughtFiled)
+            {
+                Logs.Here().Information("{@F} existing is {0}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, soughtFiled);
+                return (new List<TextSentence>(), 0);
+            }
+
+            return (bookPlainTextsVersions, bookPlainTextsVersions.Count);
+        }
+
+        // метод проверяет существование хэша в хранилище хэшей плоских текстов, может вернуть -
+        // -1, если такой хэш есть
+        // 0, если такого поля/ключа вообще нет, записывать надо первую версию
+        // int последней существующей версии, записывать надо на 1 больше
+        private async Task<(List<TextSentence>, int)> CheckPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
+        {
+            int maxVersion = 0;
+
+            (List<TextSentence> bookPlainTextsVersions, int bookPlainTextsVersionsCount) = await EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            
             // 2 если поля нет, возвращаем результат - первая версия 
-            if (bookPlainTextsVersions == null)
+            if (bookPlainTextsVersionsCount == 0)
             {
                 Logs.Here().Information("{@F} is not existed - {@B}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, new { Books = bookPlainTextsVersions });
-                return 0;
+                return (bookPlainTextsVersions, 0);
             }
             // 3 если поле есть, достаём из него значение - это лист
             // 4 перебираем лист, достаём хэши и сравниваем с полученным в параметрах
@@ -195,7 +209,7 @@ namespace BackgroundDispatcher.Services
                 if (isThisHashExisted)
                 {
                     Logs.Here().Information("The same hash was found {0} in the storage, -1 will be returned.", isThisHashExisted);
-                    return -1;
+                    return (bookPlainTextsVersions, - 1);
                 }
             }
             // 6 если совпадения нет, берём maxVersion, прибавляем 1 и возвращаем версию
@@ -203,7 +217,7 @@ namespace BackgroundDispatcher.Services
 
             Logs.Here().Information("Testee hash is inique, Max version of the book is {0} and it will be returned.", maxVersion);
 
-            return maxVersion;
+            return (bookPlainTextsVersions, maxVersion);
 
             // 7 записывать будем в другом месте, потому что тут нет самого текста
             // (хотя он и не нужен, можно и тут записать)
