@@ -150,6 +150,7 @@ namespace BackgroundDispatcher.Services
         private readonly ITestScenarioService _scenario;
         private readonly ITestRawBookTextsStorageService _store;
         private readonly ICollectTasksInPackageService _collect;
+        private readonly IEternalLogSupportService _eternal;
         private readonly ICacheManagerService _cache;
         private readonly ITestTasksPreparationService _prepare;
 
@@ -159,6 +160,7 @@ namespace BackgroundDispatcher.Services
          ITestScenarioService scenario,
          ITestRawBookTextsStorageService store,
          ICollectTasksInPackageService collect,
+         IEternalLogSupportService eternal,
          ICacheManagerService cache,
          ITestTasksPreparationService prepare)
         {
@@ -167,6 +169,7 @@ namespace BackgroundDispatcher.Services
             _scenario = scenario;
             _store = store;
             _collect = collect;
+            _eternal = eternal;
             _cache = cache;
             _prepare = prepare;
         }
@@ -177,6 +180,7 @@ namespace BackgroundDispatcher.Services
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
 
+        // Report of the test time imprint
         // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
         // он проверит тест сейчас или нет и, если надо, запишет имя вызвавшего метода в ключ результатов с полем имени метода
         // а в конце текста проверять значение в определённом имени
@@ -226,13 +230,32 @@ namespace BackgroundDispatcher.Services
         // в вечном логе будет номер сценария в качестве bookId - получить номер сценария
         // приготовить все номера в другом методе и сохранить их в поля класса
         // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
+        // надо попробовать создать две шестёрки задач в два потока
 
-        public async Task<bool> CreateAssignedSerialNum(ConstantsSet constantsSet, int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
+        public async Task<TextSentence> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
         {
+            int fieldBookIdWithLanguageId = testScenario;
+            (List<TextSentence> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            Logs.Here().Information("Test report from Eternal Log for Scenario {0} lengyh = {1}.", testScenario, theScenarioReportsCount);
 
+            // надо создать пустой первый элемент (вместо new TextSentence()), который потом можно заменить на эталонный
+            // и тут еще надо проверить, есть ли эталонный или вместо него пустышка
+            // если пустышка, записать вместо неё текущий тест после успешного окончания
+            // в дальнейшем можно проверять специальный ключ settings, в котором будет указано, какой номер записать в эталонный
+            // или ещё можно проверять группу отчётов на совпадение временного сценария -
+            // если больше заданного количества все одинаковые, записывать в эталонный
 
-            _currentTestSerialNum = 1;
-            return true;
+            // если список нулевой и длина нулевая, значит назначить версию 1 (уже назначена по умолчанию)
+            if (theScenarioReportsCount > 0)
+            {
+                // это будет серийный номер текущего теста
+                _currentTestSerialNum = theScenarioReportsCount;
+
+                // эталонный отпечаток времени выполнения теста - для сравнения с текущим
+                return theScenarioReports[0];
+            }
+
+            return new TextSentence();
         }
 
         public async Task<int> FetchAssignedSerialNum(ConstantsSet constantsSet, CancellationToken stoppingToken)
@@ -245,8 +268,8 @@ namespace BackgroundDispatcher.Services
         public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // 
-            
-            
+
+
 
 
 
@@ -281,7 +304,9 @@ namespace BackgroundDispatcher.Services
             // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
             _isTestInProgress = true;
             _stageReportFieldCounter = 0;
-            _currentTestSerialNum = 0;
+
+            // назначить версию 1 по умолчанию
+            _currentTestSerialNum = 1;
 
             #region Constants preparation
 
@@ -321,7 +346,7 @@ namespace BackgroundDispatcher.Services
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
-            bool resultSerialNum = await CreateAssignedSerialNum(constantsSet, testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
+            TextSentence theScenarioReport = await CreateAssignedSerialNum(testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
 
             // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
             // *** потом из веба будет приходить массив инт с описанием сценария

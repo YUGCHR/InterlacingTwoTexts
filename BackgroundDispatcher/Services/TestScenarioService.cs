@@ -216,8 +216,8 @@ namespace BackgroundDispatcher.Services
                         string bookGuidEng = engPlainTextHash[j].BookGuid;
                         string bookGuidRus = rusPlainTextHash[j].BookGuid;
 
-                        Logs.Here().Information("Eng - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdEng, verHashEng, hashEng, bookGuidEng);
-                        Logs.Here().Information("Rus - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdRus, verHashRus, hashRus, bookGuidRus);
+                        Logs.Here().Verbose("Eng - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdEng, verHashEng, hashEng, bookGuidEng);
+                        Logs.Here().Verbose("Rus - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdRus, verHashRus, hashRus, bookGuidRus);
 
                     }
                 }

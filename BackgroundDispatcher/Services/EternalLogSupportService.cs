@@ -26,6 +26,8 @@ namespace BackgroundDispatcher.Services
     public interface IEternalLogSupportService
     {
         public Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText);
+        public Task<(List<TextSentence>, int)> EternalLogAccess(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId);
+
     }
 
     public class EternalLogSupportService : IEternalLogSupportService
@@ -73,6 +75,7 @@ namespace BackgroundDispatcher.Services
                 return new TextSentence();
             }
 
+            // номер версии увеличивается в WriteBookPlainTextHash
             // получили 0, надо создать лист и первый элемент в нём и положить в ключ новое поле (возможно и сам ключ создать, но это неважно)
             if (versionHash == 0)
             {
