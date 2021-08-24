@@ -71,7 +71,8 @@ namespace BackgroundDispatcher.Services
         // create many keys with field/value/lifetime each (with possible delay after each key has been created)
         //public Task<bool> TestKeysCreationInQuantityWithDelay(int delayBetweenMsec, string key, string[] field, string[] value, double lifeTime);
         public void SetIsTestInProgress(bool init_isTestInProgress);
-        //public bool IsTestInProgress();
+        public int FetchAssignedSerialNum();
+        public bool FetchIsTestInProgress();
         //public Task<bool> IsPreassignedDepthReached(ConstantsSet constantsSet, string currentDepth, CancellationToken stoppingToken);
         //public Task<bool> TempTestOf3rdTaskAdded(ConstantsSet constantsSet, bool tempTestOf3rdTaskAdded, bool startTask3beforeTest);
         public Task<bool> RemoveWorkKeyOnStart(string key);
@@ -232,37 +233,64 @@ namespace BackgroundDispatcher.Services
         // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
         // надо попробовать создать две шестёрки задач в два потока
 
-        public async Task<TextSentence> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
+        private async Task<List<TextSentence>> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
             (List<TextSentence> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
+            string currentTestDescription = $"Current test report for Scenario {testScenario}";
             Logs.Here().Information("Test report from Eternal Log for Scenario {0} lengyh = {1}.", testScenario, theScenarioReportsCount);
 
-            // надо создать пустой первый элемент (вместо new TextSentence()), который потом можно заменить на эталонный
+            if (theScenarioReportsCount == 0)
+            {
+                // надо создать пустой первый элемент (вместо new TextSentence()), который потом можно заменить на эталонный
+                TextSentence testReportForScenario = new TextSentence() // RemoveTextFromTextSentence(bookPlainText)
+                {
+                    Id = referenceTestDescription,
+                    // можно использовать для сохранения, сколько тестов совпало для записи этого эталона
+                    // если ноль - эталон ещё не создавался
+                    RecordActualityLevel = 0,
+                    LanguageId = 0,
+                    // номер теста по порядку - совпадает с индексом списка
+                    // нулевой - эталонный, сразу в него ничего не пишем, оставляем заглушку
+                    // UploadVersion - в книгах постепенно отказываемся от использования
+                    UploadVersion = theScenarioReportsCount,
+                    HashVersion = 0,
+                    BookId = testScenario,
+                    BookGuid = "",
+                    BookPlainTextHash = "",
+                    BookPlainText = ""
+                };
+                // записываем пустышку, только если список пуст
+                theScenarioReports.Add(testReportForScenario);
+                // надо вернуть весь список, чтобы в конце теста в него дописать текущий отчёт
+                theScenarioReportsCount = theScenarioReports.Count;
+            }
+
             // и тут еще надо проверить, есть ли эталонный или вместо него пустышка
             // если пустышка, записать вместо неё текущий тест после успешного окончания
             // в дальнейшем можно проверять специальный ключ settings, в котором будет указано, какой номер записать в эталонный
             // или ещё можно проверять группу отчётов на совпадение временного сценария -
             // если больше заданного количества все одинаковые, записывать в эталонный
 
-            // если список нулевой и длина нулевая, значит назначить версию 1 (уже назначена по умолчанию)
-            if (theScenarioReportsCount > 0)
-            {
-                // это будет серийный номер текущего теста
-                _currentTestSerialNum = theScenarioReportsCount;
+            // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
+            _currentTestSerialNum = theScenarioReportsCount;
 
-                // эталонный отпечаток времени выполнения теста - для сравнения с текущим
-                return theScenarioReports[0];
-            }
-
-            return new TextSentence();
+            return theScenarioReports;
         }
 
-        public async Task<int> FetchAssignedSerialNum(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        // этот метод возвращает текущую версию теста (из поля класса) - для маркировки теста рабочими методами
+        public int FetchAssignedSerialNum()
         {
-
-
+            Logs.Here().Information("The value of _currentTestSerialNum was requested = {0}.", _currentTestSerialNum);
             return _currentTestSerialNum;
+        }
+
+        // этот метод возвращает состояние _isTestInProgress - для быстрого определения теста рабочими методами
+        public bool FetchIsTestInProgress()
+        {
+            Logs.Here().Information("The state of _isTestInProgress was requested. It is {0}.", _isTestInProgress);
+            return _isTestInProgress;
         }
 
         public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, CancellationToken stoppingToken)
@@ -346,7 +374,9 @@ namespace BackgroundDispatcher.Services
             // test scenario selection - получение номера сценария из ключа запуска теста
             int testScenario = await _cache.FetchHashedAsync<int>(eventKeyTest, eventFileldTest);
 
-            TextSentence theScenarioReport = await CreateAssignedSerialNum(testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
+            // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
+            // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
+            List<TextSentence> theScenarioReportsCount = await CreateAssignedSerialNum(testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
 
             // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
             // *** потом из веба будет приходить массив инт с описанием сценария
