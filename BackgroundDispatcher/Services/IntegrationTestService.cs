@@ -60,7 +60,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        //public Task<bool> IsTestResultAsserted(ConstantsSet constantsSet, string keyEvent, CancellationToken stoppingToken);
+        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "");
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
         //public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string field, string value, double lifeTime);
@@ -180,6 +180,8 @@ namespace BackgroundDispatcher.Services
         private bool _isTestInProgress;
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
+        private int _callingNumOfAddStageToTestTaskProgressReport;
+
 
         // Report of the test time imprint
         // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
@@ -233,6 +235,13 @@ namespace BackgroundDispatcher.Services
         // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
         // надо попробовать создать две шестёрки задач в два потока
 
+        // всё не так
+        // получается весь список - это один тест
+        // всё же нет - список тестов (каждый элемент - один проход) на поле номера сценария в ключе вечного лога
+        // много одинаковых проходов хранить нет смысла -
+        // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
+        // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
+        // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
         private async Task<List<TextSentence>> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
@@ -286,16 +295,22 @@ namespace BackgroundDispatcher.Services
             return _currentTestSerialNum;
         }
 
-        // этот метод возвращает состояние _isTestInProgress - для быстрого определения теста рабочими методами
+        // этот метод возвращает состояние _isTestInProgress - для быстрого определения наличия теста рабочими методами
         public bool FetchIsTestInProgress()
         {
             Logs.Here().Information("The state of _isTestInProgress was requested. It is {0}.", _isTestInProgress);
             return _isTestInProgress;
         }
 
-        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        // этот метод получает имя рабочего метода currentMethodName, выполняющего тест в данный момент и что-то из описания его работы
+        // 
+        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
         {
-            // 
+            // определяем собственно номер шага
+            int count = Interlocked.Increment(ref _stageReportFieldCounter);
+            // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
+            int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
+            Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
 
 
 
@@ -317,6 +332,10 @@ namespace BackgroundDispatcher.Services
 
                 return true;
             }
+
+            int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
+            Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
+
             return false;
         }
 
@@ -332,6 +351,7 @@ namespace BackgroundDispatcher.Services
             // поле - отражение такого же поля в классе подписок, формально они не связаны, но по логике меняются вместе
             _isTestInProgress = true;
             _stageReportFieldCounter = 0;
+            _callingNumOfAddStageToTestTaskProgressReport = 0;
 
             // назначить версию 1 по умолчанию
             _currentTestSerialNum = 1;

@@ -18,9 +18,7 @@ namespace BackgroundDispatcher.Services
     {
         public void EventCounterInit(ConstantsSet constantsSet);
         public Task<bool> IsCounterZeroReading(ConstantsSet constantsSet);
-        //public bool IsTestStarted();
-        //public void TestIsFinished();
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, CancellationToken stoppingToken);
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentTestSerialNum, CancellationToken stoppingToken);
         public void Dispose();
     }
 
@@ -163,7 +161,7 @@ namespace BackgroundDispatcher.Services
         //}
 
         // методы (таймер тоже) не асинхронные и их ждут - наверное, можно работать параллельно
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, CancellationToken stoppingToken)
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentTestSerialNum, CancellationToken stoppingToken)
         {
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);

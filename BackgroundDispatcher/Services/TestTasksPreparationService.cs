@@ -166,7 +166,7 @@ namespace BackgroundDispatcher.Services
             bool testSettingKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(testSettingKey1); // TO REMOVE
 
             string testSettingField1 = constantsSet.Prefix.IntegrationTestPrefix.SettingField1.Value; // f1 (test depth)
-            string test1Depth1 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue1.Value; // HandlerCallingDistributore
+
             string test1Depth2 = constantsSet.Prefix.IntegrationTestPrefix.DepthValue2.Value; // DistributeTaskPackageInCafee
 
             // to collect all depths in array and select the element via testDepth is it set (if testDepth=0 it means automatic mode)

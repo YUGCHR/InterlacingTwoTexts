@@ -90,7 +90,7 @@ namespace Shared.Library.Models
                 public KeyType SettingKey1 { get; set; }
                 public KeyType TestScenarioSequenceKey { get; set; }
                 public KeyType SettingField1 { get; set; }
-                public KeyType DepthValue1 { get; set; }
+                public KeyType CurrentTestReportKey { get; set; }
                 public KeyType DepthValue2 { get; set; }
                 public KeyType DepthValue3 { get; set; }
                 public KeyType ResultsKey1 { get; set; }

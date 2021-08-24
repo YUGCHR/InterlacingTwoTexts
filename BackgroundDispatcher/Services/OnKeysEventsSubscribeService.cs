@@ -147,7 +147,9 @@ namespace BackgroundDispatcher.Services
                 //bool isTestStarted = _count.IsTestStarted();
                 if (cmd == eventCmd) // && !isTestStarted)
                 {
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, _cancellationToken);
+                    int currentTestSerialNum = _test.FetchAssignedSerialNum();
+                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentTestSerialNum, _cancellationToken);
+                    _ = _test.AddStageToTestTaskProgressReport(constantsSet, eventKeyFrom, _cancellationToken);
                 }
             });
 
@@ -210,6 +212,7 @@ namespace BackgroundDispatcher.Services
                     // счётчик уже сброшен и новая задача заблокирована возвратом
                     string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
                     SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
+                    Logs.Here().Information("Subscription on Event key {0} was done.", cafeKey);
 
                     Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
@@ -217,6 +220,7 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
                     _keyEvents.Unsubscribe(cafeKey);
+                    Logs.Here().Information("Key {0} was unsubscribed.", cafeKey);
 
 
                     // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
