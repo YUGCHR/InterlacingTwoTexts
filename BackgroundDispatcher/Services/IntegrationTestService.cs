@@ -306,13 +306,21 @@ namespace BackgroundDispatcher.Services
         // 
         public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
         {
+            string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
             // определяем собственно номер шага
             int count = Interlocked.Increment(ref _stageReportFieldCounter);
             // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
             int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
             Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
 
-
+            TextSentence testReportForScenario = new TextSentence()
+            {
+                LanguageId = count,
+                HashVersion = 0,
+                BookGuid = "",
+                BookPlainTextHash = "",
+                BookPlainText = ""
+            };
 
 
 
