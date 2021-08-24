@@ -245,7 +245,7 @@ namespace BackgroundDispatcher.Services
         private async Task<List<TextSentence>> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
-            (List<TextSentence> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            (List<TextSentence> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TextSentence>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
             string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
             Logs.Here().Information("Test report from Eternal Log for Scenario {0} lengyh = {1}.", testScenario, theScenarioReportsCount);

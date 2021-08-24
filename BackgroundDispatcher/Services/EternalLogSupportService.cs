@@ -26,7 +26,7 @@ namespace BackgroundDispatcher.Services
     public interface IEternalLogSupportService
     {
         public Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText);
-        public Task<(List<TextSentence>, int)> EternalLogAccess(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId);
+        public Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId);
 
     }
 
@@ -148,7 +148,7 @@ namespace BackgroundDispatcher.Services
             return bookPlainText;
         }
 
-        public async Task<(List<TextSentence>, int)> EternalLogAccess(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId)
+        public async Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId)
         {
             // 1 проверить существование ключа вообще и полученного поля (это уже только его чтением)
             bool soughtKey = await _cache.IsKeyExist(keyBookPlainTextsHashesVersionsList); // искомый ключ
@@ -159,16 +159,16 @@ namespace BackgroundDispatcher.Services
                 // _prepare.SomethingWentWrong(!soughtKey);
                 // если ключа вообще нет, тоже возвращаем 0, будет первая книга с первой версией в ключе
                 Logs.Here().Information("{@K} existing is {0}, 0 is returned.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
-                return (new List<TextSentence>(), 0);
+                return (new List<T>(), 0);
             }
 
-            List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            List<T> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<T>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
 
             bool soughtFiled = bookPlainTextsVersions != null;
             if (!soughtFiled)
             {
                 Logs.Here().Information("{@F} existing is {0}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, soughtFiled);
-                return (new List<TextSentence>(), 0);
+                return (new List<T>(), 0);
             }
 
             return (bookPlainTextsVersions, bookPlainTextsVersions.Count);
@@ -182,7 +182,7 @@ namespace BackgroundDispatcher.Services
         {
             int maxVersion = 0;
 
-            (List<TextSentence> bookPlainTextsVersions, int bookPlainTextsVersionsCount) = await EternalLogAccess(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            (List<TextSentence> bookPlainTextsVersions, int bookPlainTextsVersionsCount) = await EternalLogAccess<TextSentence>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
             
             // 2 если поля (или вообще ключа) нет, возвращаем результат - первая версия 
             if (bookPlainTextsVersionsCount == 0)
