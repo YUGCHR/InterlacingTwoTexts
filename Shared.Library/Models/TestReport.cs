@@ -34,7 +34,7 @@ namespace Shared.Library.Models
             public int StageReportFieldCounter { get; set; }
 
             [JsonProperty(PropertyName = "theScenarioReportsCount")]
-            public int TheScenarioReportsCount { get; set; }
+            public int TheScenarioReportsCount { get; set; } // -- ??
 
             [JsonProperty(PropertyName = "ts")]
             public TimeSpan Ts { get; set; }

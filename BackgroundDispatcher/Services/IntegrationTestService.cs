@@ -242,33 +242,29 @@ namespace BackgroundDispatcher.Services
         // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
         // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
         // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-        private async Task<List<TextSentence>> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
+        private async Task<List<TestReport>> CreateAssignedSerialNum(int testScenario, string keyBookPlainTextsHashesVersionsList, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
-            (List<TextSentence> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TextSentence>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
+            (List<TestReport> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TestReport>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
             string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
-            Logs.Here().Information("Test report from Eternal Log for Scenario {0} lengyh = {1}.", testScenario, theScenarioReportsCount);
+            Logs.Here().Information("Test report from Eternal Log for Scenario {0} length = {1}.", testScenario, theScenarioReportsCount);
 
             if (theScenarioReportsCount == 0)
             {
                 // надо создать пустой первый элемент (вместо new TextSentence()), который потом можно заменить на эталонный
-                TextSentence testReportForScenario = new TextSentence() // RemoveTextFromTextSentence(bookPlainText)
+                TestReport testReportForScenario = new TestReport() // RemoveTextFromTextSentence(bookPlainText)
                 {
-                    Id = referenceTestDescription,
+                    Guid = referenceTestDescription,
                     // можно использовать для сохранения, сколько тестов совпало для записи этого эталона
                     // если ноль - эталон ещё не создавался
-                    RecordActualityLevel = 0,
-                    LanguageId = 0,
+                    //RecordActualityLevel = 0,
+                    //LanguageId = 0,
                     // номер теста по порядку - совпадает с индексом списка
                     // нулевой - эталонный, сразу в него ничего не пишем, оставляем заглушку
                     // UploadVersion - в книгах постепенно отказываемся от использования
-                    UploadVersion = theScenarioReportsCount,
-                    HashVersion = 0,
-                    BookId = testScenario,
-                    BookGuid = "",
-                    BookPlainTextHash = "",
-                    BookPlainText = ""
+                    //UploadVersion = theScenarioReportsCount,
+                    TestScenarioNum = testScenario
                 };
                 // записываем пустышку, только если список пуст
                 theScenarioReports.Add(testReportForScenario);
@@ -404,7 +400,7 @@ namespace BackgroundDispatcher.Services
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            List<TextSentence> theScenarioReportsCount = await CreateAssignedSerialNum(testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
+            List<TestReport> theScenarioReportsCount = await CreateAssignedSerialNum(testScenario, keyBookPlainTextsHashesVersionsList, stoppingToken);
 
             // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
             // *** потом из веба будет приходить массив инт с описанием сценария
