@@ -398,7 +398,7 @@ namespace BackgroundDispatcher.Services
                 };
 
                 await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
-                Logs.Here().Information("testTimingReportStage {0} was writen in field {1}.", workActionName, count);
+                Logs.Here().Information("testTimingReportStage time {0} was writen in field {1}.", testTimingReportStage.Ts, count);
 
                 int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
                 Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
