@@ -35,12 +35,14 @@ namespace Shared.Library.Models
 
             [JsonProperty(PropertyName = "theScenarioReportsCount")]
             public int TheScenarioReportsCount { get; set; } // -- ??
-
             [JsonProperty(PropertyName = "ts")]
-            public TimeSpan Ts { get; set; }
+            public long Ts { get; set; }
 
             [JsonProperty(PropertyName = "workActionName")]
             public string WorkActionName { get; set; }
+            
+            [JsonProperty(PropertyName = "callingNumOfAddStageToTestTaskProgressReport")]
+            public int CallingNumOfAddStageToTestTaskProgressReport { get; set; }
         }
     }
 }

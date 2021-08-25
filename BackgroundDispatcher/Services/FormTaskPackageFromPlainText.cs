@@ -142,44 +142,13 @@ namespace BackgroundDispatcher.Services
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
-            
+
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != "")
             {
                 // вот тут подходяще проверить/вызвать тест, отдать ему ключ пакета и пусть сравнивает с тем, что он отдавал на тест
                 // подписка на кафе достаёт словарь и отдаёт его тому же методу
                 // не надо проверять тест или нет, тест сам разберётся
-                // ----------------------------------
-                // тестовая часть - вынести всё в отдельный метод
-
-                // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
-                // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
-                //bool isTestInProgress = _test.IsTestInProgress();
-                //if (isTestInProgress)
-                //{
-                //    Logs.Here().Information("The state of _isTestInProgress was fetched. It is {0}.", isTestInProgress);
-
-                    // вызываем метод из теста и передаём ему ключ пакета задач
-                    // он вернёт количество оставшихся полей (если есть ещё задачи после задержки) или 0, если все тестовые задачи выполнены
-                    //int remaindedFields = await _test.AssertProcessedBookFieldsAreEqualToControl(constantsSet, taskPackageGuid, stoppingToken);
-
-                    //Logs.Here().Information("Current result of the test is - {0} remained tasks.", remaindedFields);
-
-
-
-                    // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
-                    // если дальше идти не надо, то return прямо здесь
-                    // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
-                    // название метода из переменной - currentMethodName
-                    // инвертировать возврат и переименовать переменную результата в targetDepthReached
-                //    bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
-                //    Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
-                //    if (!targetDepthNotReached)
-                //    {
-                //        //return true;
-                //    }
-                //}
-                // ----------------------------------
 
                 // здесь может быть нужна небольшая задержка, чтобы тест уверенно успел считать пакет задач
                 // (проверить, его удалят сразу, как схватят или нет)
@@ -204,15 +173,6 @@ namespace BackgroundDispatcher.Services
             // теперь ключ всегда одинаковый - рабочий
             // убрать все присваивания в отдельный метод, чтобы не путаться (уже одно осталось, нечего убирать)
             string eventKeyFrom = constantsSet.EventKeyFrom.Value;
-            //string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            //string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
-            //string eventKey = eventKeyFrom;
-
-            //bool isTestInProgress = _test.IsTestInProgress();
-            //if (isTestInProgress)
-            //{
-            //    eventKey = eventKeyFromTest; // subscribeOnFrom:test
-            //}
 
             IDictionary<string, string> keyFromDataList = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
             int keyFromDataListCount = keyFromDataList.Count;
@@ -222,11 +182,11 @@ namespace BackgroundDispatcher.Services
             foreach (var d in keyFromDataList)
             {
                 (var f, var v) = d;
-                Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
+                Logs.Here().Debug("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
 
                 // удаляем текущее поле (для точности и скорости перед удалением можно проверить существование? и, если есть, то удалять)
                 bool isFieldRemovedSuccessful = await _cache.DelFieldAsync(eventKeyFrom, f);
-                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom }, isFieldRemovedSuccessful);
+                Logs.Here().Debug("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom }, isFieldRemovedSuccessful);
 
                 // если не удалилось - и фиг с ним, удаляем его из словаря
                 // можно убрать, всё равно словарь больше не используется
@@ -243,7 +203,7 @@ namespace BackgroundDispatcher.Services
                     fieldsKeyFromDataList.Add(f);
                     // можно каждый раз проверять, что ключ одинаковый - если больше нечего делать
                     sourceKeyWithPlainTests = v;
-                    Logs.Here().Information("Future {@K} with {@F} with plain text.", new { Key = v }, new { Filed = f });
+                    Logs.Here().Debug("Future {@K} with {@F} with plain text.", new { Key = v }, new { Filed = f });
                 }
             }
 

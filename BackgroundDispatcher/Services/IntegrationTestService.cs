@@ -301,7 +301,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // этот метод возвращает состояние _isTestInProgress - для быстрого определения наличия теста рабочими методами
-        private TimeSpan StopwatchesControlAndRead(Stopwatch stopWatch, bool control, string stopWatchName = "name is not defined")
+        private long StopwatchesControlAndRead(Stopwatch stopWatch, bool control, string stopWatchName = "name is not defined")
         {
             // надо проверять текущее состояние секундомера перед его изменением
             bool currentState = stopWatch.IsRunning;
@@ -364,10 +364,11 @@ namespace BackgroundDispatcher.Services
                 }
             }
 
-            TimeSpan tsControl = stopWatch.Elapsed;
-            Logs.Here().Information("Stopwatch {0} {1}. It shows {2}.", stopWatchName, stopWatchState, tsControl);
+            //TimeSpan tsControl = stopWatch.Elapsed;
+            long stopwatchMeasuredTime = stopWatch.ElapsedMilliseconds; // double Elapsed.TotalMilliseconds
+            Logs.Here().Information("Stopwatch {0} {1}. It shows {2} msec.", stopWatchName, stopWatchState, stopwatchMeasuredTime);
 
-            return tsControl;
+            return stopwatchMeasuredTime;
         }
 
         // этот метод вызывается только из рабочих методов других классов
@@ -375,48 +376,37 @@ namespace BackgroundDispatcher.Services
         // 
         public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
         {
-            string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
-            double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
-            // определяем собственно номер шага
-            int count = Interlocked.Increment(ref _stageReportFieldCounter);
-            // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
-            int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
-            Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
-
-            TextSentence testReportForScenario = new TextSentence()
-            {
-                LanguageId = count,
-                HashVersion = 0,
-                BookGuid = "",
-                BookPlainTextHash = "",
-                BookPlainText = ""
-            };
-
-
-
-
             if (_isTestInProgress)
             {
+                string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
+                double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
+                                                                                                                                   // определяем собственно номер шага
+                int count = Interlocked.Increment(ref _stageReportFieldCounter);
+                // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
+                int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
+                Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
+                long tsWork = StopwatchesControlAndRead(_stopWatchWork, true, nameof(_stopWatchWork));
 
+                TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
+                {
+                    StageId = count,
+                    StageReportFieldCounter = count,
+                    TheScenarioReportsCount = _currentTestSerialNum,
+                    Ts = tsWork,
+                    WorkActionName = workActionName,
+                    CallingNumOfAddStageToTestTaskProgressReport = lastCountStart
+                };
 
+                await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
+                Logs.Here().Information("testTimingReportStage {0} was writen in field {1}.", workActionName, count);
 
-
-
-
-
-
-
-
+                int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
+                Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
 
                 return true;
             }
-
-            int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
-            Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
-
             return false;
         }
-
 
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
@@ -427,7 +417,7 @@ namespace BackgroundDispatcher.Services
         {
             _stopWatchTest = new Stopwatch();
             _stopWatchWork = new Stopwatch();
-            TimeSpan tsTest01 = StopwatchesControlAndRead(_stopWatchTest, true, nameof(_stopWatchTest));
+            long tsTest01 = StopwatchesControlAndRead(_stopWatchTest, true, nameof(_stopWatchTest));
             Logs.Here().Information("Integration test was started. Stopwatch shows {0}", tsTest01);
 
             _isTestInProgress = true;
@@ -540,7 +530,7 @@ namespace BackgroundDispatcher.Services
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
 
             // тут запустить секундомер рабочих процессов (true means start)
-            TimeSpan tsWork00 = StopwatchesControlAndRead(_stopWatchWork, true, nameof(_stopWatchWork));
+            long tsWork00 = StopwatchesControlAndRead(_stopWatchWork, true, nameof(_stopWatchWork));
             Logs.Here().Information("CreateScenarioTasksAndEvents finished. Work Stopwatch has been started and it is showing {0}", tsWork00);
 
             bool testWasSucceeded = await WaitForTestFinishingTags(constantsSet, timeOfAllDelays, controlListOfTestBookFieldsKey, stoppingToken);
@@ -569,7 +559,7 @@ namespace BackgroundDispatcher.Services
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
 
-            TimeSpan tsTest99 = StopwatchesControlAndRead(_stopWatchTest, false, nameof(_stopWatchTest));
+            long tsTest99 = StopwatchesControlAndRead(_stopWatchTest, false, nameof(_stopWatchTest));
             Logs.Here().Information("Integration test finished. Stopwatch has been stopped and it is showing {0}", tsTest99);
             _ = StopwatchesControlAndRead(_stopWatchTest, false, nameof(_stopWatchTest));
 
@@ -681,7 +671,7 @@ namespace BackgroundDispatcher.Services
         public async Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // получен ключ кафе, секундомер рабочих процессов пора остановить
-            TimeSpan tsWork99 = StopwatchesControlAndRead(_stopWatchWork, false, nameof(_stopWatchWork));
+            long tsWork99 = StopwatchesControlAndRead(_stopWatchWork, false, nameof(_stopWatchWork));
             Logs.Here().Information("Books processing were finished. Work Stopwatch has been stopped and it is showing {0}", tsWork99);
             // to reset
             _ = StopwatchesControlAndRead(_stopWatchWork, false, nameof(_stopWatchWork));
