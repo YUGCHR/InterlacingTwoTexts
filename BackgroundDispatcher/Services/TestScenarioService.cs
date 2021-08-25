@@ -53,7 +53,7 @@ namespace BackgroundDispatcher.Services
             string testScenarioSequenceKey = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.Value; // test-scenario-sequence
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
             // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList - key-book-plain-texts-hashes-versions-list
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
 
             int uniqueBookIdsFromStorageKeyCount = uniqueBookIdsFromStorageKey.Count;
 

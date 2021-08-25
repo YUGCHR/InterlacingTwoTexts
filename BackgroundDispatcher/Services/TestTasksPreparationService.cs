@@ -255,7 +255,7 @@ namespace BackgroundDispatcher.Services
         public async Task<int> RemoveTestBookIdFieldsFromEternalLog(ConstantsSet constantsSet, string keyBookPlainTextsHashesVersions, List<int> uniqueBookIdsFromStorageKey)
         {
             int count = 0;
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
             if (uniqueBookIdsFromStorageKey != null && keyBookPlainTextsHashesVersions != null)
             {

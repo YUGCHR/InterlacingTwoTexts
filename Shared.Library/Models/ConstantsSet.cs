@@ -79,7 +79,7 @@ namespace Shared.Library.Models
             {
                 public KeyType TaskPackage { get; set; }
                 public KeyType EventKeyFrontGivesTask { get; set; }
-                public KeyType KeyBookPlainTextsHashesVersionsList { get; set; }
+                public KeyType EternalBookPlainTextHashesLog { get; set; }
             }
 
             public IntegrationTestPrefixes IntegrationTestPrefix { get; set; }
@@ -92,7 +92,7 @@ namespace Shared.Library.Models
                 public KeyType SettingField1 { get; set; }
                 public KeyType CurrentTestReportKey { get; set; }
                 public KeyType DepthValue2 { get; set; }
-                public KeyType DepthValue3 { get; set; }
+                public KeyType EternalTestTimingStagesReportsLog { get; set; }
                 public KeyType ResultsKey1 { get; set; }
                 public KeyType ResultsField1 { get; set; }
                 public KeyType ControlListOfTestBookFieldsKey { get; set; }
