@@ -13,16 +13,8 @@ using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-// *****************************************
-// DONE ещё же имя вызывающего метода получаем, его надо добавить в модель и ключ
-// DONE выводить в рамочку количество выполненных задач - для ручного контроля
-// выяснить кто создаёт ключи типа bookPlainTexts:bookSplitGuid:84865514-6dc9-4599-9a75-06373bc3d3fa и когда их можно удалить
-// DONE посмотреть счётчик многопоточности
-// DONE наверное, надо в стартовый метод передавать не номер сценария - он и так известен - а номер цепочки
-// DONE тогда получается каждый старт от события From имеет свой серийный номер
 // потом на диаграмме можно выстроить всю цепочку в линию, а по времени совместить с другими цепочками ниже
 // можно генерировать выходной отчёт в формате диаграммы - более реально - тайм-лайн для веба
-// *****************************************
 
 namespace BackgroundDispatcher.Services
 {
@@ -30,10 +22,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "");
-        
-        //public void SetIsTestInProgress(bool init_isTestInProgress);
-
+        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, string currentMethodName, CancellationToken stoppingToken);
         public int FetchAssignedSerialNum();
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
@@ -80,44 +69,7 @@ namespace BackgroundDispatcher.Services
         private Stopwatch _stopWatchTest;
         private Stopwatch _stopWatchWork;
 
-
         // Report of the test time imprint
-        // можно из очередного метода по ходу работы вызвать контрольный метод из тестов,
-        // он проверит тест сейчас или нет и, если надо, запишет имя вызвавшего метода в ключ результатов с полем имени метода
-        // а в конце текста проверять значение в определённом имени
-        // в качестве значения можно передавать что-то целое, что есть в текущем методе
-        // счётчик вызовов, например
-        // записывать в поле времени или в поле по порядку записывать сложный класс с местом и временем, а последний номер хранить в нулевом поле
-        // после теста посчитать все временные промежутки и сравнить с эталоном
-        // из каждого метода вызывать метод теста типа отчёт о ходе выполнения задачи, он проверит поле класса и если не тест, сразу же вернётся
-        // этому методу передавать название
-        // в классе тестов хранить поля -
-        // bool тест или нет (уже есть)
-        // int счётчик - номер поля (доступ к номеру через Interlocked)
-        // ещё нужен номер всего теста, но его можно хранить проще - где-то в ключе или классе теста, он будет нужен в конце, при записи в вечный лог
-        // при вызове метода AddStageToTestTaskProgressReport передать ему класс TextSentence или что будет доступно в этой точке
-        // внутри метода добавить текущее время (потом можно засечку секундомера)
-        // взять инкремент текущего номера и это будет имя поля в ключе отчёта
-        // дописать всё в класс текст и записать его в ключ
-        // по окончанию теста показать ход его выполнения с отклонениями от эталона
-        // и потом добавить в список и записать в вечный лог с нулевым номером (bookId)
-        // расписать ход выполнения по шагам
-        // порядок работы -
-        // в начале integration test start инициализовать счётчик шагов
-        // очистить ключ отчёта
-        // или лучше записать в него нулевое поле с начальным временем
-        // а, сначала одно, потом другое
-        // отделить время подготовки теста и время выполнения - виртуально, на два блока в отчёте
-        // отдельно - решить вопрос с первым элементом в списке для значения в вечном логе
-        // можно хранить там эталонный, но вряд ли он будет постоянный
-        // можно текущий признанный эталонным переписывать в нулевой элемент,
-        // сохраняя на прежнем месте (можно с указанием, откуда взят - Text Sentence большой, места для всего хватит)
-        // для переписывания можно запустить тест с нулевым сценарием - работа с утилитами или можно использовать специальный ключ настроек
-        // при работе с утилитами можно управлять с консоли или ключами, но ключи активировать опять нулевым сценарием
-        // вывести список существующих отчётов с кратким описанием и предложить выбрать эталонный
-        // скорее всего последний
-        // и ещё надо чистить список - скажем при превышении длины удалять первые или ещё как
-        // при проведении теста самом начале присваивать потоку уникальный номер - он же номер поля отчёта? похоже, нет
         // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
         // кроме первого раза, когда вернут уникальный номер
         // как его потом дальше передавать, надо изучить
@@ -133,13 +85,11 @@ namespace BackgroundDispatcher.Services
         // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
         // надо попробовать создать две шестёрки задач в два потока
 
-        // всё не так
-        // получается весь список - это один тест
-        // всё же нет - список тестов (каждый элемент - один проход) на поле номера сценария в ключе вечного лога
+        // список тестов (каждый элемент - один проход) на поле номера сценария в ключе вечного лога
         // много одинаковых проходов хранить нет смысла -
         // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
         // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
-        // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
+        // также этот метод устанавливает текущую версию теста в поле класса
         private async Task<List<TestReport>> CreateAssignedSerialNum(int testScenario, string eternalTestTimingStagesReportsLog, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
@@ -273,13 +223,13 @@ namespace BackgroundDispatcher.Services
         // этот метод вызывается только из рабочих методов других классов
         // этот метод получает имя рабочего метода currentMethodName, выполняющего тест в данный момент и что-то из описания его работы
         // 
-        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
+        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, string currentMethodName, CancellationToken stoppingToken)
         {
             if (_isTestInProgress)
             {
                 string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
                 double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
-                Logs.Here().Debug("AddStageToTestTaskProgressReport was called by {0}.", currentMethodName);
+                Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0}.", currentMethodName);
 
                 // определяем собственно номер шага текущего отчёта
                 int count = Interlocked.Increment(ref _stageReportFieldCounter);
@@ -308,13 +258,15 @@ namespace BackgroundDispatcher.Services
                     // имя вызвавшего метода, полученное в параметрах
                     MethodNameWhichCalled = currentMethodName,
                     // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
+                    WorkActionNum = workActionNum,
+                    // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
                     WorkActionName = workActionName,
                     // количество одновременных вызовов этого метода (AddStageToTestTaskProgressReport)
                     CallingNumOfAddStageToTestTaskProgressReport = lastCountStart
                 };
 
                 await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
-                Logs.Here().Information("testTimingReportStage time {0} was writen in field {1}.", testTimingReportStage.TsWork, count);
+                Logs.Here().Information("Method Name Which Called {0} was writen in field {1}.", testTimingReportStage.MethodNameWhichCalled, count);
 
                 int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
                 Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);

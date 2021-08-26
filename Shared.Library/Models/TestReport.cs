@@ -50,6 +50,10 @@ namespace Shared.Library.Models
             [JsonProperty(PropertyName = "methodNameWhichCalled")]
             public string MethodNameWhichCalled { get; set; }
 
+            // ключевое значение, которым делится вызвавший метод - что-то о его занятиях
+            [JsonProperty(PropertyName = "workActionNum")]
+            public int WorkActionNum { get; set; }
+            
             // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
             [JsonProperty(PropertyName = "workActionName")]
             public string WorkActionName { get; set; }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CachingFramework.Redis.Contracts;
@@ -118,21 +119,23 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
         }
 
-        // bool isTestNotInProgress = !_isTestInProgress;
-        // неудачная идея объединения в один метод, надо обратно разделить на настоящий и фальшивый
-        // и настоящий блокировать при старте теста
-        // где находится гуид запроса контроллера?
-        // надо его обрабатывать и давать контроллеру подтверждение получения задания
-
-        // -----------------------------------------------------------------------------------------------------------------------------------------
-        // при обработке плоского текста посчитать его хэш и сохранить в версии книги и потом проверять
-        // если это та же самая книга, можно не сохранять
-        // очень полезно в плане перемещения мозгов из фронта в бэк - определять версию на сервере и потом показывать пользователю для согласования
-        // -----------------------------------------------------------------------------------------------------------------------------------------
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum, string workActionName, [CallerMemberName] string currentMethodName = "")
+        {
+            bool isTestInProgress = _test.FetchIsTestInProgress();
+            // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
+            if (isTestInProgress)
+            {
+                int currentChainSerialNum = _test.FetchAssignedSerialNum();
+                _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, workActionNum, workActionName, currentMethodName, _cancellationToken);
+            }
+            return isTestInProgress;
+        }
 
         // подписка на ключ создания задачи (загрузки книги)
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
+            int currentChainSerialNum = 0;
+
             _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
                 // сразу после успешного старта тестов блокируется подписка на новые задачи
@@ -142,9 +145,9 @@ namespace BackgroundDispatcher.Services
                 //bool isTestStarted = _count.IsTestStarted();
                 if (cmd == eventCmd) // && !isTestStarted)
                 {
-                    int currentChainSerialNum = _test.FetchAssignedSerialNum();
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
-                    _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, eventKeyFrom, _cancellationToken);
+                    _ = AddStageToProgressReport(constantsSet, 0, eventKeyFrom);
+
                 }
             });
 

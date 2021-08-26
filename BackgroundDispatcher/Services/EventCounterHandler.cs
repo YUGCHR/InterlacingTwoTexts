@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CachingFramework.Redis.Contracts;
@@ -18,7 +19,7 @@ namespace BackgroundDispatcher.Services
     {
         public void EventCounterInit(ConstantsSet constantsSet);
         public Task<bool> IsCounterZeroReading(ConstantsSet constantsSet);
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentTestSerialNum, CancellationToken stoppingToken);
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, CancellationToken stoppingToken);
         public void Dispose();
     }
 
@@ -62,28 +63,7 @@ namespace BackgroundDispatcher.Services
             _timer = new Timer(DoWork, constantsSet, 0, Timeout.Infinite);
             _timerCanBeStarted = true;
         }
-
-        // bool isTestNotInProgress = !_isTestInProgress;
-        // план -
-        // 1 разделить подписки
-        // 2 добавить блокировку в настоящей подписке на время теста
-        // настоящий ключ с задачей(если был один) придётся выбросить, всё равно он один никуда не годный
-        // а если будет два, то по таймеру они выполнятся перед тестом
-        // 3 добавить ожидание тестом выполняемой задачи, но не более таймера + один цикл ожидания сверху
-        // потом что-то решать(пока пусть пользователь решает)
-        // потом можно выяснять состояние счётчика и если навсегда остался один, принудительно обнулить
-        // и не забыть сразу же очистить ключ постановки задач
-        // ситуация со счётчиком = 1
-        // если при проверке счётчика на ноль выяснится, что он больше нуля, но меньше порога срабатывания таймера
-        // (2 sec - кстати, посмотреть насчёт переименования)
-        // и продолжается это достаточно долго
-        // (время таймера слишком много, надо подумать, какое выбрать - может специально для этого завести константу)
-        // то счётчик надо сбросить, а тест разрешить
-        // но прямо там сбрасывать счётчик нехорошо - незащищённое место
-        // надо вернуться в запуск теста, заблокировать выполнение настоящих задач и только тогда сбросить счётчик
-        // и можно не разбираться, была там единица или нет, а сбрасывать всегда - тоже методом из соседнего класса для доступа к счётчику
-        // при дальнейшем углублении теста показывать этапы прохождения
-        
+                
         public async Task<bool> IsCounterZeroReading(ConstantsSet constantsSet)
         {
             // можно повиснуть в методе и ждать положительного ответа
@@ -150,18 +130,18 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        //public bool IsTestStarted()
-        //{
-        //    return _isTestStarted;
-        //}
-        
-        //public void TestIsFinished()
-        //{
-        //    _isTestStarted = false;
-        //}
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, [CallerMemberName] string currentMethodName = "")
+        {
+            bool isTestInProgress = _test.FetchIsTestInProgress();
+            if (isTestInProgress)
+            {
+                _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, workActionNum, workActionName, currentMethodName, _cancellationToken);
+            }
+            return isTestInProgress;
+        }
 
         // методы (таймер тоже) не асинхронные и их ждут - наверное, можно работать параллельно
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentTestSerialNum, CancellationToken stoppingToken)
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, CancellationToken stoppingToken)
         {
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
@@ -176,6 +156,7 @@ namespace BackgroundDispatcher.Services
             {
                 Logs.Here().Information("Event count {0} == {1} was discovered.", count, countTrackingStart);
                 _ = StartTimerOnce(constantsSet, _cancellationToken);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, "StartTimerOnce");
             }
 
             if (count > countDecisionMaking - 1)
@@ -187,6 +168,7 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
                 _ = HandlerMergeOfCalling(constantsSet);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, "HandlerMergeOfCalling");
 
                 Logs.Here().Information("EventCounter was elapsed.");
             }
