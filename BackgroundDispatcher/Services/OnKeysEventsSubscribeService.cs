@@ -105,11 +105,6 @@ namespace BackgroundDispatcher.Services
             // ключ блокировки повторного запуска теста до окончания уже запущенного
             _isTestInProgressAlready = false;
 
-            // надо сходить в тесты и инициализировать там местное поле _isTestInProgress
-            // потому что в методе TaskPackageFormationFromPlainText.HandlerCallingDistributore это поле проверяется, чтобы определить тест сейчас или реальная работа
-            // а если тесты ни разу не вызывались, это поле может быть не определено            
-            _test.SetIsTestInProgress(false);
-
             // подписка на ключ создания задачи (загрузки книги)
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
 

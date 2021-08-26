@@ -93,8 +93,10 @@ namespace Shared.Library.Models
                 public KeyType CurrentTestReportKey { get; set; }
                 public KeyType DepthValue2 { get; set; }
                 public KeyType EternalTestTimingStagesReportsLog { get; set; }
-                public KeyType ResultsKey1 { get; set; }
-                public KeyType ResultsField1 { get; set; }
+                public KeyType AssertProcessedBookAreEqualControl { get; set; }
+                public ConstantKeyType RemaindedFieldsCount { get; set; }
+                public ConstantKeyType ResultsField2 { get; set; }
+                public ConstantKeyType ResultsField3 { get; set; }
                 public KeyType ControlListOfTestBookFieldsKey { get; set; }
             }
         }
@@ -182,10 +184,21 @@ namespace Shared.Library.Models
 
     }
 
+    // объединить классы в один, сделав два поля - ValueInt и ValueString
+    // лучше сделать третий класс - ConstantKeyType - и на него постепенно перейти
+
     public class ConstantType
     {
         public string Description { get; set; }
         public int Value { get; set; }
+        public double LifeTime { get; set; }
+    }
+
+    public class ConstantKeyType
+    {
+        public string Description { get; set; }
+        public int ValueInt { get; set; }
+        public string ValueString { get; set; }
         public double LifeTime { get; set; }
     }
 
