@@ -68,7 +68,7 @@ namespace BackgroundDispatcher.Services
             (List<TextSentence> bookPlainTextsHash, int versionHash) = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
             Logs.Here().Information("Hash version {0} was returned.", versionHash);
 
-            // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся
+            // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся - ни в коем случае не null
             if (versionHash < 0)
             {
                 Logs.Here().Warning("This plain text already exists. {@B} / {@L}.", new { BookId = bookId }, new { LanguageId = languageId });
@@ -96,6 +96,7 @@ namespace BackgroundDispatcher.Services
                 bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
                 return bookPlainText;
             }
+
             return default;
         }
 

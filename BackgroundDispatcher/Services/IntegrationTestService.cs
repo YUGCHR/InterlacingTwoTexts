@@ -265,7 +265,7 @@ namespace BackgroundDispatcher.Services
 
             //TimeSpan tsControl = stopWatch.Elapsed;
             long stopwatchMeasuredTime = stopWatch.ElapsedMilliseconds; // double Elapsed.TotalMilliseconds
-            Logs.Here().Information("Stopwatch {0} {1}. It shows {2} msec.", stopWatchName, stopWatchState, stopwatchMeasuredTime);
+            Logs.Here().Debug("Stopwatch {0} {1}. It shows {2} msec.", stopWatchName, stopWatchState, stopwatchMeasuredTime);
 
             return stopwatchMeasuredTime;
         }
@@ -659,7 +659,6 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
 
                 // write test asserted results in the report key
-
                 foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
                 {
                     (string fP, TextSentence vP) = p;

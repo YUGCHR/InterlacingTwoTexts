@@ -201,7 +201,7 @@ namespace BackgroundDispatcher.Services
                 if (isFieldRemovedSuccessful)
                 {
                     fieldsKeyFromDataList.Add(f);
-                    // можно каждый раз проверять, что ключ одинаковый - если больше нечего делать
+                    // можно каждый раз проверять, что ключ одинаковый - если больше нечего делать (должен быть всегда одинаковый)
                     sourceKeyWithPlainTests = v;
                     Logs.Here().Debug("Future {@K} with {@F} with plain text.", new { Key = v }, new { Filed = f });
                 }

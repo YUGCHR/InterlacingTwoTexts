@@ -54,7 +54,7 @@ namespace BackgroundDispatcher.Services
         // здесь этот метод используется для записи хэшей в вечный лог -
         // при этом вычисляются номера версий загружаемых книг, что и нужно вызывающему методу
         public async Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
-        {            
+        {
             // план действий метода -
             // генерируем новый гуид - это будет ключ пакета задач
             // достаём по одному тексты и складываем в новый ключ
@@ -80,6 +80,13 @@ namespace BackgroundDispatcher.Services
                 TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);
                 Logs.Here().Information("Test plain text was read from key-storage");
 
+                // тут вроде бы можно удалить исходный ключ, который сейчас имя поля f
+                bool fWasDeleted = await _aux.RemoveWorkKeyOnStart(f);
+                if (fWasDeleted)
+                {
+                    Logs.Here().Information("{@B} was deleted successfully.", new { Key = f });
+                }
+
                 // вот тут самый подходящий момент посчитать хэш
                 // создать новую версию через хэш и записать её в плоский текст
                 // всё равно читаем его и заново пишем, момент просто создан для вмешательства
@@ -100,10 +107,11 @@ namespace BackgroundDispatcher.Services
                 // можно добавлять эти поля только если тестовая книга - чтобы зря не увеличивать объём
                 bookPlainText = await _eternal.AddVersionViaHashToPlainText(constantsSet, bookPlainText);
                 // может вернуться null, надо придумать, что с ним делать - это означает, что такой текст есть и работать с ним не надо
+                // вместо null вернётся пустой объект TextSentence, надо придумать, как его опознать
                 // не проверяется второй текст и, очевидно, всё следующие в пакете
                 // возвращать null не надо, просто не будем записывать - и создавать поле задачи в пакете задач
 
-                if (bookPlainText != null)
+                if (bookPlainText.BookId != 0)
                 {
                     Logs.Here().Information("Hash version was added to {@B}.", new { BookPlainTextGuid = bookPlainText.BookGuid });
 
