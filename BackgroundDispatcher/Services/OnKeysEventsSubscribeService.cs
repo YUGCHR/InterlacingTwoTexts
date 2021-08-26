@@ -147,9 +147,9 @@ namespace BackgroundDispatcher.Services
                 //bool isTestStarted = _count.IsTestStarted();
                 if (cmd == eventCmd) // && !isTestStarted)
                 {
-                    int currentTestSerialNum = _test.FetchAssignedSerialNum();
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentTestSerialNum, _cancellationToken);
-                    _ = _test.AddStageToTestTaskProgressReport(constantsSet, eventKeyFrom, _cancellationToken);
+                    int currentChainSerialNum = _test.FetchAssignedSerialNum();
+                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
+                    _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, eventKeyFrom, _cancellationToken);
                 }
             });
 

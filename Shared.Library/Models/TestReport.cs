@@ -26,21 +26,35 @@ namespace Shared.Library.Models
 
         public class TestReportStage
         {
-            [JsonProperty(PropertyName = "stageId")]
-            public int StageId { get; set; }
-
-            // по сути, такой же StageId
+            // StageId - номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
             [JsonProperty(PropertyName = "stageReportFieldCounter")]
             public int StageReportFieldCounter { get; set; }
 
+            // серийный номер единичной цепочки теста - обработка одной книги от события From до создания ключа кафе
+            [JsonProperty(PropertyName = "chainSerialNumber")]
+            public int ChainSerialNumber { get; set; }
+
+            // Current Test Serial Number for this Scenario - номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
             [JsonProperty(PropertyName = "theScenarioReportsCount")]
             public int TheScenarioReportsCount { get; set; } // -- ??
-            [JsonProperty(PropertyName = "ts")]
-            public long Ts { get; set; }
 
+            // отметка времени от старта рабочей цепочки
+            [JsonProperty(PropertyName = "tsWork")]
+            public long TsWork { get; set; }
+
+            // отметка времени от начала теста
+            [JsonProperty(PropertyName = "tsTest")]
+            public long TsTest { get; set; }
+
+            // имя вызвавшего метода NameOfTheCallingMethod
+            [JsonProperty(PropertyName = "methodNameWhichCalled")]
+            public string MethodNameWhichCalled { get; set; }
+
+            // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
             [JsonProperty(PropertyName = "workActionName")]
             public string WorkActionName { get; set; }
-            
+
+            // количество одновременных вызовов этого метода
             [JsonProperty(PropertyName = "callingNumOfAddStageToTestTaskProgressReport")]
             public int CallingNumOfAddStageToTestTaskProgressReport { get; set; }
         }

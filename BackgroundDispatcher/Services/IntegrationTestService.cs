@@ -60,7 +60,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "");
+        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "");
 
         // create key with field/value/lifetime one or many times (with possible delay after each key has been created)
         //public Task<bool> TestKeysCreationInQuantityWithDelay(int keysCount, int delayBetweenMsec, string key, string field, string value, double lifeTime);
@@ -180,6 +180,7 @@ namespace BackgroundDispatcher.Services
         private bool _isTestInProgress;
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
+        private int _currentChainSerialNum;
         private int _callingNumOfAddStageToTestTaskProgressReport;
         private Stopwatch _stopWatchTest;
         private Stopwatch _stopWatchWork;
@@ -286,11 +287,14 @@ namespace BackgroundDispatcher.Services
             return theScenarioReports;
         }
 
-        // этот метод возвращает текущую версию теста (из поля класса) - для маркировки теста рабочими методами
+        // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
+        // каждый вызов даёт новый серийный номер - больше на 1
         public int FetchAssignedSerialNum()
         {
-            Logs.Here().Information("The value of _currentTestSerialNum was requested = {0}.", _currentTestSerialNum);
-            return _currentTestSerialNum;
+            int chainSerialNum = Interlocked.Increment(ref _currentChainSerialNum);
+
+            Logs.Here().Information("The value of _currentTestSerialNum was requested = {0}.", chainSerialNum);
+            return chainSerialNum;
         }
 
         // этот метод возвращает состояние _isTestInProgress - для быстрого определения наличия теста рабочими методами
@@ -374,31 +378,48 @@ namespace BackgroundDispatcher.Services
         // этот метод вызывается только из рабочих методов других классов
         // этот метод получает имя рабочего метода currentMethodName, выполняющего тест в данный момент и что-то из описания его работы
         // 
-        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
+        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, string workActionName, CancellationToken stoppingToken, [CallerMemberName] string currentMethodName = "")
         {
             if (_isTestInProgress)
             {
                 string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
                 double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
-                                                                                                                                   // определяем собственно номер шага
+                Logs.Here().Debug("AddStageToTestTaskProgressReport was called by {0}.", currentMethodName);
+
+                // определяем собственно номер шага текущего отчёта
                 int count = Interlocked.Increment(ref _stageReportFieldCounter);
+
                 // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
                 int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
                 Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
+
                 long tsWork = StopwatchesControlAndRead(_stopWatchWork, true, nameof(_stopWatchWork));
+                long tsTest = StopwatchesControlAndRead(_stopWatchTest, true, nameof(_stopWatchTest));
+
+                // ещё можно получать и записывать номер потока, в котором выполняется этот метод
 
                 TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
                 {
-                    StageId = count,
+                    // номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
                     StageReportFieldCounter = count,
+                    // серийный номер единичной цепочки теста - обработка одной книги от события Fro
+                    ChainSerialNumber = currentChainSerialNum,
+                    // номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
                     TheScenarioReportsCount = _currentTestSerialNum,
-                    Ts = tsWork,
+                    // отметка времени от старта рабочей цепочки
+                    TsWork = tsWork,
+                    // отметка времени от начала теста
+                    TsTest = tsTest,
+                    // имя вызвавшего метода, полученное в параметрах
+                    MethodNameWhichCalled = currentMethodName,
+                    // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
                     WorkActionName = workActionName,
+                    // количество одновременных вызовов этого метода (AddStageToTestTaskProgressReport)
                     CallingNumOfAddStageToTestTaskProgressReport = lastCountStart
                 };
 
                 await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
-                Logs.Here().Information("testTimingReportStage time {0} was writen in field {1}.", testTimingReportStage.Ts, count);
+                Logs.Here().Information("testTimingReportStage time {0} was writen in field {1}.", testTimingReportStage.TsWork, count);
 
                 int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
                 Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
@@ -407,6 +428,21 @@ namespace BackgroundDispatcher.Services
             }
             return false;
         }
+
+
+
+        // *****************************************
+        // ещё же имя вызывающего метода получаем, его надо добавить в модель и ключ
+        // выводить в рамочку количество выполненных задач - для ручного контроля
+        // выяснить кто создаёт ключи типа bookPlainTexts:bookSplitGuid:84865514-6dc9-4599-9a75-06373bc3d3fa и когда их можно удалить
+        // посмотреть счётчик многопоточности
+        // наверное, надо в стартовый метод передавать не номер сценария - он и так известен - а номер цепочки
+        // тогда получается каждый старт от события From имеет свой серийный номер
+        // потом на диаграмме можно выстроить всю цепочку в линию, а по времени совместить с другими цепочками ниже
+        // можно генерировать выходной отчёт в формате диаграммы - более реально - тайм-лайн для веба
+        // *****************************************
+
+
 
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
@@ -422,6 +458,7 @@ namespace BackgroundDispatcher.Services
 
             _isTestInProgress = true;
             _stageReportFieldCounter = 0;
+            _currentChainSerialNum = 0;
             _callingNumOfAddStageToTestTaskProgressReport = 0;
 
             // назначить версию 1 по умолчанию
@@ -562,6 +599,14 @@ namespace BackgroundDispatcher.Services
             long tsTest99 = StopwatchesControlAndRead(_stopWatchTest, false, nameof(_stopWatchTest));
             Logs.Here().Information("Integration test finished. Stopwatch has been stopped and it is showing {0}", tsTest99);
             _ = StopwatchesControlAndRead(_stopWatchTest, false, nameof(_stopWatchTest));
+
+            // сбрасывать особого смысла нет, всё равно они обнуляются в начале теста
+
+            // сбросить счётчик текущего номера тестовой цепочки 
+            int countChain = Interlocked.Exchange(ref _currentChainSerialNum, 0);
+
+            // сбросить счётчик текущего шага тестового отчёта по таймингу
+            int countField = Interlocked.Exchange(ref _stageReportFieldCounter, 0);
 
             return _isTestInProgress;
         }
