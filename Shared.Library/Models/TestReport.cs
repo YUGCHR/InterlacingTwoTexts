@@ -53,14 +53,26 @@ namespace Shared.Library.Models
             // ключевое значение, которым делится вызвавший метод - что-то о его занятиях
             [JsonProperty(PropertyName = "workActionNum")]
             public int WorkActionNum { get; set; }
-            
-            // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
+
+            // ключевое значение bool
+            [JsonProperty(PropertyName = "workActionVal")]
+            public bool WorkActionVal { get; set; }
+
+            // название ключевого значения метода
             [JsonProperty(PropertyName = "workActionName")]
             public string WorkActionName { get; set; }
 
+            // описание действий метода или текущей ситуации
+            [JsonProperty(PropertyName = "workActionDescription")]
+            public string WorkActionDescription { get; set; }
+
             // количество одновременных вызовов этого метода
-            [JsonProperty(PropertyName = "callingNumOfAddStageToTestTaskProgressReport")]
-            public int CallingNumOfAddStageToTestTaskProgressReport { get; set; }
+            [JsonProperty(PropertyName = "callingCountOfWorkMethod")]
+            public int CallingCountOfWorkMethod { get; set; }
+
+            // количество одновременных вызовов этого метода
+            [JsonProperty(PropertyName = "callingCountOfThisMethod")]
+            public int CallingCountOfThisMethod { get; set; }
         }
     }
 }

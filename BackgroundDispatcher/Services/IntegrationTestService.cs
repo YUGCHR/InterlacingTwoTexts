@@ -22,7 +22,7 @@ namespace BackgroundDispatcher.Services
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, string currentMethodName, CancellationToken stoppingToken);
+        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         public int FetchAssignedSerialNum();
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
@@ -30,6 +30,7 @@ namespace BackgroundDispatcher.Services
 
     public class IntegrationTestService : IIntegrationTestService
     {
+        private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IConvertArrayToKeyWithIndexFields _convert;
         private readonly ITestScenarioService _scenario;
@@ -40,15 +41,17 @@ namespace BackgroundDispatcher.Services
         private readonly ITestTasksPreparationService _prepare;
 
         public IntegrationTestService(
-         IAuxiliaryUtilsService aux,
-         IConvertArrayToKeyWithIndexFields convert,
-         ITestScenarioService scenario,
-         ITestRawBookTextsStorageService store,
-         ICollectTasksInPackageService collect,
-         IEternalLogSupportService eternal,
-         ICacheManagerService cache,
-         ITestTasksPreparationService prepare)
+            IHostApplicationLifetime applicationLifetime,
+            IAuxiliaryUtilsService aux,
+            IConvertArrayToKeyWithIndexFields convert,
+            ITestScenarioService scenario,
+            ITestRawBookTextsStorageService store,
+            ICollectTasksInPackageService collect,
+            IEternalLogSupportService eternal,
+            ICacheManagerService cache,
+            ITestTasksPreparationService prepare)
         {
+            _cancellationToken = applicationLifetime.ApplicationStopping;
             _aux = aux;
             _convert = convert;
             _scenario = scenario;
@@ -221,15 +224,21 @@ namespace BackgroundDispatcher.Services
         }
 
         // этот метод вызывается только из рабочих методов других классов
-        // этот метод получает имя рабочего метода currentMethodName, выполняющего тест в данный момент и что-то из описания его работы
-        // 
-        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, string currentMethodName, CancellationToken stoppingToken)
+        // он получает имя рабочего метода currentMethodName, выполняющего тест в данный момент, номер тестовой цепочки и остальное в TestReport.TestReportStage testTimingReportStage
+        // ещё он собирает собственный счётчик вызовов, определяет номер шага отчёта и делает засечки с двух таймеров
+        public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage)
         {
+            // надо добавить ещё одну строковую переменную - описание ситуации вокруг
+            // будет значение переменной, описание переменной и описание ситуации
+            // и ещё добавить bool переменную, чтобы не конвертировать?
+
+            // попробовать разные варианты размещения проверки тест сейчас или нет -
+            // в рабочих методах возможны два варианта (тут вряд ли есть смысл проверять)
             if (_isTestInProgress)
             {
                 string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
                 double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
-                Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0}.", currentMethodName);
+                Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0}.", sendingTestTimingReportStage.MethodNameWhichCalled);
 
                 // определяем собственно номер шага текущего отчёта
                 int count = Interlocked.Increment(ref _stageReportFieldCounter);
@@ -242,13 +251,12 @@ namespace BackgroundDispatcher.Services
                 long tsTest = StopwatchesControlAndRead(_stopWatchTest, true, nameof(_stopWatchTest));
 
                 // ещё можно получать и записывать номер потока, в котором выполняется этот метод
-
                 TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
                 {
                     // номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
                     StageReportFieldCounter = count,
                     // серийный номер единичной цепочки теста - обработка одной книги от события Fro
-                    ChainSerialNumber = currentChainSerialNum,
+                    ChainSerialNumber = sendingTestTimingReportStage.ChainSerialNumber,
                     // номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
                     TheScenarioReportsCount = _currentTestSerialNum,
                     // отметка времени от старта рабочей цепочки
@@ -256,13 +264,19 @@ namespace BackgroundDispatcher.Services
                     // отметка времени от начала теста
                     TsTest = tsTest,
                     // имя вызвавшего метода, полученное в параметрах
-                    MethodNameWhichCalled = currentMethodName,
+                    MethodNameWhichCalled = sendingTestTimingReportStage.MethodNameWhichCalled,
                     // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
-                    WorkActionNum = workActionNum,
-                    // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
-                    WorkActionName = workActionName,
+                    WorkActionNum = sendingTestTimingReportStage.WorkActionNum,
+                    // ключевое значение bool
+                    WorkActionVal = sendingTestTimingReportStage.WorkActionVal,
+                    // название ключевого значения метода
+                    WorkActionName = sendingTestTimingReportStage.WorkActionName,
+                    // описание действий метода или текущей ситуации
+                    WorkActionDescription = sendingTestTimingReportStage.WorkActionDescription,
+                    // количество одновременных вызовов принимаемого рабочего метода
+                    CallingCountOfWorkMethod = sendingTestTimingReportStage.CallingCountOfWorkMethod,
                     // количество одновременных вызовов этого метода (AddStageToTestTaskProgressReport)
-                    CallingNumOfAddStageToTestTaskProgressReport = lastCountStart
+                    CallingCountOfThisMethod = lastCountStart
                 };
 
                 await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
@@ -283,6 +297,7 @@ namespace BackgroundDispatcher.Services
         // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
+            // var sw = Stopwatch.StartNew();
             _stopWatchTest = new Stopwatch();
             _stopWatchWork = new Stopwatch();
             long tsTest01 = StopwatchesControlAndRead(_stopWatchTest, true, nameof(_stopWatchTest));

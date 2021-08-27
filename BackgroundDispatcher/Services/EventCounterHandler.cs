@@ -49,6 +49,8 @@ namespace BackgroundDispatcher.Services
         private bool _timerCanBeStarted;
         private bool _handlerCallingsMergeCanBeCalled;
         private int _callingNumOfEventFrom;
+        private int _currentChainSerialNum;
+
         private bool _isTestStarted; // can be removed
 
         public void EventCounterInit(ConstantsSet constantsSet)
@@ -59,11 +61,14 @@ namespace BackgroundDispatcher.Services
             // ключ блокировки запуска реальной задачи после запуска теста (maybe it is needed to rename to _realTaskCanBeProcessed)
             _isTestStarted = false;
 
+            _currentChainSerialNum = 0;
+
             // инициализация таймера (DoWork не сработает с нулевым счетчиком)
+            //object state = (constantsSet, "the second parameter can be placed here");
             _timer = new Timer(DoWork, constantsSet, 0, Timeout.Infinite);
             _timerCanBeStarted = true;
         }
-                
+
         public async Task<bool> IsCounterZeroReading(ConstantsSet constantsSet)
         {
             // можно повиснуть в методе и ждать положительного ответа
@@ -130,12 +135,23 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum, string workActionName, [CallerMemberName] string currentMethodName = "")
+        // 
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             if (isTestInProgress)
             {
-                _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, workActionNum, workActionName, currentMethodName, _cancellationToken);
+                TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
+                {
+                    ChainSerialNumber = _currentChainSerialNum,
+                    MethodNameWhichCalled = currentMethodName,
+                    WorkActionNum = workActionNum,
+                    WorkActionVal = workActionVal,
+                    WorkActionName = workActionName,
+                    WorkActionDescription = workActionDescription,
+                    CallingCountOfWorkMethod = callingCountOfTheMethod
+                };
+                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
             }
             return isTestInProgress;
         }
@@ -143,32 +159,36 @@ namespace BackgroundDispatcher.Services
         // методы (таймер тоже) не асинхронные и их ждут - наверное, можно работать параллельно
         public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, CancellationToken stoppingToken)
         {
+            int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
+            int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
+
+            _currentChainSerialNum = currentChainSerialNum;
+
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
             Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.", eventKey, _callingNumOfEventFrom, count);
 
-            // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
+            _ = AddStageToProgressReport(constantsSet, count, false, "count was Incremented", "", -1);
 
-            int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
-            int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
+            // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
             if (_timerCanBeStarted && count > countTrackingStart - 1)
             {
                 Logs.Here().Information("Event count {0} == {1} was discovered.", count, countTrackingStart);
                 _ = StartTimerOnce(constantsSet, _cancellationToken);
-                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, "StartTimerOnce");
+                _ = AddStageToProgressReport(constantsSet, count, _timerCanBeStarted, "StartTimerOnce calling has passed", "in if _timer && count = 2", -1);
             }
 
             if (count > countDecisionMaking - 1)
             {
                 Logs.Here().Information("Event count {0} == {1} was discovered.", count, countDecisionMaking);
-
+                int countForHandlerMergeOfCalling = count;
                 // сразу же сбросить счётчик событий                
                 count = Interlocked.Exchange(ref _callingNumOfEventFrom, 0);
                 Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
                 _ = HandlerMergeOfCalling(constantsSet);
-                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, "HandlerMergeOfCalling");
+                _ = AddStageToProgressReport(constantsSet, countForHandlerMergeOfCalling, false, "HandlerMergeOfCalling calling has passed", "in if count = 6", -1);
 
                 Logs.Here().Information("EventCounter was elapsed.");
             }
@@ -182,53 +202,36 @@ namespace BackgroundDispatcher.Services
             // слияние вызовов обработчика из таймера и из счётчика
             Logs.Here().Information("HandlerMergeOfCalling was started.");
 
+
             // остановить и сбросить таймер (не очищать?)
             Logs.Here().Information("Timer will be stopped.");
             _ = StopTimer(_cancellationToken);
-
-            // true - to call temp test
-            // создание третьей задачи, когда две только уехали на обработку по таймеру - как поведёт себя вызов теста в этот момент
-            // рассмотреть два варианта - вызов теста до появления третьей задачи и после
-            // по идее в первом варианте третья задача должна остаться проигнорироаанной
-            // а во втором - тест должен отложиться на 10 секунд и потом задача должна удалиться
-            //bool tempTestOf3rdTaskAdded = false;
-
-            // tartTask3beforeTest = true - тест должен отложиться на 10 секунд и потом одиночная задача должна удалиться
-            // tartTask3beforeTest = false - третья задача должна остаться проигнорироаанной, а тест выполниться сразу же, без ожидания 10 сек
-
-            //if (tempTestOf3rdTaskAdded)
-            //{
-            //    bool startTask3beforeTest = false;
-            //    bool checkValue = await _test.TempTestOf3rdTaskAdded(constantsSet, tempTestOf3rdTaskAdded, startTask3beforeTest);
-            //    Logs.Here().Information("to read value for awaiting when keys will be written - checkValue = {0})", checkValue);
-            //}
 
             // предусмотреть блокировку повторного вызова метода слияния (не повторного, а сдвоенного - от счетчика и таймера одновременно)
             while (!_handlerCallingsMergeCanBeCalled)
             {
                 Logs.Here().Warning("   ********** HandlerCallingsMerge double call was detected! ********** ");
+                _ = AddStageToProgressReport(constantsSet, -1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "in the while - HandlerCallingsMerge double call was detected!", -1);
+
                 await Task.Delay(100);
             }
-            
-            _handlerCallingsMergeCanBeCalled = false;
 
-            // вот здесь подходящий момент, когда не надо спешить и можно определить, что сейчас - тест или работа
-            // если будет следующий вызов, то он повисит в ожидании
-            // вот только его поля уже будет доступны...
-            // но если тест, то поле все равно будет только одно - оно перезапишется
-            // а если будет хоть одно рабочее поле, то тест отменится, даже если он был запущен раньше
-            // всё поменялось, тест при запуске ставит флаг _isTestInProgress в true и остальные разбегаются в стороны
+            _handlerCallingsMergeCanBeCalled = false;
 
             // тут можно возвращать true из обработчика - с await, это будет означать, что он освободился и готов принять событие во второй поток
             // _isTestInProgress убрали из вызова, фронт класс узнает его самостоятельно
-            _handlerCallingsMergeCanBeCalled = _front.HandlerCallingsDistributor(constantsSet, _cancellationToken);
+            _handlerCallingsMergeCanBeCalled = _front.HandlerCallingsDistributor(constantsSet, _currentChainSerialNum, _cancellationToken);
+            _ = AddStageToProgressReport(constantsSet, -1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "HandlerCallingsDistributor calling has passed", -1);
+
             Logs.Here().Information("HandlerCallingDistributore returned calling unblock. {@F}", new { Flag = _handlerCallingsMergeCanBeCalled });
         }
 
         private Task StartTimerOnce(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
+
             if (_timerCanBeStarted)
             {
+                _ = AddStageToProgressReport(constantsSet, -1, _timerCanBeStarted, "_timerCanBeStarted", "in if _timerCanBeStarted");
                 _timerCanBeStarted = false;
                 int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;
                 Logs.Here().Information("Timer will be started for {0} msec.", timerIntervalInMilliseconds);
@@ -250,6 +253,8 @@ namespace BackgroundDispatcher.Services
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             var count = Volatile.Read(ref _callingNumOfEventFrom);
 
+            _ = AddStageToProgressReport(constantsSet, count, false, "count", "Timer starts DoWork", -1);
+
             // проверка для пропуска инициализации таймера
             if (count < countTrackingStart)
             {
@@ -265,7 +270,9 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
             _ = HandlerMergeOfCalling(constantsSet);
-            Logs.Here().Information("HandlerMergeOfCalling was called.");
+            _ = AddStageToProgressReport(constantsSet, count, false, "count has been reset", "HandlerMergeOfCalling calling has passed", -1);
+
+            Logs.Here().Information("HandlerMergeOfCalling calling has passed.");
         }
 
         private Task StopTimer(CancellationToken stoppingToken)

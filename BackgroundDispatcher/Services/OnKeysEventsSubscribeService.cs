@@ -119,14 +119,26 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
         }
 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum, string workActionName, [CallerMemberName] string currentMethodName = "")
+        // 
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
             if (isTestInProgress)
             {
                 int currentChainSerialNum = _test.FetchAssignedSerialNum();
-                _ = _test.AddStageToTestTaskProgressReport(constantsSet, currentChainSerialNum, workActionNum, workActionName, currentMethodName, _cancellationToken);
+                // ещё можно получать и записывать номер потока, в котором выполняется этот метод
+                TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
+                {
+                    ChainSerialNumber = currentChainSerialNum,
+                    MethodNameWhichCalled = currentMethodName,
+                    WorkActionNum = workActionNum,
+                    WorkActionVal = workActionVal,
+                    WorkActionName = workActionName,
+                    WorkActionDescription = workActionDescription,
+                    CallingCountOfWorkMethod = callingCountOfTheMethod
+                };
+                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
             }
             return isTestInProgress;
         }
@@ -146,7 +158,7 @@ namespace BackgroundDispatcher.Services
                 if (cmd == eventCmd) // && !isTestStarted)
                 {
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
-                    _ = AddStageToProgressReport(constantsSet, 0, eventKeyFrom);
+                    _ = AddStageToProgressReport(constantsSet, -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
 
                 }
             });

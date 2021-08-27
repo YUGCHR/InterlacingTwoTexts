@@ -49,7 +49,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface IFormTaskPackageFromPlainText
     {
-        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken);
     }
 
     public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
@@ -75,24 +75,42 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<FormTaskPackageFromPlainText>();
 
         private int _callingNumOfHandlerCallingsDistributor;
+        private int _currentChainSerialNum;
 
-        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        // 
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
+            bool isTestInProgress = _test.FetchIsTestInProgress();
+            if (isTestInProgress)
+            {
+                TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
+                {
+                    ChainSerialNumber = _currentChainSerialNum,
+                    MethodNameWhichCalled = currentMethodName,
+                    WorkActionNum = workActionNum,
+                    WorkActionVal = workActionVal,
+                    WorkActionName = workActionName,
+                    WorkActionDescription = workActionDescription,
+                    CallingCountOfWorkMethod = callingCountOfTheMethod
+                };
+                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+            }
+            return isTestInProgress;
+        }
+
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
+        {
+            _currentChainSerialNum = currentChainSerialNum;
+
             // добавить счётчик потоков и проверить при большом количестве вызовов
             // (это надо быстро (без задержек) сформировать две группы по 6 книг всего 6 пар)
             int lastCountStart = Interlocked.Increment(ref _callingNumOfHandlerCallingsDistributor);
             Logs.Here().Information("HandlerCallingsDistributor started {0} time.", lastCountStart);
 
-            // убрать отсюда тестовую часть - тут сильно спешим и тут нечего делать с тестами, всё перенести в HandlerCallings
-
-            // тут еще можно определить, надо ли обновить константы
-            // хотя константы лучше проверять дальше
-            // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
-            // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
-
             //int count = Volatile.Read(ref _callingNumOfHandlerCallingsDistributor);
 
             _ = HandlerCallings(constantsSet, stoppingToken);
+            _ = AddStageToProgressReport(constantsSet, -1, false, "", "HandlerCallings calling has passed", lastCountStart);
 
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfHandlerCallingsDistributor);
             Logs.Here().Information("HandlerCallingsDistributor ended {0} time.", lastCountEnd);
@@ -134,14 +152,16 @@ namespace BackgroundDispatcher.Services
             // вообще-то это всё - разместить пакет задач для бэк-сервера и дальше только контролировать выполнение
 
             // получить в строку название метода, чтобы сообщить тесту
-            string currentMethodName = FetchCurrentMethodName();
-            Logs.Here().Information("{0} started.", currentMethodName);
+            //string currentMethodName = FetchCurrentMethodName();
+            //Logs.Here().Information("{0} started.", currentMethodName);
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
             (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
+            _ = AddStageToProgressReport(constantsSet, -1, false, sourceKeyWithPlainTexts, "ProcessDataOfSubscribeOnFrom returned sourceKeyWithPlainTexts", -1);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
+            _ = AddStageToProgressReport(constantsSet, -1, false, taskPackageGuid, "CreateTaskPackageAndSaveLog returned taskPackageGuid", -1);
 
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != "")
@@ -155,11 +175,12 @@ namespace BackgroundDispatcher.Services
 
                 // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
                 bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
+                _ = AddStageToProgressReport(constantsSet, -1, isCafeKeyCreated, "isCafeKeyCreated", "DistributeTaskPackageInCafee has passed", -1);
 
-                if (isCafeKeyCreated) // && test is processing now
-                {
-                    // вызвать метод теста для сообщения об окончании выполнения
-                }
+                //if (isCafeKeyCreated) // && test is processing now
+                //{
+                //    // вызвать метод теста для сообщения об окончании выполнения
+                //}
             }
             // никакого возврата никто не ждёт, но на всякий случай вернём ?
             return 0;
