@@ -93,13 +93,14 @@ namespace BackgroundDispatcher
                 // const LogEventLevel loggerLevel = LogEventLevel.Debug;
                 // https://stackoverflow.com/questions/25477415/how-can-i-reconfigure-serilog-without-restarting-the-application
                 // https://stackoverflow.com/questions/51389550/serilog-json-config-logginglevelswitch-access
-                const LogEventLevel loggerLevel = LogEventLevel.Information;
+                const LogEventLevel consoleLoggerLevel = LogEventLevel.Information;
+                const LogEventLevel fileLoggerLevel = LogEventLevel.Information;
                 Log.Logger = new LoggerConfiguration()
                     .Enrich.With(new ThreadIdEnricher())
                     .Enrich.FromLogContext()
                     .MinimumLevel.Verbose()
-                    .WriteTo.Console(restrictedToMinimumLevel: loggerLevel, outputTemplate: outputTemplate, theme: AnsiConsoleTheme.Literate) //.Verbose .Debug .Information .Warning .Error .Fatal
-                    .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
+                    .WriteTo.Console(restrictedToMinimumLevel: consoleLoggerLevel, outputTemplate: outputTemplate, theme: AnsiConsoleTheme.Literate) //.Verbose .Debug .Information .Warning .Error .Fatal
+                    .WriteTo.File("logs/BackgroundTasksQueue{Date}.txt", restrictedToMinimumLevel: fileLoggerLevel, rollingInterval: RollingInterval.Day, outputTemplate: outputTemplate)
                     .CreateLogger();
 
                 Logs.Here().Information("The global logger Serilog has been configured.\n");
@@ -137,6 +138,7 @@ namespace BackgroundDispatcher
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestScenarioService, TestScenarioService>();
                     services.AddScoped<ITestOfComplexIntegrityMainServicee, TestOfComplexIntegrityMainService>();
+                    services.AddScoped<ITestReportIsFilledOutWithTimeImprints, TestReportIsFilledOutWithTimeImprints>();
                     services.AddScoped<ITestRawBookTextsStorageService, TestRawBookTextsStorageService>();
                     services.AddScoped<IEternalLogSupportService, EternalLogSupportService>();
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();

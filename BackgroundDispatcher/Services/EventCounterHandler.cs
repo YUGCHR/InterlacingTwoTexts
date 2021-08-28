@@ -28,18 +28,21 @@ namespace BackgroundDispatcher.Services
         private readonly CancellationToken _cancellationToken;
         private readonly ICacheManagerService _cache; // TO REMOVE
         private readonly ITestOfComplexIntegrityMainServicee _test;
+        private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly IFormTaskPackageFromPlainText _front;
 
         public EventCounterHandler(
             IHostApplicationLifetime applicationLifetime,
             ICacheManagerService cache,
             ITestOfComplexIntegrityMainServicee test,
+            ITestReportIsFilledOutWithTimeImprints report,
             IFormTaskPackageFromPlainText front
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _cache = cache;
             _test = test;
+            _report = report;
             _front = front;
         }
 
@@ -136,14 +139,14 @@ namespace BackgroundDispatcher.Services
         }
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             if (isTestInProgress)
             {
                 TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
                 {
-                    ChainSerialNumber = _currentChainSerialNum,
+                    ChainSerialNumber = currentChainSerialNum,
                     MethodNameWhichCalled = currentMethodName,
                     WorkActionNum = workActionNum,
                     WorkActionVal = workActionVal,
@@ -151,7 +154,7 @@ namespace BackgroundDispatcher.Services
                     WorkActionDescription = workActionDescription,
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
-                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+                _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
             }
             return isTestInProgress;
         }
@@ -162,21 +165,22 @@ namespace BackgroundDispatcher.Services
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
 
+            // тут будет проблема с множественным присвоением
             _currentChainSerialNum = currentChainSerialNum;
 
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
             Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.", eventKey, _callingNumOfEventFrom, count);
 
-            _ = AddStageToProgressReport(constantsSet, count, false, "count was Incremented", "", -1);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, false, "count was Incremented", "", -1);
 
             // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
             if (_timerCanBeStarted && count > countTrackingStart - 1)
             {
                 Logs.Here().Information("Event count {0} == {1} was discovered.", count, countTrackingStart);
-                _ = StartTimerOnce(constantsSet, _cancellationToken);
-                _ = AddStageToProgressReport(constantsSet, count, _timerCanBeStarted, "StartTimerOnce calling has passed", "in if _timer && count = 2", -1);
+                _ = StartTimerOnce(constantsSet, currentChainSerialNum);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, count, _timerCanBeStarted, "StartTimerOnce calling has passed", "in if _timer && count = 2", -1);
             }
 
             if (count > countDecisionMaking - 1)
@@ -187,8 +191,8 @@ namespace BackgroundDispatcher.Services
                 count = Interlocked.Exchange(ref _callingNumOfEventFrom, 0);
                 Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
-                _ = HandlerMergeOfCalling(constantsSet);
-                _ = AddStageToProgressReport(constantsSet, countForHandlerMergeOfCalling, false, "HandlerMergeOfCalling calling has passed", "in if count = 6", -1);
+                _ = HandlerMergeOfCalling(constantsSet, currentChainSerialNum);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, countForHandlerMergeOfCalling, false, "HandlerMergeOfCalling calling has passed", "in if count = 6", -1);
 
                 Logs.Here().Information("EventCounter was elapsed.");
             }
@@ -197,7 +201,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // обработчик слияния вызовов по счётчику и таймеру - может, CounterAndTimerCallMergeHandler - ?
-        private async Task HandlerMergeOfCalling(ConstantsSet constantsSet)
+        private async Task HandlerMergeOfCalling(ConstantsSet constantsSet, int currentChainSerialNum)
         {
             // слияние вызовов обработчика из таймера и из счётчика
             Logs.Here().Information("HandlerMergeOfCalling was started.");
@@ -211,7 +215,7 @@ namespace BackgroundDispatcher.Services
             while (!_handlerCallingsMergeCanBeCalled)
             {
                 Logs.Here().Warning("   ********** HandlerCallingsMerge double call was detected! ********** ");
-                _ = AddStageToProgressReport(constantsSet, -1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "in the while - HandlerCallingsMerge double call was detected!", -1);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "in the while - HandlerCallingsMerge double call was detected!", -1);
 
                 await Task.Delay(100);
             }
@@ -221,17 +225,17 @@ namespace BackgroundDispatcher.Services
             // тут можно возвращать true из обработчика - с await, это будет означать, что он освободился и готов принять событие во второй поток
             // _isTestInProgress убрали из вызова, фронт класс узнает его самостоятельно
             _handlerCallingsMergeCanBeCalled = _front.HandlerCallingsDistributor(constantsSet, _currentChainSerialNum, _cancellationToken);
-            _ = AddStageToProgressReport(constantsSet, -1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "HandlerCallingsDistributor calling has passed", -1);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, _handlerCallingsMergeCanBeCalled, "_handlerCallingsMergeCanBeCalled", "HandlerCallingsDistributor calling has passed", -1);
 
             Logs.Here().Information("HandlerCallingDistributore returned calling unblock. {@F}", new { Flag = _handlerCallingsMergeCanBeCalled });
         }
 
-        private Task StartTimerOnce(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private Task StartTimerOnce(ConstantsSet constantsSet, int currentChainSerialNum)
         {
 
             if (_timerCanBeStarted)
             {
-                _ = AddStageToProgressReport(constantsSet, -1, _timerCanBeStarted, "_timerCanBeStarted", "in if _timerCanBeStarted");
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, _timerCanBeStarted, "_timerCanBeStarted", "in if _timerCanBeStarted");
                 _timerCanBeStarted = false;
                 int timerIntervalInMilliseconds = constantsSet.TimerIntervalInMilliseconds.Value;
                 Logs.Here().Information("Timer will be started for {0} msec.", timerIntervalInMilliseconds);
@@ -253,7 +257,7 @@ namespace BackgroundDispatcher.Services
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             var count = Volatile.Read(ref _callingNumOfEventFrom);
 
-            _ = AddStageToProgressReport(constantsSet, count, false, "count", "Timer starts DoWork", -1);
+            _ = AddStageToProgressReport(constantsSet, _currentChainSerialNum, count, false, "count", "Timer starts DoWork", -1);
 
             // проверка для пропуска инициализации таймера
             if (count < countTrackingStart)
@@ -269,8 +273,8 @@ namespace BackgroundDispatcher.Services
             count = Interlocked.Exchange(ref _callingNumOfEventFrom, 0);
             Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
-            _ = HandlerMergeOfCalling(constantsSet);
-            _ = AddStageToProgressReport(constantsSet, count, false, "count has been reset", "HandlerMergeOfCalling calling has passed", -1);
+            _ = HandlerMergeOfCalling(constantsSet, _currentChainSerialNum);
+            _ = AddStageToProgressReport(constantsSet, _currentChainSerialNum, count, false, "count has been reset", "HandlerMergeOfCalling calling has passed", -1);
 
             Logs.Here().Information("HandlerMergeOfCalling calling has passed.");
         }

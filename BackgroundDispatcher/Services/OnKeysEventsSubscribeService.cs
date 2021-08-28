@@ -68,18 +68,21 @@ namespace BackgroundDispatcher.Services
         private readonly CancellationToken _cancellationToken;
         private readonly IKeyEventsProvider _keyEvents;
         private readonly ITestOfComplexIntegrityMainServicee _test;
+        private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly IEventCounterHandler _count;
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
             IKeyEventsProvider keyEvents,
             ITestOfComplexIntegrityMainServicee test,
+            ITestReportIsFilledOutWithTimeImprints report,
             IEventCounterHandler count
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _keyEvents = keyEvents;
             _test = test;
+            _report = report;
             _count = count;
         }
 
@@ -120,13 +123,12 @@ namespace BackgroundDispatcher.Services
         }
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
             if (isTestInProgress)
             {
-                int currentChainSerialNum = _test.FetchAssignedSerialNum();
                 // ещё можно получать и записывать номер потока, в котором выполняется этот метод
                 TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
                 {
@@ -138,7 +140,8 @@ namespace BackgroundDispatcher.Services
                     WorkActionDescription = workActionDescription,
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
-                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+                _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+                Logs.Here().Debug("AddStageToTestTaskProgressReport calling has passed, currentChainSerialNum = {0}.", currentChainSerialNum);
             }
             return isTestInProgress;
         }
@@ -146,23 +149,20 @@ namespace BackgroundDispatcher.Services
         // подписка на ключ создания задачи (загрузки книги)
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
-            int currentChainSerialNum = 0;
+            int currentChainSerialNum = -1;
 
             _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
-                // сразу после успешного старта тестов блокируется подписка на новые задачи
-                // если блокировка всё равно не будет успевать, надо ходить за флагом в класс EventCounterHandler
-                // больше тут не надо блокировать
-                // после появления ключа запуска теста, контроллер не сможет прислать новое задание
-                //bool isTestStarted = _count.IsTestStarted();
-                if (cmd == eventCmd) // && !isTestStarted)
+                if (cmd == eventCmd)
                 {
+                    // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
+                    // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
+                    currentChainSerialNum = _test.FetchAssignedSerialNum();
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
-                    _ = AddStageToProgressReport(constantsSet, -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
+                    _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
 
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);
         }
 
@@ -189,7 +189,6 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Event Cafe was processed, subscription is unblocked, eventCafeIsNotExisted - {0}", eventCafeIsNotExisted);
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", cafeKey);
         }
 
@@ -239,7 +238,6 @@ namespace BackgroundDispatcher.Services
 
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyTest);
         }
     }

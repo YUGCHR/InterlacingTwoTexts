@@ -25,8 +25,8 @@ namespace BackgroundDispatcher.Services
 {
     public interface IEternalLogSupportService
     {
-        public Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText);
-        public Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId);
+        public Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText, bool isProceededWorkTask = false);
+        public Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, bool isProceededWorkTask = false);
 
     }
 
@@ -47,7 +47,7 @@ namespace BackgroundDispatcher.Services
 
         #region CreateTaskPackageAndSaveLog for FormTaskPackageFromPlainText
 
-        public async Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText)
+        public async Task<TextSentence> AddVersionViaHashToPlainText(ConstantsSet constantsSet, TextSentence bookPlainText, bool isProceededWorkTask = false)
         {
             // обратиться к тестам и пусть они посчитают хэш и сообщат, есть ли уже такой в списке и, если нет, присвоят номер версии
             // хэш лучше посчитать прямо здесь и передавать его для экономии памяти, кроме него нужен номер книги и язык
@@ -65,13 +65,18 @@ namespace BackgroundDispatcher.Services
             string bookPlainTextMD5Hash = AuxiliaryUtilsService.CreateMD5(bookPlainText.BookPlainText);
 
             // отдать методу хэш, номер и язык книги, получить номер версии, если такой хэш уже есть, то что вернуть? можно -1
-            (List<TextSentence> bookPlainTextsHash, int versionHash) = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash);
-            Logs.Here().Information("Hash version {0} was returned.", versionHash);
-
+            (List<TextSentence> bookPlainTextsHash, int versionHash) = await CheckPlainTextVersionViaHash(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextMD5Hash, isProceededWorkTask);
+            if (isProceededWorkTask)
+            {
+                Logs.Here().Information("Hash version {0} was returned.", versionHash);
+            }
             // получили -1, то есть, такой текст уже есть, возвращаем null, там разберутся - ни в коем случае не null
             if (versionHash < 0)
             {
-                Logs.Here().Warning("This plain text already exists. {@B} / {@L}.", new { BookId = bookId }, new { LanguageId = languageId });
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Warning("This plain text already exists. {@B} / {@L}.", new { BookId = bookId }, new { LanguageId = languageId });
+                }
                 return new TextSentence();
             }
 
@@ -85,7 +90,7 @@ namespace BackgroundDispatcher.Services
                 TextSentence bookPlainTextHash = RemoveTextFromTextSentence(bookPlainText); // hashVersion = 0, bookPlainTextHash = "00000000000000000000000000000000"
                 bookPlainTextsHash.Add(bookPlainTextHash);
 
-                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
+                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash, isProceededWorkTask);
                 return bookPlainText;
             }
 
@@ -93,7 +98,7 @@ namespace BackgroundDispatcher.Services
             if (versionHash > 0)
             {
                 //List<TextSentence> bookPlainTextsHash = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
-                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash);
+                bookPlainText = await WriteBookPlainTextHash(constantsSet, bookPlainText, bookPlainTextsHash, versionHash, bookPlainTextMD5Hash, isProceededWorkTask);
                 return bookPlainText;
             }
 
@@ -118,7 +123,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // метод создаёт элемент List-хранилища хэшей плоских текстов и обновляет сам плоский текст, добавляя в него хэш и версию текста
-        private async Task<TextSentence> WriteBookPlainTextHash(ConstantsSet constantsSet, TextSentence bookPlainText, List<TextSentence> bookPlainTextsHash, int versionHash, string bookPlainTextMD5Hash)
+        private async Task<TextSentence> WriteBookPlainTextHash(ConstantsSet constantsSet, TextSentence bookPlainText, List<TextSentence> bookPlainTextsHash, int versionHash, string bookPlainTextMD5Hash, bool isProceededWorkTask = false)
         {
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
             double keyBookPlainTextsHashesVersionsListLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.LifeTime; // 1000
@@ -144,22 +149,30 @@ namespace BackgroundDispatcher.Services
             // новый вариант bookPlainTexttHash без текста, только с хэшем будет существовать в ключе со списком всех загруженных книг
             await _cache.WriteHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookPlainTextsHash, keyBookPlainTextsHashesVersionsListLifeTime);
 
-            // тут проверяем и показываем как записались версия и хэш в существующий bookPlainText и его же (обновлённый) возвращаем из метода
-            Logs.Here().Information("New book {@B} plain text {@L} hash and version were updated. {@V} \n {@H}.", new { BookId = bookId }, new { LanguageId = languageId }, new { HashVersion = bookHashVersion }, new { BookPlainTextHash = bookPlainTextHash });
+            if (isProceededWorkTask)
+            {
+                // тут проверяем и показываем как записались версия и хэш в существующий bookPlainText и его же (обновлённый) возвращаем из метода
+                Logs.Here().Information("New book {@B} plain text {@L} hash and version were updated. {@V} \n {@H}.", new { BookId = bookId }, new { LanguageId = languageId }, new { HashVersion = bookHashVersion }, new { BookPlainTextHash = bookPlainTextHash });
+            }
             return bookPlainText;
         }
 
-        public async Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId)
+        public async Task<(List<T>, int)> EternalLogAccess<T>(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, bool isProceededWorkTask = false)
         {
             // 1 проверить существование ключа вообще и полученного поля (это уже только его чтением)
             bool soughtKey = await _cache.IsKeyExist(keyBookPlainTextsHashesVersionsList); // искомый ключ
-            Logs.Here().Information("{@K} existing is {0}.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
-
+            if (isProceededWorkTask)
+            {
+                Logs.Here().Information("{@K} existing is {0}.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
+            }
             if (!soughtKey)
             {
                 // _prepare.SomethingWentWrong(!soughtKey);
                 // если ключа вообще нет, тоже возвращаем 0, будет первая книга с первой версией в ключе
-                Logs.Here().Information("{@K} existing is {0}, 0 is returned.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("{@K} existing is {0}, 0 is returned.", new { Key = keyBookPlainTextsHashesVersionsList }, soughtKey);
+                }
                 return (new List<T>(), 0);
             }
 
@@ -168,7 +181,10 @@ namespace BackgroundDispatcher.Services
             bool soughtFiled = bookPlainTextsVersions != null;
             if (!soughtFiled)
             {
-                Logs.Here().Information("{@F} existing is {0}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, soughtFiled);
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("{@F} existing is {0}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, soughtFiled);
+                }
                 return (new List<T>(), 0);
             }
 
@@ -179,16 +195,19 @@ namespace BackgroundDispatcher.Services
         // -1, если такой хэш есть
         // 0, если такого поля/ключа вообще нет, записывать надо первую версию
         // int последней существующей версии, записывать надо на 1 больше
-        private async Task<(List<TextSentence>, int)> CheckPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash)
+        private async Task<(List<TextSentence>, int)> CheckPlainTextVersionViaHash(string keyBookPlainTextsHashesVersionsList, int fieldBookIdWithLanguageId, string bookPlainTextMD5Hash, bool isProceededWorkTask = false)
         {
             int maxVersion = 0;
 
             (List<TextSentence> bookPlainTextsVersions, int bookPlainTextsVersionsCount) = await EternalLogAccess<TextSentence>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
-            
+
             // 2 если поля (или вообще ключа) нет, возвращаем результат - первая версия 
             if (bookPlainTextsVersionsCount == 0)
             {
-                Logs.Here().Information("{@F} is not existed - {@B}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, new { Books = bookPlainTextsVersions });
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("{@F} is not existed - {@B}, 0 is returned.", new { Field = fieldBookIdWithLanguageId }, new { Books = bookPlainTextsVersions });
+                }
                 return (bookPlainTextsVersions, 0);
             }
             // 3 если поле есть, достаём из него значение - это лист
@@ -201,26 +220,35 @@ namespace BackgroundDispatcher.Services
 
                 if (hashVersion > maxVersion)
                 {
-                    Logs.Here().Information("New Max version will be {0}, was {1}.", hashVersion, maxVersion);
+                    if (isProceededWorkTask)
+                    {
+                        Logs.Here().Information("New Max version will be {0}, was {1}.", hashVersion, maxVersion);
+                    }
                     maxVersion = hashVersion;
                 }
 
                 // 5 если совпадение нашлось, возвращаем отлуп - пока -1
                 string bookPlainTextHash = v.BookPlainTextHash;
                 bool isThisHashExisted = String.Equals(bookPlainTextHash, bookPlainTextMD5Hash);
-                Logs.Here().Information("{@H} and {@M}, String.Equals is {0}.", new { SavedHash = hashVersion }, new { TesteeHash = bookPlainTextMD5Hash }, isThisHashExisted); // испытуемый
-
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("{@H} and {@M}, String.Equals is {0}.", new { SavedHash = hashVersion }, new { TesteeHash = bookPlainTextMD5Hash }, isThisHashExisted); // испытуемый
+                }
                 if (isThisHashExisted)
                 {
-                    Logs.Here().Information("The same hash was found {0} in the storage, -1 will be returned.", isThisHashExisted);
-                    return (bookPlainTextsVersions, - 1);
+                    if (isProceededWorkTask)
+                    {
+                        Logs.Here().Information("The same hash was found {0} in the storage, -1 will be returned.", isThisHashExisted);
+                    }
+                    return (bookPlainTextsVersions, -1);
                 }
             }
             // 6 если совпадения нет, берём maxVersion, прибавляем 1 и возвращаем версию
             // прибавлять 1 будем там, где будем записывать новый хэш
-
-            Logs.Here().Information("Testee hash is inique, Max version of the book is {0} and it will be returned.", maxVersion);
-
+            if (isProceededWorkTask)
+            {
+                Logs.Here().Information("Testee hash is inique, Max version of the book is {0} and it will be returned.", maxVersion);
+            }
             return (bookPlainTextsVersions, maxVersion);
 
             // 7 записывать будем в другом месте, потому что тут нет самого текста

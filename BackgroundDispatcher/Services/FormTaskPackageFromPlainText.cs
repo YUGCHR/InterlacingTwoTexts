@@ -57,17 +57,20 @@ namespace BackgroundDispatcher.Services
         private readonly IEternalLogSupportService _eternal;
         private readonly ICollectTasksInPackageService _collect;
         private readonly ITestOfComplexIntegrityMainServicee _test;
+        private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly ICacheManagerService _cache;
 
         public FormTaskPackageFromPlainText(
             IEternalLogSupportService eternal,
             ICollectTasksInPackageService collect,
             ITestOfComplexIntegrityMainServicee test,
+            ITestReportIsFilledOutWithTimeImprints report,
             ICacheManagerService cache)
         {
             _eternal = eternal;
             _collect = collect;
             _test = test;
+            _report = report;
             _cache = cache;
             _callingNumOfHandlerCallingsDistributor = 0;
         }
@@ -78,14 +81,14 @@ namespace BackgroundDispatcher.Services
         private int _currentChainSerialNum;
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             if (isTestInProgress)
             {
                 TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
                 {
-                    ChainSerialNumber = _currentChainSerialNum,
+                    ChainSerialNumber = currentChainSerialNum,
                     MethodNameWhichCalled = currentMethodName,
                     WorkActionNum = workActionNum,
                     WorkActionVal = workActionVal,
@@ -93,7 +96,7 @@ namespace BackgroundDispatcher.Services
                     WorkActionDescription = workActionDescription,
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
-                _ = _test.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+                _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
             }
             return isTestInProgress;
         }
@@ -109,8 +112,8 @@ namespace BackgroundDispatcher.Services
 
             //int count = Volatile.Read(ref _callingNumOfHandlerCallingsDistributor);
 
-            _ = HandlerCallings(constantsSet, stoppingToken);
-            _ = AddStageToProgressReport(constantsSet, -1, false, "", "HandlerCallings calling has passed", lastCountStart);
+            _ = HandlerCallings(constantsSet, currentChainSerialNum, stoppingToken);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, false, "", "HandlerCallings calling has passed", lastCountStart);
 
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfHandlerCallingsDistributor);
             Logs.Here().Information("HandlerCallingsDistributor ended {0} time.", lastCountEnd);
@@ -128,7 +131,7 @@ namespace BackgroundDispatcher.Services
             return currentMethodName;
         }
 
-        public async Task<int> HandlerCallings(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<int> HandlerCallings(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
         {
             // обработчик вызовов - что делает (надо переименовать - не вызовов, а событий подписки или как-то так)
             // получает сообщение о сформированном вызове по поводу subscribeOnFrom
@@ -156,12 +159,12 @@ namespace BackgroundDispatcher.Services
             //Logs.Here().Information("{0} started.", currentMethodName);
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
-            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
-            _ = AddStageToProgressReport(constantsSet, -1, false, sourceKeyWithPlainTexts, "ProcessDataOfSubscribeOnFrom returned sourceKeyWithPlainTexts", -1);
+            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, currentChainSerialNum, stoppingToken);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, false, sourceKeyWithPlainTexts, "ProcessDataOfSubscribeOnFrom returned sourceKeyWithPlainTexts", -1);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
-            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
-            _ = AddStageToProgressReport(constantsSet, -1, false, taskPackageGuid, "CreateTaskPackageAndSaveLog returned taskPackageGuid", -1);
+            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, currentChainSerialNum, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, - 1, false, taskPackageGuid, "CreateTaskPackageAndSaveLog returned taskPackageGuid", -1);
 
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != "")
@@ -174,8 +177,8 @@ namespace BackgroundDispatcher.Services
                 // (проверить, его удалят сразу, как схватят или нет)
 
                 // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
-                bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
-                _ = AddStageToProgressReport(constantsSet, -1, isCafeKeyCreated, "isCafeKeyCreated", "DistributeTaskPackageInCafee has passed", -1);
+                bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, currentChainSerialNum, taskPackageGuid);
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum , - 1, isCafeKeyCreated, "isCafeKeyCreated", "DistributeTaskPackageInCafee has passed", -1);
 
                 //if (isCafeKeyCreated) // && test is processing now
                 //{
@@ -186,7 +189,7 @@ namespace BackgroundDispatcher.Services
             return 0;
         }
 
-        private async Task<(List<string>, string)> ProcessDataOfSubscribeOnFrom(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private async Task<(List<string>, string)> ProcessDataOfSubscribeOnFrom(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
         {
             // название (назначение) метода - достать ключ и поля плоских текстов из события подписки subscribeOnFrom
 
@@ -234,7 +237,7 @@ namespace BackgroundDispatcher.Services
             return (fieldsKeyFromDataList, sourceKeyWithPlainTests);
         }
 
-        private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, string taskPackageGuid)
+        private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, int currentChainSerialNum, string taskPackageGuid)
         {
             // только после того, как создан ключ с пакетом задач, можно положить этот ключ в подписной ключ eventKeyFrontGivesTask
             // записываем ключ пакета задач в ключ eventKeyFrontGivesTask, а в поле и в значение - ключ пакета задач
