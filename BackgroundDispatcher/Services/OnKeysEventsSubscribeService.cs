@@ -67,13 +67,13 @@ namespace BackgroundDispatcher.Services
     {
         private readonly CancellationToken _cancellationToken;
         private readonly IKeyEventsProvider _keyEvents;
-        private readonly IIntegrationTestService _test;
+        private readonly ITestOfComplexIntegrityMainServicee _test;
         private readonly IEventCounterHandler _count;
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
             IKeyEventsProvider keyEvents,
-            IIntegrationTestService test,
+            ITestOfComplexIntegrityMainServicee test,
             IEventCounterHandler count
             )
         {

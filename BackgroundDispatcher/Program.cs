@@ -136,7 +136,7 @@ namespace BackgroundDispatcher
                     // namespace BackgroundDispatcher.Services
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestScenarioService, TestScenarioService>();
-                    services.AddScoped<IIntegrationTestService, IntegrationTestService>();
+                    services.AddScoped<ITestOfComplexIntegrityMainServicee, TestOfComplexIntegrityMainService>();
                     services.AddScoped<ITestRawBookTextsStorageService, TestRawBookTextsStorageService>();
                     services.AddScoped<IEternalLogSupportService, EternalLogSupportService>();
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();

@@ -27,13 +27,13 @@ namespace BackgroundDispatcher.Services
     {
         private readonly CancellationToken _cancellationToken;
         private readonly ICacheManagerService _cache; // TO REMOVE
-        private readonly IIntegrationTestService _test;
+        private readonly ITestOfComplexIntegrityMainServicee _test;
         private readonly IFormTaskPackageFromPlainText _front;
 
         public EventCounterHandler(
             IHostApplicationLifetime applicationLifetime,
             ICacheManagerService cache,
-            IIntegrationTestService test,
+            ITestOfComplexIntegrityMainServicee test,
             IFormTaskPackageFromPlainText front
             )
         {

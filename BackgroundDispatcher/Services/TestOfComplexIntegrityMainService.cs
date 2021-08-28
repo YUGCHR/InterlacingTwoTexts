@@ -18,7 +18,7 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface IIntegrationTestService
+    public interface ITestOfComplexIntegrityMainServicee
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
@@ -28,7 +28,7 @@ namespace BackgroundDispatcher.Services
         public Task<bool> RemoveWorkKeyOnStart(string key);
     }
 
-    public class IntegrationTestService : IIntegrationTestService
+    public class TestOfComplexIntegrityMainService : ITestOfComplexIntegrityMainServicee
     {
         private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
@@ -40,7 +40,7 @@ namespace BackgroundDispatcher.Services
         private readonly ICacheManagerService _cache;
         private readonly ITestTasksPreparationService _prepare;
 
-        public IntegrationTestService(
+        public TestOfComplexIntegrityMainService(
             IHostApplicationLifetime applicationLifetime,
             IAuxiliaryUtilsService aux,
             IConvertArrayToKeyWithIndexFields convert,
@@ -62,7 +62,7 @@ namespace BackgroundDispatcher.Services
             _prepare = prepare;
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<IntegrationTestService>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestOfComplexIntegrityMainService>();
 
         private bool _isTestInProgress;
         private int _stageReportFieldCounter;
@@ -152,8 +152,8 @@ namespace BackgroundDispatcher.Services
             return _isTestInProgress;
         }
 
-        // этот метод возвращает состояние _isTestInProgress - для быстрого определения наличия теста рабочими методами
-        private long StopwatchesControlAndRead(Stopwatch stopWatch, bool control, string stopWatchName = "name is not defined")
+        // этот метод возвращает состояние 
+        private static long StopwatchesControlAndRead(Stopwatch stopWatch, bool control, string stopWatchName = "name is not defined")
         {
             // надо проверять текущее состояние секундомера перед его изменением
             bool currentState = stopWatch.IsRunning;
