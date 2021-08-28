@@ -1,15 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using BooksTextsSplit.Library.Models;
-using BooksTextsSplit.Library.Services;
-using CachingFramework.Redis.Contracts;
-using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
@@ -68,9 +61,9 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestOfComplexIntegrityMainService>();
 
         private bool _isTestInProgress;
-        private int _stageReportFieldCounter;        
+        private int _stageReportFieldCounter;
         private int _currentChainSerialNum;
-        
+
         // Report of the test time imprint
         // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
         // кроме первого раза, когда вернут уникальный номер

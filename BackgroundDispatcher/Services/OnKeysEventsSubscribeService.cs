@@ -70,13 +70,15 @@ namespace BackgroundDispatcher.Services
         private readonly ITestOfComplexIntegrityMainServicee _test;
         private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly IEventCounterHandler _count;
+        private readonly ITestResultsAssertServerHealth _assert;
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
             IKeyEventsProvider keyEvents,
             ITestOfComplexIntegrityMainServicee test,
             ITestReportIsFilledOutWithTimeImprints report,
-            IEventCounterHandler count
+            IEventCounterHandler count,
+            ITestResultsAssertServerHealth assert
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
@@ -84,6 +86,7 @@ namespace BackgroundDispatcher.Services
             _test = test;
             _report = report;
             _count = count;
+            _assert = assert;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();

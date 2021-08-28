@@ -1,15 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
+﻿using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using BooksTextsSplit.Library.Models;
-using BooksTextsSplit.Library.Services;
-using CachingFramework.Redis.Contracts;
-using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
