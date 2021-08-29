@@ -1,24 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
-// потом на диаграмме можно выстроить всю цепочку в линию, а по времени совместить с другими цепочками ниже
-// можно генерировать выходной отчёт в формате диаграммы - более реально - тайм-лайн для веба
+// перенести таймеры в TestOfComplexIntegrityMainService и оставить без обёртки
+// запрашивать таймеры в рабочих методах непосредственно перед вызовом шага отчёта
 
 namespace BackgroundDispatcher.Services
 {
     public interface ITestOfComplexIntegrityMainServicee
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        //public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         public int FetchAssignedSerialNum();
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
+        long FetchWorkStopwatch();
     }
 
     public class TestOfComplexIntegrityMainService : ITestOfComplexIntegrityMainServicee
@@ -56,6 +56,8 @@ namespace BackgroundDispatcher.Services
             _cache = cache;
             _prepare = prepare;
             _report = report;
+            _stopWatchTest = new Stopwatch();
+            _stopWatchWork = new Stopwatch();
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestOfComplexIntegrityMainService>();
@@ -63,6 +65,8 @@ namespace BackgroundDispatcher.Services
         private bool _isTestInProgress;
         private int _stageReportFieldCounter;
         private int _currentChainSerialNum;
+        private Stopwatch _stopWatchTest;
+        private Stopwatch _stopWatchWork;
 
         // Report of the test time imprint
         // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
@@ -144,6 +148,14 @@ namespace BackgroundDispatcher.Services
             return _isTestInProgress;
         }
 
+        // этот метод возвращает состояние _stopWatchWork
+        // надо хотя бы проверять, что секундомер запущен
+        // но сначала померять время, чтобы понять разницу
+        public long FetchWorkStopwatch()
+        {
+            return _stopWatchWork.ElapsedMilliseconds;
+        }
+
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
         // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
@@ -151,21 +163,21 @@ namespace BackgroundDispatcher.Services
         // удаляются результаты тестов (должны удаляться после теста, но всякое бывает)
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
-            // первый параметр - isRequestForTestStopWatch = true, Work - false
-            // второй параметр - запустить/прочитать = true, остановить/сбросить = false
-            // возвращается засечка времени в мсек, без остановки секундомера
-            bool isRequestedStopWatchTest = true;
-            long tsTest01 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, true);
-            Logs.Here().Information("Integration test was started. Stopwatch shows {0}", tsTest01);
-
             _isTestInProgress = true;
             _stageReportFieldCounter = 0;
             _currentChainSerialNum = 0;
-            //_callingNumOfAddStageToTestTaskProgressReport = 0;
 
-            // назначить версию 1 по умолчанию
-            // поле класса можно убрать
-            //_currentTestSerialNum = 1;
+            //_stopWatchTest = new Stopwatch();
+            _stopWatchTest.Start();
+            //_stopWatchWork = new Stopwatch();
+
+            // первый параметр - isRequestForTestStopWatch = true, Work - false
+            // второй параметр - запустить/прочитать = true, остановить/сбросить = false
+            // возвращается засечка времени в мсек, без остановки секундомера
+            //bool isRequestedStopWatchTest = true;
+            //long tsTest01 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, true);
+            long tsTest01 = _stopWatchTest.ElapsedMilliseconds; // double Elapsed.TotalMilliseconds
+            Logs.Here().Information("Integration test was started. Stopwatch shows {0}", tsTest01);
 
             #region Constants preparation
 
@@ -187,7 +199,9 @@ namespace BackgroundDispatcher.Services
             string testScenario1description = constantsSet.IntegerConstant.IntegrationTestConstant.TestScenario1.Description;
             // EternalLog (needs to rename)
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
+
             string eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog.Value; // key-test-reports-timing-imprints-list
+            string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
             string assertProcessedBookAreEqualControl = constantsSet.Prefix.IntegrationTestPrefix.AssertProcessedBookAreEqualControl.Value; // assert-that-processed-book-fields-are-equal-to-control-books
 
@@ -271,9 +285,11 @@ namespace BackgroundDispatcher.Services
             int resultStartTest = await SetKeyWithControlListOfTestBookFields(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, stoppingToken);
 
             // тут запустить секундомер рабочих процессов (true means start)
-            isRequestedStopWatchTest = false;
-            long tsWork00 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, true);
-            Logs.Here().Information("CreateScenarioTasksAndEvents will start next. Work Stopwatch has been started and it is showing {0}", tsWork00);
+            //isRequestedStopWatchTest = false;
+            //long tsWork00 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, true);
+            _stopWatchWork.Start();
+            long tsWork01 = _stopWatchWork.ElapsedMilliseconds;
+            Logs.Here().Information("CreateScenarioTasksAndEvents will start next. Work Stopwatch has been started and it is showing {0}", tsWork01);
 
             // создать из полей временного хранилища тестовую задачу, загрузить её и создать ключ оповещения о приходе задачи
             (List<string> uploadedBookGuids, int timeOfAllDelays) = await _prepare.CreateScenarioTasksAndEvents(constantsSet, storageKeyBookPlainTexts, rawPlainTextFields, delayList);
@@ -304,11 +320,13 @@ namespace BackgroundDispatcher.Services
             // возвращаем состояние _isTestInProgress - тест больше не выполняется
             _isTestInProgress = false;
 
-            isRequestedStopWatchTest = true;
-            long tsTest99 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
+            //isRequestedStopWatchTest = true;
+            //long tsTest99 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
+            long tsTest99 = _stopWatchTest.ElapsedMilliseconds;
+            _stopWatchTest.Reset();
             Logs.Here().Information("Integration test finished. Stopwatch has been stopped and it is showing {0}", tsTest99);
-            _ = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
-
+            _stopWatchWork.Reset();
+            //_ = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
             // сбрасывать особого смысла нет, всё равно они обнуляются в начале теста
 
             // сбросить счётчик текущего номера тестовой цепочки 
@@ -433,153 +451,6 @@ namespace BackgroundDispatcher.Services
 
             return rawPlainTextFieldsCount;
         }
-
-        public async Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken)
-        {
-            // получен ключ кафе, секундомер рабочих процессов пора остановить
-            bool isRequestedStopWatchTest = false;
-            long tsWork99 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
-            Logs.Here().Information("Books processing were finished. Work Stopwatch has been stopped and it is showing {0}", tsWork99);
-            // to reset
-            _ = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
-
-            string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
-
-            // выгрузить содержимое ключа кафе и сразу вернуть true в подписку, чтобы освободить место для следующего вызова
-            // и всё равно можно прозевать вызов
-            // для надёжности надо вернуть true, а потом сразу выгрузить ключ кафе, тогда точно не пропустить второй вызов
-            // для точности сделать eventCafeIsNotExisted полем класса и отсюда её поставить в true - а потом не спеша делать всё остальное
-            IDictionary<string, string> taskPackageGuids = await _cache.FetchHashedAllAsync<string>(cafeKey);
-
-            _ = AssertProcessedBookFieldsAreEqualToControl(constantsSet, taskPackageGuids, stoppingToken);
-
-            return true;
-        }
-
-        // метод предварительного сбора результатов теста
-        // получает ключ пакета, достаёт бук и что с ним делает?
-        // можно создать ключ типа список книг теста (важен порядок или нет?) при старте теста
-        // и при проверке прохождения теста удалять из него поля, предварительно сравнивая bookId, bookGuid и bookHash
-        // как все поля исчезнут, так тест прошёл нормально - если, конечно, не осталось лишних на проверку после теста
-        // в смысле, ненайденных в стартовом списке теста
-        private async Task<bool> AssertProcessedBookFieldsAreEqualToControl(ConstantsSet constantsSet, IDictionary<string, string> taskPackageGuids, CancellationToken stoppingToken)
-        {
-            // добавить счётчик потоков и проверить при большом количестве вызовов
-            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
-            string assertProcessedBookAreEqualControl = constantsSet.Prefix.IntegrationTestPrefix.AssertProcessedBookAreEqualControl.Value; // assert-that-processed-book-fields-are-equal-to-control-books
-            double keyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.AssertProcessedBookAreEqualControl.LifeTime; // 0.007
-            int remaindedFieldsCount = constantsSet.Prefix.IntegrationTestPrefix.RemaindedFieldsCount.ValueInt; // 1
-            int testResultsField2 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField2.ValueInt; // 2
-            int testResultsField3 = constantsSet.Prefix.IntegrationTestPrefix.ResultsField3.ValueInt; // 3
-            int remaindedFields = -1;
-
-            foreach (var g in taskPackageGuids)
-            {
-                (string taskPackageGuid, string vG) = g;
-
-                Logs.Here().Information("taskPackageGuid {0} was fetched.", taskPackageGuid);
-
-                IDictionary<string, TextSentence> fieldValuesControl = await _cache.FetchHashedAllAsync<TextSentence>(controlListOfTestBookFieldsKey);
-                int fieldValuesControlCount = fieldValuesControl.Count;
-
-                IDictionary<string, TextSentence> fieldValuesResult = await _cache.FetchHashedAllAsync<TextSentence>(taskPackageGuid);
-                int fieldValuesResultCount = fieldValuesResult.Count;
-                int deletedFields = 0;
-                Logs.Here().Information("fieldValuesResult with count {0} was fetched from taskPackageGuid.", fieldValuesResultCount);
-
-                // write test asserted results in the report key
-                foreach (KeyValuePair<string, TextSentence> p in fieldValuesResult)
-                {
-                    (string fP, TextSentence vP) = p;
-                    Logs.Here().Debug("Field {0} was found in taskPackageGuid and will be deleted in key {1}.", fP, controlListOfTestBookFieldsKey);
-
-                    bool result0 = await CheckAssertFieldsAreEqualToControlAndEternal(constantsSet, fP, vP, stoppingToken);
-
-                    if (result0)
-                    {
-                        bool result1 = await _cache.DelFieldAsync(controlListOfTestBookFieldsKey, fP);
-                        if (result1)
-                        {
-                            deletedFields++;
-                            Logs.Here().Debug("The comparison returned {0} and field {1} / value {2} was sucessfully deleted in key {3}.", result0, fP, vP.BookId, controlListOfTestBookFieldsKey);
-                        }
-                    }
-                }
-
-                remaindedFields = fieldValuesResultCount - deletedFields;
-
-                bool result2 = await _cache.IsKeyExist(controlListOfTestBookFieldsKey);
-                if (!result2)
-                {
-                    Logs.Here().Information("There are no remained fields in key {0}. Test is completed (but does not know about it).", controlListOfTestBookFieldsKey);
-
-                    // исчезнувший ключ - не вполне надёжное средство оповещения,
-                    // поэтому надо записать ещё ключ testResultsKey1 и тест дополнительно проверит его
-                    // WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl)
-
-                    IDictionary<int, int> fieldValues = new Dictionary<int, int>();
-
-                    fieldValues.Add(remaindedFieldsCount, remaindedFields);
-                    fieldValues.Add(testResultsField2, fieldValuesResultCount);
-                    fieldValues.Add(testResultsField3, fieldValuesControlCount);
-
-                    await _cache.WriteHashedAsync<int, int>(assertProcessedBookAreEqualControl, fieldValues, keyExistingTime);
-
-                    return true;
-                }
-            }
-
-            bool assertedResult = false;
-            if (remaindedFields == 0)
-            {
-                assertedResult = true;
-            }
-            return assertedResult;
-        }
-
-        // 
-        private async Task<bool> CheckAssertFieldsAreEqualToControlAndEternal(ConstantsSet constantsSet, string fP, TextSentence vP, CancellationToken stoppingToken)
-        {
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
-            string controlListOfTestBookFieldsKey = constantsSet.Prefix.IntegrationTestPrefix.ControlListOfTestBookFieldsKey.Value; // control-list-of-test-book-fields-key
-            int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
-
-            // здесь сравнить bookId, bookGuid и bookHash книг 3
-            int bookId = vP.BookId;
-            int languageId = vP.LanguageId;
-            int bookHashVersion = vP.HashVersion;
-
-            TextSentence bookPlainFromControl = await _cache.FetchHashedAsync<TextSentence>(controlListOfTestBookFieldsKey, fP);
-            //Logs.Here().Information("{@C}.", new { Value = bookPlainFromControl });
-            bool bookIdComparingWithControl = bookPlainFromControl.BookId == vP.BookId;
-            bool bookGuidComparingWithControl = String.Equals(bookPlainFromControl.BookGuid, vP.BookGuid);
-
-            // здесь ещё посмотреть и сравнить в вечном логе
-            // здесь надо перевести bookId в вид со сдвигом
-            int fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor;
-            Logs.Here().Debug("Check FetchHashedAsync<int, List<TextSentence>> - key {0}, field {1}, element {2}.", keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId, bookHashVersion);
-            List<TextSentence> bookPlainTextsVersions = await _cache.FetchHashedAsync<int, List<TextSentence>>(keyBookPlainTextsHashesVersionsList, fieldBookIdWithLanguageId);
-            TextSentence bookPlainFromEternalLog = bookPlainTextsVersions[bookHashVersion];
-            //Logs.Here().Information("{@E} is bookPlainTextsVersions[{1}].", new { BookPlainFromEternalLog = bookPlainFromEternalLog }, bookHashVersion);
-
-            bool bookIdComparingWithEternal = bookPlainFromEternalLog.BookId == vP.BookId;
-            bool bookGuidComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookGuid, vP.BookGuid);
-            bool bookHashComparingWithEternal = String.Equals(bookPlainFromEternalLog.BookPlainTextHash, vP.BookPlainTextHash);
-            bool bookHashVersionComparingWithEternal = bookPlainFromEternalLog.HashVersion == vP.HashVersion;
-
-            bool result0 = bookIdComparingWithControl && bookGuidComparingWithControl && bookIdComparingWithEternal && bookGuidComparingWithEternal && bookHashComparingWithEternal && bookHashVersionComparingWithEternal;
-
-            return result0;
-        }
-
-
-        //public void SetIsTestInProgress(bool init_isTestInProgress)
-        //{
-        //    Logs.Here().Information("SetIsTestInProgress will changed _isTestInProgress {0} on {1}.", _isTestInProgress, init_isTestInProgress);
-        //    _isTestInProgress = init_isTestInProgress;
-        //    Logs.Here().Information("New state of _isTestInProgress is {0}.", _isTestInProgress);
-        //}
-
 
         private void DisplayResultInFrame(bool result, string testDescription, char separTrue, string textTrue, char separFalse, string textFalse)
         {// Display result in different frames (true in "+" and false in "X" for example)

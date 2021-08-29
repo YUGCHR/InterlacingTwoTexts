@@ -126,7 +126,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
@@ -136,6 +136,7 @@ namespace BackgroundDispatcher.Services
                 TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
                 {
                     ChainSerialNumber = currentChainSerialNum,
+                    TsWork = currentWorkStopwatch,
                     MethodNameWhichCalled = currentMethodName,
                     WorkActionNum = workActionNum,
                     WorkActionVal = workActionVal,
@@ -153,6 +154,7 @@ namespace BackgroundDispatcher.Services
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
             int currentChainSerialNum = -1;
+            //long currentWorkStopwatch = -1;
 
             _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
@@ -161,8 +163,9 @@ namespace BackgroundDispatcher.Services
                     // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
                     // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
                     currentChainSerialNum = _test.FetchAssignedSerialNum();
+                    //currentWorkStopwatch = _test.FetchWorkStopwatch();
+                    _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
-                    _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
 
                 }
             });
@@ -187,7 +190,7 @@ namespace BackgroundDispatcher.Services
                     eventCafeIsNotExisted = false;
                     Logs.Here().Information("Event Cafe occurred, subscription is blocked.");
 
-                    eventCafeIsNotExisted = await _test.EventCafeOccurred(constantsSet, _cancellationToken);
+                    eventCafeIsNotExisted = await _assert.EventCafeOccurred(constantsSet, _cancellationToken);
 
                     Logs.Here().Information("Event Cafe was processed, subscription is unblocked, eventCafeIsNotExisted - {0}", eventCafeIsNotExisted);
                 }

@@ -17,17 +17,20 @@ namespace BackgroundDispatcher.Services
         private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
         private readonly ICacheManagerService _cache;
+        private readonly ITestOfComplexIntegrityMainServicee _test;
         private readonly ITestReportIsFilledOutWithTimeImprints _report;
 
         public TestResultsAssertServerHealth(
             IHostApplicationLifetime applicationLifetime,
             IAuxiliaryUtilsService aux,
             ICacheManagerService cache,
+            ITestOfComplexIntegrityMainServicee test,
             ITestReportIsFilledOutWithTimeImprints report)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _aux = aux;
             _cache = cache;
+            _test = test;
             _report = report;
         }
 
@@ -36,11 +39,12 @@ namespace BackgroundDispatcher.Services
         public async Task<bool> EventCafeOccurred(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             // получен ключ кафе, секундомер рабочих процессов пора остановить
-            bool isRequestedStopWatchTest = false;
-            long tsWork99 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
+            long tsWork99 = _test.FetchWorkStopwatch();
+            //bool isRequestedStopWatchTest = false;
+            //long tsWork99 = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
             Logs.Here().Information("Books processing were finished. Work Stopwatch has been stopped and it is showing {0}", tsWork99);
-            // to reset
-            _ = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
+            //// to reset
+            //_ = _report.StopwatchesControlAndRead(isRequestedStopWatchTest, false);
 
             string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
 

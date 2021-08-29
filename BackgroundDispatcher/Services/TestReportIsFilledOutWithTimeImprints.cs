@@ -8,13 +8,15 @@ using Shared.Library.Services;
 // потом на диаграмме можно выстроить всю цепочку в линию, а по времени совместить с другими цепочками ниже
 // можно генерировать выходной отчёт в формате диаграммы - более реально - тайм-лайн для веба
 
+// сделать вывод результатов отчёта - пока что текстом в консоли, но чтобы можно было легко посмотреть
+
 namespace BackgroundDispatcher.Services
 {
     public interface ITestReportIsFilledOutWithTimeImprints
     {
         public bool SetTestScenarioNumber(int testScenario);
         public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
-        public long StopwatchesControlAndRead(bool isRequestedStopWatchTest, bool control);
+        //public long StopwatchesControlAndRead(bool isRequestedStopWatchTest, bool control);
     }
 
     public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
@@ -31,8 +33,8 @@ namespace BackgroundDispatcher.Services
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _aux = aux;
             _cache = cache;
-            _stopWatchTest = new Stopwatch();
-            _stopWatchWork = new Stopwatch();
+            //_stopWatchTest = new Stopwatch();
+            //_stopWatchWork = new Stopwatch();
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestReportIsFilledOutWithTimeImprints>();
@@ -40,8 +42,8 @@ namespace BackgroundDispatcher.Services
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
         private int _callingNumOfAddStageToTestTaskProgressReport;
-        private Stopwatch _stopWatchTest;
-        private Stopwatch _stopWatchWork;
+        //private Stopwatch _stopWatchTest;
+        //private Stopwatch _stopWatchWork;
 
         // Report of the test time imprint
         // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
@@ -102,22 +104,24 @@ namespace BackgroundDispatcher.Services
             // второй параметр - запустить/прочитать = true, остановить/сбросить = false
             // оба секундомера запускаются и останавливаются в классе TestOfComplexIntegrityMainService, здесь только считываются
             // возвращается засечка времени в мсек, без остановки секундомера
-            long tsWork = StopwatchesControlAndRead(false, true);
-            long tsTest = StopwatchesControlAndRead(true, true);
+            //long tsWork = StopwatchesControlAndRead(false, true);
+            //long tsTest = StopwatchesControlAndRead(true, true);
 
             // ещё можно получать и записывать номер потока, в котором выполняется этот метод
             TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
             {
                 // номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
                 StageReportFieldCounter = count,
-                // серийный номер единичной цепочки теста - обработка одной книги от события Fro
+                // серийный номер единичной цепочки теста - обработка одной книги от события From
                 ChainSerialNumber = sendingTestTimingReportStage.ChainSerialNumber,
                 // номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
                 TheScenarioReportsCount = _currentTestSerialNum,
                 // отметка времени от старта рабочей цепочки
-                TsWork = tsWork,
+                TsWork = sendingTestTimingReportStage.TsWork,
                 // отметка времени от начала теста
-                TsTest = tsTest,
+                // можно запросить время (тоже рабочее) прямо отсюда и разница будет временем выполнения записи шага -
+                // непонятно, зачем, но один раз интересно посмотреть
+                TsTest = sendingTestTimingReportStage.TsTest,
                 // имя вызвавшего метода, полученное в параметрах
                 MethodNameWhichCalled = sendingTestTimingReportStage.MethodNameWhichCalled,
                 // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
@@ -146,86 +150,86 @@ namespace BackgroundDispatcher.Services
         // первый параметр - isRequestForTestStopWatch = true, Work - false
         // второй параметр - запустить/прочитать = true, остановить/сбросить = false
         // возвращается засечка времени в мсек, без остановки секундомера
-        public long StopwatchesControlAndRead(bool isRequestedStopWatchTest, bool control)
-        {
-            Stopwatch stopWatch;
-            if (isRequestedStopWatchTest)
-            {
-                stopWatch = _stopWatchTest;
-            }
-            else
-            {
-                stopWatch = _stopWatchWork;
+        //public long StopwatchesControlAndRead(bool isRequestedStopWatchTest, bool control)
+        //{
+        //    Stopwatch stopWatch;
+        //    if (isRequestedStopWatchTest)
+        //    {
+        //        stopWatch = _stopWatchTest;
+        //    }
+        //    else
+        //    {
+        //        stopWatch = _stopWatchWork;
 
-            }
-            // надо проверять текущее состояние секундомера перед его изменением
-            bool currentState = stopWatch.IsRunning;
+        //    }
+        //    // надо проверять текущее состояние секундомера перед его изменением
+        //    bool currentState = stopWatch.IsRunning;
 
-            string stopWatchState;
+        //    string stopWatchState;
 
-            //// если надо запустить и он остановлен (запускаем)
-            //if (control && !currentState)
-            //{
-            //    _stopWatchTest.Start();
-            //    stopWatchState = "was started";
-            //}
-            //// если надо остановить и он запущен (останавливаем)
-            //if (!control && currentState)
-            //{
-            //    _stopWatchTest.Stop();
-            //    stopWatchState = "was stopped";
-            //}
-            //// если надо запустить и он уже запущен (показываем текущее время)
-            //if (control && currentState)
-            //{
-            //    stopWatchState = "has beed started already";
-            //}
-            //// если надо остановить и он уже остановлен (сбрасываем)
-            //if (!control && !currentState)
-            //{
-            //    stopWatchState = "had been already stopped and was just reset");
-            //    _stopWatchTest.Reset();
-            //}
+        //    //// если надо запустить и он остановлен (запускаем)
+        //    //if (control && !currentState)
+        //    //{
+        //    //    _stopWatchTest.Start();
+        //    //    stopWatchState = "was started";
+        //    //}
+        //    //// если надо остановить и он запущен (останавливаем)
+        //    //if (!control && currentState)
+        //    //{
+        //    //    _stopWatchTest.Stop();
+        //    //    stopWatchState = "was stopped";
+        //    //}
+        //    //// если надо запустить и он уже запущен (показываем текущее время)
+        //    //if (control && currentState)
+        //    //{
+        //    //    stopWatchState = "has beed started already";
+        //    //}
+        //    //// если надо остановить и он уже остановлен (сбрасываем)
+        //    //if (!control && !currentState)
+        //    //{
+        //    //    stopWatchState = "had been already stopped and was just reset");
+        //    //    _stopWatchTest.Reset();
+        //    //}
 
-            // требуется запустить секундомер - прислали true
-            if (control)
-            {
-                // если надо запустить и он уже запущен (показываем текущее время)
-                if (currentState)
-                {
-                    stopWatchState = "has beed started already";
-                }
-                // если надо запустить и он остановлен (запускаем)
-                else
-                {
-                    //stopWatch = Stopwatch.StartNew();
-                    stopWatch.Start();
-                    stopWatchState = "has been started";
-                }
-            }
-            // требуется остановить секундомер - прислали false
-            else
-            {
-                // если надо остановить и он запущен (останавливаем)
-                if (currentState)
-                {
-                    stopWatch.Stop();
-                    stopWatchState = "has been stopped";
-                }
-                // если надо остановить и он уже остановлен (сбрасываем)
-                else
-                {
-                    stopWatch.Reset();
-                    stopWatchState = "had been already stopped and was just reset";
-                }
-            }
+        //    // требуется запустить секундомер - прислали true
+        //    if (control)
+        //    {
+        //        // если надо запустить и он уже запущен (показываем текущее время)
+        //        if (currentState)
+        //        {
+        //            stopWatchState = "has beed started already";
+        //        }
+        //        // если надо запустить и он остановлен (запускаем)
+        //        else
+        //        {
+        //            //stopWatch = Stopwatch.StartNew();
+        //            stopWatch.Start();
+        //            stopWatchState = "has been started";
+        //        }
+        //    }
+        //    // требуется остановить секундомер - прислали false
+        //    else
+        //    {
+        //        // если надо остановить и он запущен (останавливаем)
+        //        if (currentState)
+        //        {
+        //            stopWatch.Stop();
+        //            stopWatchState = "has been stopped";
+        //        }
+        //        // если надо остановить и он уже остановлен (сбрасываем)
+        //        else
+        //        {
+        //            stopWatch.Reset();
+        //            stopWatchState = "had been already stopped and was just reset";
+        //        }
+        //    }
 
-            //TimeSpan tsControl = stopWatch.Elapsed;
-            long stopwatchMeasuredTime = stopWatch.ElapsedMilliseconds; // double Elapsed.TotalMilliseconds
-            Logs.Here().Debug("Stopwatch {0} {1}. It shows {2} msec.", nameof(stopWatch), stopWatchState, stopwatchMeasuredTime);
+        //    //TimeSpan tsControl = stopWatch.Elapsed;
+        //    long stopwatchMeasuredTime = stopWatch.ElapsedMilliseconds; // double Elapsed.TotalMilliseconds
+        //    Logs.Here().Debug("Stopwatch {0} {1}. It shows {2} msec.", nameof(stopWatch), stopWatchState, stopwatchMeasuredTime);
 
-            return stopwatchMeasuredTime;
-        }
+        //    return stopwatchMeasuredTime;
+        //}
 
     }
 }
