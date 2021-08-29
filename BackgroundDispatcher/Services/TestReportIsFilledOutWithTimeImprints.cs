@@ -90,7 +90,8 @@ namespace BackgroundDispatcher.Services
             // в рабочих методах возможны два варианта (тут вряд ли есть смысл проверять)
 
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
-            double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
+            //double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
+            double currentTestReportKeyExistingTime = 1;
             Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0}.", sendingTestTimingReportStage.MethodNameWhichCalled);
 
             // определяем собственно номер шага текущего отчёта

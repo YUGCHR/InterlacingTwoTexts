@@ -19,6 +19,7 @@ namespace BackgroundDispatcher.Services
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
         long FetchWorkStopwatch();
+        Task<bool> ViewReportInConsole(int testScenario = 1, string currentTestReportKey = "storage-key-for-current-test-report");
     }
 
     public class TestOfComplexIntegrityMainService : ITestOfComplexIntegrityMainServicee
@@ -336,6 +337,81 @@ namespace BackgroundDispatcher.Services
             int countField = Interlocked.Exchange(ref _stageReportFieldCounter, 0);
 
             return _isTestInProgress;
+        }
+
+        //
+        public async Task<bool> ViewReportInConsole(int testScenario = 1, string currentTestReportKey = "storage-key-for-current-test-report")
+        {
+            //string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
+            char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
+            int timeScaling = 5;
+            IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
+            int testTimingReportStagesCount = testTimingReportStages.Count;
+
+            Console.WriteLine($"Timing imprint report:\t{testScenario,3:d} ({testTimingReportStagesCount})");
+
+            TestReport.TestReportStage stage1 = testTimingReportStages[1];
+            int r101 = stage1.StageReportFieldCounter;
+            int r102 = stage1.ChainSerialNumber;
+            int r103 = stage1.TheScenarioReportsCount;
+            int r104 = (int)stage1.TsWork;
+            long r105 = stage1.TsTest;
+            string r106 = stage1.MethodNameWhichCalled;
+            //int qnty1 = (int)((double)r104 / timeScaling) + 1;
+            string elapsedTimeForLine1 = ("").PadLeft(r104, ttt);
+            Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}", r101, r102, r104, 0, r104, elapsedTimeForLine1);
+
+            //Console.WriteLine("{0,3} | {1,3:d} || {2,6:d} |  {3,6:d} | {4,6:d} | {5,6:d}", "No:", "S/N", "Work", "qtyPrv", "qtyP+", "r04D");
+
+            //int qntyPrevSum = 0;
+            for (int i = 2; i < 7; i++) //testTimingReportStagesCount - 1
+            {
+                TestReport.TestReportStage stagePrev = testTimingReportStages[i - 1];
+                int r04a = (int)stagePrev.TsWork;
+
+                TestReport.TestReportStage stage = testTimingReportStages[i];
+                int r01 = stage.StageReportFieldCounter;
+                int r02 = stage.ChainSerialNumber;
+                int r03 = stage.TheScenarioReportsCount;
+                int r04 = (int)stage.TsWork;
+                long r05 = stage.TsTest;
+                string r06 = stage.MethodNameWhichCalled;
+                int r07 = stage.WorkActionNum;
+                bool r08 = stage.WorkActionVal;
+                string r09 = stage.WorkActionName;
+                string r10 = stage.WorkActionDescription;
+                int r11 = stage.CallingCountOfWorkMethod;
+                int r12 = stage.CallingCountOfThisMethod;
+
+                int r04Delta = r04 - r04a;
+
+                //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, TimePrev {4}, Delta {5}.", r01, r02, r06, r04, r04a, r04Delta);
+                //int qntyPrev = (int)((double)r04a / timeScaling) - 1;
+                //qntyPrevSum += qntyPrev;
+                //int qnty = (int)((double)r04Delta / timeScaling) + 1;
+
+                //string elapsedTimeForLineDot = ("").PadLeft(qntyPrevSum, '.');
+                string elapsedTimeForLineDot = ("").PadLeft(r04a, '.');
+
+                string elapsedTimeForLineSqv = ("").PadLeft(r04Delta, ttt);
+
+                //string reportView = String.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d}", r01, r02, r06, r04);
+                //string reportView = string.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d} - {56,100}", r01, r02, r06, r04, elapsedTimeForLine);
+
+                //_ = String.Format("{0,-12} {2,12:N0} {1,8:yyyy}");
+                // first argument, left align, 12 character wide column
+                // second argument, right align, 8 character wide column
+                // third argument, right align, 12 character wide column
+
+                //Console.WriteLine("{0,-20} {1,5}\n", "Name", "Hours");
+                //Console.WriteLine("{0,-20} {1,5:N1}", "Vasya", 10);
+
+                Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}{6}", r01, r02, r04, r04a, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
+                //Console.WriteLine("{0,3:d} | {1,3:d} | {2,-30} | {3,6:d} | {4,6:d} | {5,6:d} - {6}{7}", r01, r02, r06, r04, qntyPrevSum, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
+                //Console.WriteLine($"Stage:\t{r01,3:d} | {r02,3:d} | {r03,3:d} | {r04,3:d} | {r05,3:d} | {r06,3:d} | {r07,3:d} | {r08,3:d} | {r09,3:d} | {r10,3:d} | {r11,3:d} | {r12,3:d}");
+                // HandlerCallingsDistributor
+            }
+            return true;
         }
 
         private async Task<bool> WaitForTestFinishingTags(ConstantsSet constantsSet, int timeOfAllDelays, string controlListOfTestBookFieldsKey, CancellationToken stoppingToken)
