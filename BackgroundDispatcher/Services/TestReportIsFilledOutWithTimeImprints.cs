@@ -20,7 +20,8 @@ namespace BackgroundDispatcher.Services
         public bool SetTestScenarioNumber(int testScenario);
         public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
-        Task<List<TestReport.TestReportStage>> ConvertDictionaryReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
+        Task<List<TestReport.TestReportStage>> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
+        Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario);
     }
 
     public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
@@ -149,24 +150,43 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        public async Task<List<TestReport.TestReportStage>> ConvertDictionaryReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
+        public async Task<List<TestReport.TestReportStage>> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
         {
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
             IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
             int testTimingReportStagesCount = testTimingReportStages.Count;
 
-            TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount+1];
+            TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount + 1];
 
             testTimingReportStagesArray[0] = new();
             //testTimingReportStagesList.Add(new());
 
-            for (int i = 1; i < testTimingReportStagesCount+1; i++) //
+            for (int i = 1; i < testTimingReportStagesCount + 1; i++) //
             {
                 testTimingReportStagesArray[i] = testTimingReportStages[i];
             }
 
             return testTimingReportStagesArray.ToList();
+        }
+
+        public async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario)
+        {
+            string currentTestDescription = $"Current test report for Scenario {testScenario}";
+
+            TestReport theScenarioReport = new TestReport()
+            {
+                TestScenarioNum = testScenario,
+                Guid = currentTestDescription,
+                TestId = testScenario,
+                TestReportStages = testTimingReportStages
+            };
+
+            theScenarioReports.Add(theScenarioReport);
+
+            await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
+
+            return true;
         }
 
         // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам

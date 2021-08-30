@@ -162,7 +162,7 @@ namespace BackgroundDispatcher.Services
                 {
                     // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
                     // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
-                    currentChainSerialNum = _test.FetchAssignedSerialNum();
+                    currentChainSerialNum = _test.FetchAssignedChainSerialNum();
                     //currentWorkStopwatch = _test.FetchWorkStopwatch();
                     _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);

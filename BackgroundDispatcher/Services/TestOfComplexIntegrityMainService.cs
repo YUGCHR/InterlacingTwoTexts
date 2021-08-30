@@ -16,7 +16,7 @@ namespace BackgroundDispatcher.Services
     public interface ITestOfComplexIntegrityMainServicee
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public int FetchAssignedSerialNum();
+        public int FetchAssignedChainSerialNum();
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
         long FetchWorkStopwatch();
@@ -134,7 +134,7 @@ namespace BackgroundDispatcher.Services
 
         // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
         // каждый вызов даёт новый серийный номер - больше на 1
-        public int FetchAssignedSerialNum()
+        public int FetchAssignedChainSerialNum()
         {
             int chainSerialNum = Interlocked.Increment(ref _currentChainSerialNum);
 
@@ -201,7 +201,7 @@ namespace BackgroundDispatcher.Services
             // EternalLog (needs to rename)
             string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
 
-            string eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog.Value; // key-test-reports-timing-imprints-list
+            KeyType eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog; // key-test-reports-timing-imprints-list
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
             string assertProcessedBookAreEqualControl = constantsSet.Prefix.IntegrationTestPrefix.AssertProcessedBookAreEqualControl.Value; // assert-that-processed-book-fields-are-equal-to-control-books
@@ -224,10 +224,13 @@ namespace BackgroundDispatcher.Services
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            List<TestReport> theScenarioReports = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog, stoppingToken);
+            List<TestReport> theScenarioReports = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
+            
+            // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
+            int currentTestSerialNum = theScenarioReports.Count;
 
             // тут установить номер сценария для AddStageToTestTaskProgressReport
-            _ = _report.SetTestScenarioNumber(theScenarioReports.Count);
+            _ = _report.SetTestScenarioNumber(currentTestSerialNum);
 
             // достаётся из ключа запуска теста номер (вариант) сценария и создаётся сценарий - временно по номеру
             // *** потом из веба будет приходить массив инт с описанием сценария
@@ -336,8 +339,12 @@ namespace BackgroundDispatcher.Services
             // сбросить счётчик текущего шага тестового отчёта по таймингу
             int countField = Interlocked.Exchange(ref _stageReportFieldCounter, 0);
 
-            List<TestReport.TestReportStage> testTimingReportStagesList = await _report.ConvertDictionaryReportToList(constantsSet, tsTest99, testScenario);
+            List<TestReport.TestReportStage> testTimingReportStagesList = await _report.ConvertDictionaryWithReportToList(constantsSet, tsTest99, testScenario);
             Logs.Here().Information("Report list of timing is {@R}.", new { ReportList = testTimingReportStagesList });
+            
+            var result = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, tsTest99, testScenario);
+            
+
 
             _ = _report.ViewReportInConsole(constantsSet, tsTest99, testScenario, testTimingReportStagesList);
 
