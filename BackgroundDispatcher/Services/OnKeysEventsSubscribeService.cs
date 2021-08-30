@@ -123,8 +123,6 @@ namespace BackgroundDispatcher.Services
             string testConsoleCommand = $"127.0.0.1:6379> hset {eventKeyTest} test 1";
             (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, testConsoleCommand);
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
-
-            _ = _test.ViewReportInConsole();
         }
 
         // 
@@ -234,11 +232,13 @@ namespace BackgroundDispatcher.Services
                     Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
                     _isTestInProgressAlready = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
-                    Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
+                    Logs.Here().Debug("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
                     _keyEvents.Unsubscribe(cafeKey);
-                    Logs.Here().Information("Key {0} was unsubscribed.", cafeKey);
+                    Logs.Here().Debug("Key {0} was unsubscribed.", cafeKey);
 
+                    // в самом конце тестов показываем отчёт о временах прохождения контрольных точек (или не здесь)
+                    //_ = _test.ViewReportInConsole(constantsSet);
 
                     // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
                     // и для этого тоже нужен тест...

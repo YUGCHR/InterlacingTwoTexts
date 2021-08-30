@@ -107,7 +107,7 @@ namespace ConstantData
 
             if (isSelfTestPassed)
             {
-                Logs.Here().Information("------------------------------------------------------------------------- \n ConstantData loaded constants obviously correctly. \n (if you want details, they are above in the print of the whole class). \n -------------------------------------------------------------------------");
+                Logs.Here().Information("------------------------------------------------------------------------- \n ConstantData loaded the constants obviously correctly. \n (if you want details, they are above in the print of the whole class). \n -------------------------------------------------------------------------");
             }
             else
             {
