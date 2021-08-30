@@ -19,8 +19,8 @@ namespace BackgroundDispatcher.Services
     {
         public bool SetTestScenarioNumber(int testScenario);
         public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
-        Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario = 1, string currentTestReportKey = "storage-key-for-current-test-report");
-        Task<List<TestReport.TestReportStage>> DictionaryInList(ConstantsSet constantsSet, long tsTest99, int testScenario);
+        Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
+        Task<List<TestReport.TestReportStage>> ConvertDictionaryReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
     }
 
     public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
@@ -149,7 +149,7 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        public async Task<List<TestReport.TestReportStage>> DictionaryInList(ConstantsSet constantsSet, long tsTest99, int testScenario)
+        public async Task<List<TestReport.TestReportStage>> ConvertDictionaryReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
         {
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
@@ -170,7 +170,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
-        public async Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario = 1, string currentTestReportKey = "storage-key-for-current-test-report")
+        public async Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages)
         {
             // вынести в отдельный метод и преобразовать словарь в список
             // и ещё метод в список базового класса
@@ -199,7 +199,7 @@ namespace BackgroundDispatcher.Services
             // проверить наличие словаря
             // проверить, что словарь не нулевой
 
-            IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
+            //IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
             int testTimingReportStagesCount = testTimingReportStages.Count;
 
             TestReport.TestReportStage stage1 = testTimingReportStages[1];
