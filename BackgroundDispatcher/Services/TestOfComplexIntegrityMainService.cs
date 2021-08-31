@@ -104,22 +104,17 @@ namespace BackgroundDispatcher.Services
                 TestReport testReportForScenario = new TestReport() // RemoveTextFromTextSentence(bookPlainText)
                 {
                     Guid = referenceTestDescription,
-                    // можно использовать для сохранения, сколько тестов совпало для записи этого эталона
-                    // если ноль - эталон ещё не создавался
-                    //RecordActualityLevel = 0,
-                    //LanguageId = 0,
-                    // номер теста по порядку - совпадает с индексом списка
-                    // нулевой - эталонный, сразу в него ничего не пишем, оставляем заглушку
-                    // UploadVersion - в книгах постепенно отказываемся от использования
-                    //UploadVersion = theScenarioReportsCount,
+                    IsThisReportTheReference = false,
                     TestScenarioNum = testScenario
                 };
                 // записываем пустышку, только если список пуст
                 theScenarioReports.Add(testReportForScenario);
                 // надо вернуть весь список, чтобы в конце теста в него дописать текущий отчёт
                 theScenarioReportsCount = theScenarioReports.Count;
-            }
 
+                return theScenarioReports;
+            }
+            
             // и тут еще надо проверить, есть ли эталонный или вместо него пустышка
             // если пустышка, записать вместо неё текущий тест после успешного окончания
             // в дальнейшем можно проверять специальный ключ settings, в котором будет указано, какой номер записать в эталонный

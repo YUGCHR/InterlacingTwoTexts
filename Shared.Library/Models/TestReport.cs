@@ -17,16 +17,24 @@ namespace Shared.Library.Models
         public string Guid { get; set; }
 
         // оно же, только int
-        [JsonProperty(PropertyName = "testId")]
-        public int TestId { get; set; }
+        [JsonProperty(PropertyName = "thisReportId")]
+        public int ThisReportId { get; set; }
+        
+        // 
+        [JsonProperty(PropertyName = "isThisReportReference")]
+        public bool IsThisReportTheReference { get; set; }
+        
+        // 
+        [JsonProperty(PropertyName = "thisReporVersion")]
+        public int ThisReporVersion { get; set; }
 
         // список всех шагов в отчёте о тесте
         [JsonProperty(PropertyName = "testReportStages")]
         public List<TestReportStage> TestReportStages { get; set; }
 
         // хеш всех шагов в отчёте о тесте
-        [JsonProperty(PropertyName = "testReportHash")]
-        public string TestReportHash { get; set; }
+        [JsonProperty(PropertyName = "thisReportHash")]
+        public string ThisReportHash { get; set; }
 
         public class TestReportStage
         {

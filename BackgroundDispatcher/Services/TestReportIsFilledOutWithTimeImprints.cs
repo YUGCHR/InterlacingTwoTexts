@@ -200,9 +200,9 @@ namespace BackgroundDispatcher.Services
             {
                 TestScenarioNum = testScenario,
                 Guid = currentTestDescription,
-                TestId = testScenario,
+                ThisReportId = testScenario,
                 TestReportStages = testTimingReportStages,
-                TestReportHash = testReportHash
+                ThisReportHash = testReportHash
             };
 
             theScenarioReports.Add(theScenarioReport);
