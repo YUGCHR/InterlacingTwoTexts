@@ -24,6 +24,10 @@ namespace Shared.Library.Models
         [JsonProperty(PropertyName = "testReportStages")]
         public List<TestReportStage> TestReportStages { get; set; }
 
+        // хеш всех шагов в отчёте о тесте
+        [JsonProperty(PropertyName = "testReportHash")]
+        public string TestReportHash { get; set; }
+
         public class TestReportStage
         {
             // StageId - номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
@@ -37,6 +41,10 @@ namespace Shared.Library.Models
             // Current Test Serial Number for this Scenario - номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
             [JsonProperty(PropertyName = "theScenarioReportsCount")]
             public int TheScenarioReportsCount { get; set; } // -- ??
+
+            // хеш шага отчёта
+            [JsonProperty(PropertyName = "stageReportHash")]
+            public string StageReportHash { get; set; }
 
             // отметка времени от старта рабочей цепочки
             [JsonProperty(PropertyName = "tsWork")]

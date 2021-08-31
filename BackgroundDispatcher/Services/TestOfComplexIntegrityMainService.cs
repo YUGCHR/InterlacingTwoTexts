@@ -339,10 +339,10 @@ namespace BackgroundDispatcher.Services
             // сбросить счётчик текущего шага тестового отчёта по таймингу
             int countField = Interlocked.Exchange(ref _stageReportFieldCounter, 0);
 
-            List<TestReport.TestReportStage> testTimingReportStagesList = await _report.ConvertDictionaryWithReportToList(constantsSet, tsTest99, testScenario);
+            (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet, tsTest99, testScenario);
             Logs.Here().Information("Report list of timing is {@R}.", new { ReportList = testTimingReportStagesList });
             
-            var result = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, tsTest99, testScenario);
+            var result = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, tsTest99, testScenario, testReportHash);
             
 
 

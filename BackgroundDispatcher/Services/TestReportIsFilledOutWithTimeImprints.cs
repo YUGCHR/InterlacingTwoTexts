@@ -17,11 +17,11 @@ namespace BackgroundDispatcher.Services
 {
     public interface ITestReportIsFilledOutWithTimeImprints
     {
-        public bool SetTestScenarioNumber(int testScenario);
-        public Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
+        bool SetTestScenarioNumber(int testScenario);
+        Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
-        Task<List<TestReport.TestReportStage>> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
-        Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario);
+        Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
+        Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario, string testReportHash);
     }
 
     public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
@@ -119,6 +119,8 @@ namespace BackgroundDispatcher.Services
                 ChainSerialNumber = sendingTestTimingReportStage.ChainSerialNumber,
                 // номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
                 TheScenarioReportsCount = _currentTestSerialNum,
+                // хеш шага отчёта
+                StageReportHash = "",
                 // отметка времени от старта рабочей цепочки
                 TsWork = sendingTestTimingReportStage.TsWork,
                 // отметка времени от начала теста
@@ -127,7 +129,7 @@ namespace BackgroundDispatcher.Services
                 TsTest = sendingTestTimingReportStage.TsTest,
                 // имя вызвавшего метода, полученное в параметрах
                 MethodNameWhichCalled = sendingTestTimingReportStage.MethodNameWhichCalled,
-                // ключевое слово, которым делится вызвавший метод - что-то о его занятиях
+                // ключевое значение метода
                 WorkActionNum = sendingTestTimingReportStage.WorkActionNum,
                 // ключевое значение bool
                 WorkActionVal = sendingTestTimingReportStage.WorkActionVal,
@@ -141,6 +143,20 @@ namespace BackgroundDispatcher.Services
                 CallingCountOfThisMethod = lastCountStart
             };
 
+            // посчитаем хеш данных шага отчета для последующего сравнения версий
+            string s0 = testTimingReportStage.StageReportFieldCounter.ToString();
+            string s1 = testTimingReportStage.ChainSerialNumber.ToString();
+            string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
+            string s3 = testTimingReportStage.MethodNameWhichCalled;
+            string s4 = testTimingReportStage.WorkActionNum.ToString();
+            string s5 = testTimingReportStage.WorkActionVal.ToString();
+            string s6 = testTimingReportStage.WorkActionName;
+            string s7 = testTimingReportStage.WorkActionDescription;
+            string s8 = "reserved1";
+            string s9 = "reserved2";
+            string unaitedStageData = $"{s0}-{s1}-{s2}-{s3}-{s4}-{s5}-{s6}-{s7}-{s8}-{s9}";
+            testTimingReportStage.StageReportHash = AuxiliaryUtilsService.CreateMD5(unaitedStageData);
+
             await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
             Logs.Here().Information("Method Name Which Called {0} was writen in field {1}.", testTimingReportStage.MethodNameWhichCalled, count);
 
@@ -150,7 +166,7 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        public async Task<List<TestReport.TestReportStage>> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
+        public async Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
         {
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
@@ -158,19 +174,25 @@ namespace BackgroundDispatcher.Services
             int testTimingReportStagesCount = testTimingReportStages.Count;
 
             TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount + 1];
+            string[] stageHash = new string[testTimingReportStagesCount + 1];
 
             testTimingReportStagesArray[0] = new();
             //testTimingReportStagesList.Add(new());
+            stageHash[0] = "";
 
             for (int i = 1; i < testTimingReportStagesCount + 1; i++) //
             {
+                // записать сумму хешей или хеш хешей в базовый класс
+                stageHash[i] = testTimingReportStages[i].StageReportHash;
                 testTimingReportStagesArray[i] = testTimingReportStages[i];
             }
 
-            return testTimingReportStagesArray.ToList();
+            string testReportForHash = String.Join("-", stageHash);
+            string testReportHash = AuxiliaryUtilsService.CreateMD5(testReportForHash);
+            return (testTimingReportStagesArray.ToList(), testReportHash);
         }
 
-        public async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario)
+        public async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario, string testReportHash)
         {
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
 
@@ -179,7 +201,8 @@ namespace BackgroundDispatcher.Services
                 TestScenarioNum = testScenario,
                 Guid = currentTestDescription,
                 TestId = testScenario,
-                TestReportStages = testTimingReportStages
+                TestReportStages = testTimingReportStages,
+                TestReportHash = testReportHash
             };
 
             theScenarioReports.Add(theScenarioReport);
