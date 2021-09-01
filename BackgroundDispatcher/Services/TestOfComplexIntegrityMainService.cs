@@ -90,7 +90,7 @@ namespace BackgroundDispatcher.Services
         // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
         // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
         // также этот метод устанавливает текущую версию теста в поле класса
-        private async Task<List<TestReport>> CreateAssignedSerialNum(int testScenario, string eternalTestTimingStagesReportsLog, CancellationToken stoppingToken)
+        private async Task<(List<TestReport>, bool, int)> CreateAssignedSerialNum(int testScenario, string eternalTestTimingStagesReportsLog, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
             (List<TestReport> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TestReport>(eternalTestTimingStagesReportsLog, fieldBookIdWithLanguageId);
@@ -105,6 +105,7 @@ namespace BackgroundDispatcher.Services
                 {
                     Guid = referenceTestDescription,
                     IsThisReportTheReference = false,
+                    ThisReporVersion = 0,
                     TestScenarioNum = testScenario
                 };
                 // записываем пустышку, только если список пуст
@@ -112,19 +113,23 @@ namespace BackgroundDispatcher.Services
                 // надо вернуть весь список, чтобы в конце теста в него дописать текущий отчёт
                 theScenarioReportsCount = theScenarioReports.Count;
 
-                return theScenarioReports;
+                return (theScenarioReports, false, 0);
             }
-            
+
             // и тут еще надо проверить, есть ли эталонный или вместо него пустышка
             // если пустышка, записать вместо неё текущий тест после успешного окончания
             // в дальнейшем можно проверять специальный ключ settings, в котором будет указано, какой номер записать в эталонный
             // или ещё можно проверять группу отчётов на совпадение временного сценария -
             // если больше заданного количества все одинаковые, записывать в эталонный
 
+            bool isThisReportTheReference = theScenarioReports[0].IsThisReportTheReference;
+            int thisReporVersion = 0;
+            // а тут начинаются варианты с версиями
+
             // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
             //_currentTestSerialNum = theScenarioReportsCount;
 
-            return theScenarioReports;
+            return (theScenarioReports, isThisReportTheReference, thisReporVersion);
         }
 
         // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
@@ -219,7 +224,7 @@ namespace BackgroundDispatcher.Services
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            List<TestReport> theScenarioReports = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
+            (List<TestReport> theScenarioReports, bool ttt, int tttt) = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
             
             // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
             int currentTestSerialNum = theScenarioReports.Count;
