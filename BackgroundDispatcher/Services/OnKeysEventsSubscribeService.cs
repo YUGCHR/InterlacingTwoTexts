@@ -119,7 +119,7 @@ namespace BackgroundDispatcher.Services
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
 
             char separatorUnit = '-';
-            //string messageText = "To start Test please type from Redis console the following command - ";
+            //string messageText = "To start Test please dispatch from Redis console the following command - ";
             string testConsoleCommand = $"127.0.0.1:6379> hset {eventKeyTest} test 1";
             (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, testConsoleCommand);
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);

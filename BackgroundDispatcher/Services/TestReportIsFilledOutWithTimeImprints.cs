@@ -19,9 +19,10 @@ namespace BackgroundDispatcher.Services
     {
         bool SetTestScenarioNumber(int testScenario);
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
-        Task<bool> ViewReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
+        Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
         Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
-        Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario, string testReportHash);
+        Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
+        bool Reset_stageReportFieldCounter();
     }
 
     public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
@@ -82,6 +83,18 @@ namespace BackgroundDispatcher.Services
             return false;
         }
 
+        public bool Reset_stageReportFieldCounter()
+        {
+            // сбросить счётчик текущего шага тестового отчёта по таймингу - только он в другом классе
+            _stageReportFieldCounter = 0;
+
+            if (_stageReportFieldCounter == 0)
+            {
+                return true;
+            }
+            return false;
+        }
+
         // этот метод вызывается только из рабочих методов других классов
         // он получает имя рабочего метода currentMethodName, выполняющего тест в данный момент, номер тестовой цепочки и остальное в TestReport.TestReportStage testTimingReportStage
         // ещё он собирает собственный счётчик вызовов, определяет номер шага отчёта и делает засечки с двух таймеров
@@ -94,7 +107,7 @@ namespace BackgroundDispatcher.Services
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
             //double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
             double currentTestReportKeyExistingTime = 1;
-            Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0}.", sendingTestTimingReportStage.MethodNameWhichCalled);
+            Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0} on chain {1}.", sendingTestTimingReportStage.MethodNameWhichCalled, sendingTestTimingReportStage.ChainSerialNumber);
 
             // определяем собственно номер шага текущего отчёта
             int count = Interlocked.Increment(ref _stageReportFieldCounter);
@@ -113,11 +126,11 @@ namespace BackgroundDispatcher.Services
             // ещё можно получать и записывать номер потока, в котором выполняется этот метод
             TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
             {
-                // номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
+                // StageId - номер шага с записью отметки времени теста, он же номер поля в ключе записи текущего отчёта
                 StageReportFieldCounter = count,
                 // серийный номер единичной цепочки теста - обработка одной книги от события From
                 ChainSerialNumber = sendingTestTimingReportStage.ChainSerialNumber,
-                // номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
+                // Current Test Serial Number for this Scenario - номер теста в пакете тестов по данному сценарию, он же индекс в списке отчётов
                 TheScenarioReportsCount = _currentTestSerialNum,
                 // хеш шага отчёта
                 StageReportHash = "",
@@ -144,9 +157,9 @@ namespace BackgroundDispatcher.Services
             };
 
             // посчитаем хеш данных шага отчета для последующего сравнения версий
-            string s0 = testTimingReportStage.StageReportFieldCounter.ToString();
+            //string s0 = testTimingReportStage.StageReportFieldCounter.ToString();
             string s1 = testTimingReportStage.ChainSerialNumber.ToString();
-            string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
+            //string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
             string s3 = testTimingReportStage.MethodNameWhichCalled;
             string s4 = testTimingReportStage.WorkActionNum.ToString();
             string s5 = testTimingReportStage.WorkActionVal.ToString();
@@ -154,8 +167,12 @@ namespace BackgroundDispatcher.Services
             string s7 = testTimingReportStage.WorkActionDescription;
             string s8 = "reserved1";
             string s9 = "reserved2";
-            string unaitedStageData = $"{s0}-{s1}-{s2}-{s3}-{s4}-{s5}-{s6}-{s7}-{s8}-{s9}";
-            testTimingReportStage.StageReportHash = AuxiliaryUtilsService.CreateMD5(unaitedStageData);
+            string unitedStageData = $"{s1}_{s3}_{s4}_{s5}_{s6}_{s7}_{s8}_{s9}"; //{s0}-{s2}-
+            string stageReportHash = AuxiliaryUtilsService.CreateMD5(unitedStageData);
+            testTimingReportStage.StageReportHash = stageReportHash;
+            Console.WriteLine(("").PadRight(150, '*'));
+            Logs.Here().Information("{0}). unitedStageData {1} has hash {2}.", count, unitedStageData, stageReportHash);
+            Console.WriteLine(("").PadRight(150, '+'));
 
             await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
             Logs.Here().Information("Method Name Which Called {0} was writen in field {1}.", testTimingReportStage.MethodNameWhichCalled, count);
@@ -173,41 +190,225 @@ namespace BackgroundDispatcher.Services
             IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
             int testTimingReportStagesCount = testTimingReportStages.Count;
 
-            TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount + 1];
-            string[] stageHash = new string[testTimingReportStagesCount + 1];
+            //Logs.Here().Information("testTimingReportStages {@D} length {0}.", new { IDictionary = testTimingReportStages }, testTimingReportStagesCount);
 
-            testTimingReportStagesArray[0] = new();
+            TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount];
+            string[] stageHash = new string[testTimingReportStagesCount];
+
+            // тут же не надо добавлять пустой нулевой элемент, он всё портит
+            //testTimingReportStagesArray[0] = new();
             //testTimingReportStagesList.Add(new());
-            stageHash[0] = "";
+            //stageHash[0] = "";
 
             for (int i = 1; i < testTimingReportStagesCount + 1; i++) //
             {
                 // записать сумму хешей или хеш хешей в базовый класс
-                stageHash[i] = testTimingReportStages[i].StageReportHash;
-                testTimingReportStagesArray[i] = testTimingReportStages[i];
+                stageHash[i-1] = testTimingReportStages[i].StageReportHash;
+                testTimingReportStagesArray[i-1] = testTimingReportStages[i];
+
+                //Logs.Here().Information("for i = {0} to end {1} - List = {2}, Array[i] = {3}, stageHash = {4}.", i, testTimingReportStagesCount, testTimingReportStages[i].StageReportFieldCounter, testTimingReportStagesArray[i-1].StageReportFieldCounter, stageHash[i-1]);
+
             }
+
+            //Logs.Here().Information("testTimingReportStagesArray {@D} length {0}.", new { Array = testTimingReportStagesArray }, testTimingReportStagesArray.Length);
+
 
             string testReportForHash = String.Join("-", stageHash);
             string testReportHash = AuxiliaryUtilsService.CreateMD5(testReportForHash);
             return (testTimingReportStagesArray.ToList(), testReportHash);
         }
 
-        public async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, long tsTest99, int testScenario, string testReportHash)
+        public async Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
+
+            Logs.Here().Information("List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStages }, testTimingReportStages.Count);
+
+            //List<TestReport.TestReportStage> listResult = testTimingReportStages.ConvertAll(x => { x.TheScenarioReportsCount = testScenario; return x; });
+            //result = result.Select(c => { c.property1 = 100; return c; }).ToList();
 
             TestReport theScenarioReport = new TestReport()
             {
                 TestScenarioNum = testScenario,
                 Guid = currentTestDescription,
-                ThisReportId = testScenario,
+                TheScenarioReportsCount = testTimingReportStages[0].TheScenarioReportsCount,
                 TestReportStages = testTimingReportStages,
                 ThisReportHash = testReportHash
             };
 
+            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли спаривание
+            // 5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
+            int reportsCountToStartComparison = 5;
+            int theScenarioReportsCount = theScenarioReports.Count;
+            int equalReportsCount = 0;
+            if (reportsWOversionsCount > reportsCountToStartComparison)
+            {
+                for (int i = theScenarioReportsCount - 1; i > 0; i--)
+                {
+                    bool reportsInPairAreEqual = String.Equals(testReportHash, theScenarioReports[i].ThisReportHash);
+
+                    if (reportsInPairAreEqual)
+                    {
+                        equalReportsCount++;
+                    }
+                    else
+                    {
+                        // если встретился отчёт с другим хешем, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
+                        // но надо посмотреть на счётчик - если нет даже двух одинаковых, то выходить совсем, иначе - уже описано
+                        // return
+                    }
+                }
+            }
+            if (equalReportsCount >= reportsCountToStartComparison)
+            {
+                // создать и записать эталонный отчёт
+            }
+
             theScenarioReports.Add(theScenarioReport);
 
             await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
+
+            return (theScenarioReports, equalReportsCount);
+        }
+
+        // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
+        public async Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStagesSource)
+        {
+            //foreach(var w in testTimingReportStages)
+            //{
+            //    Logs.Here().Information("United List - {@R}.", new { TestTimingReportStage = w }); //, Length = {0}  , testTimingReportStages.Count);
+
+            //}
+
+            //List<TestReport.TestReportStage> testTimingReportStages = (from u in testTimingReportStagesSource
+            //                                                           orderby u.StageReportFieldCounter
+            //                                                           select u).ToList();
+
+            List<TestReport.TestReportStage> testTimingReportStages = testTimingReportStagesSource.OrderBy(x => x.StageReportFieldCounter).ThenBy(x => x.TheScenarioReportsCount).ToList();
+
+            // вынести в отдельный метод и преобразовать словарь в список
+            // и ещё метод в список базового класса
+
+
+            // сначала перегнать все данные в печатный массив, определить максимумы,
+            // сделать нормировку масштабирования для заданной ширины печати тайм - лайна
+            // привязать названия и значения к свободным местам тайм-лайн
+            // попробовать выводить в две строки - одна данные, вторая тайм-лайн
+            // событие таймера выделять отдельной строкой и начинать отсчёт времени заново
+
+            // изменить названия точек методов на номера точек по порядку - можно синтезировать при печати имяМетода-1
+            // сделать сначала текстовую таблицу, без тайм - лайн
+            // для тайм-лайн надо синтезировать времена выполнения всего метода с данным номером задачи - начало, важный узел и конец метода
+            // тогда будет понятно, зачем нужен тайм - лайн
+
+            //string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
+
+            //char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
+            //int timeScaling = 5;
+
+            int screenFullWidthLinesCount = 228;
+            char screenFullWidthTopLineChar = '-';
+            char screenFullWidthBetweenLineChar = '\u1C79'; // Ol Chiki Gaahlaa Ttuddaag --> ᱹ
+
+            // проверить наличие ключа
+            // проверить наличие словаря
+            // проверить, что словарь не нулевой
+
+            //IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
+            int testTimingReportStagesCount = testTimingReportStages.Count;
+
+            TestReport.TestReportStage stage1 = testTimingReportStages[1];
+            int r103 = stage1.TheScenarioReportsCount;
+            TestReport.TestReportStage stageLast = testTimingReportStages[testTimingReportStagesCount - 2];
+            int rL05 = (int)stageLast.TsTest;
+
+            Logs.Here().Information("United List - {@F}, {@L}.", new { Stage1 = stage1 }, new { StageLast = stageLast });
+            //Logs.Here().Information("United List - {@F}.", new { Stage1 = stage1 });
+
+            Console.WriteLine($"\n  Timing imprint report on testScenario No: {testScenario,-3:d} | total stages in the report = {testTimingReportStagesCount,-4:d} | total test time = {(int)tsTest99,5:d} msec."); // \t
+
+            // рабочее решение тайм-лайн (часть 1)
+            //Console.WriteLine($"Timing imprint report:\t{testScenario,3:d} ({testTimingReportStagesCount})");
+            //TestReport.TestReportStage stage1 = testTimingReportStages[1];
+            //int r101 = stage1.StageReportFieldCounter;
+            //int r102 = stage1.ChainSerialNumber;
+            //int r103 = stage1.TheScenarioReportsCount;
+            //int r104 = (int)stage1.TsWork;
+            //long r105 = stage1.TsTest;
+            //string r106 = stage1.MethodNameWhichCalled;
+            //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}", r101, r102, r104, 0, r104, );
+
+            //int qnty1 = (int)((double)r104 / timeScaling) + 1;
+            //string elapsedTimeForLine1 = ("").PadLeft(r104, ttt);
+            //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}", r101, r102, r104, 0, r104, elapsedTimeForLine1);
+            // ----------------------------------------
+
+            Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+            Console.WriteLine("| {0,5} | {1,5} | {2,-42} | {3,8} | {4,8} | {5,8} | {6,5} | {7,8} | {8,-40} | {9,-40} | {10,-33} |", "stage", "chain", "MethodNameWhichCalled-PointNum/CallingNum", "timePrev", "timeWork", "timeDlt", "W-int", "W-bool", "WorkActionName", "WorkActionDescription", "StageReportHash");
+            Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+
+            for (int i = 0; i < testTimingReportStagesCount; i++) //
+            {
+                int r04prev = 0;
+                //if (i > 1)
+                //{
+                //    TestReport.TestReportStage stagePrev = testTimingReportStages[i - 1];
+                //    r04prev = (int)stagePrev.TsWork;
+                //}
+
+                TestReport.TestReportStage stage = testTimingReportStages[i];
+                int r01 = stage.StageReportFieldCounter;
+                //int r01a = stage.ThisReportId;
+                int r02 = stage.ChainSerialNumber;
+                int r03 = stage.TheScenarioReportsCount;
+                int r04 = (int)stage.TsWork;
+                int r05 = (int)stage.TsTest;
+                string r06 = stage.MethodNameWhichCalled;
+                int r07 = stage.WorkActionNum;
+                bool r08 = stage.WorkActionVal;
+                string r09 = stage.WorkActionName;
+                string r10 = stage.WorkActionDescription;
+                int r11 = stage.CallingCountOfWorkMethod;
+                int r12 = stage.CallingCountOfThisMethod;
+                string r13 = stage.StageReportHash;
+
+                string r06Num = $"{r06}-{i} / {r11}";
+                int r04delta = 0;// r04 - r04prev;
+                
+                //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, i = {4} from {5}.", r01, r02, r06, r04, i, testTimingReportStagesCount);
+
+                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,-42} | {3,8:d} | {4,8:d} | {5,8:d} | {6,5:d} | {7,8:b} | {8,-40} | {9,-40} | {10,33} |", r01, r02, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(40).ToArray()), new string(r10.Take(40).ToArray()), r13);
+                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthBetweenLineChar));
+
+                //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, TimePrev {4}, Delta {5}, i = {6} from {7}.", r01, r02, r06, r04, r04a, r04Delta);
+                // рабочее решение тайм-лайн (часть 2)
+                //int r04Delta = r04 - r04a;
+                //string elapsedTimeForLineDot = ("").PadLeft(r04a, '.');
+                //string elapsedTimeForLineSqv = ("").PadLeft(r04Delta, ttt);
+                //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}{6}", r01, r02, r04, r04a, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
+                // ----------------------------------------
+                //int qntyPrev = (int)((double)r04a / timeScaling) - 1;
+                //qntyPrevSum += qntyPrev;
+                //int qnty = (int)((double)r04Delta / timeScaling) + 1;
+
+                //string elapsedTimeForLineDot = ("").PadLeft(qntyPrevSum, '.');
+
+                //string reportView = String.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d}", r01, r02, r06, r04);
+                //string reportView = string.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d} - {56,100}", r01, r02, r06, r04, elapsedTimeForLine);
+
+                //_ = String.Format("{0,-12} {2,12:N0} {1,8:yyyy}");
+                // first argument, left align, 12 character wide column
+                // second argument, right align, 8 character wide column
+                // third argument, right align, 12 character wide column
+
+                //Console.WriteLine("{0,-20} {1,5}\n", "Name", "Hours");
+                //Console.WriteLine("{0,-20} {1,5:N1}", "Vasya", 10);
+
+                //Console.WriteLine("{0,3:d} | {1,3:d} | {2,-30} | {3,6:d} | {4,6:d} | {5,6:d} - {6}{7}", r01, r02, r06, r04, qntyPrevSum, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
+                //Console.WriteLine($"Stage:\t{r01,3:d} | {r02,3:d} | {r03,3:d} | {r04,3:d} | {r05,3:d} | {r06,3:d} | {r07,3:d} | {r08,3:d} | {r09,3:d} | {r10,3:d} | {r11,3:d} | {r12,3:d}");
+                // HandlerCallingsDistributor
+            }
+            Console.WriteLine(("").PadRight(screenFullWidthLinesCount, '*'));
 
             return true;
         }

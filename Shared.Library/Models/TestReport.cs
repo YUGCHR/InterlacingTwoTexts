@@ -7,7 +7,7 @@ namespace Shared.Library.Models
 {
     public class TestReport
     {
-        // фактически это id для списка List<TestReport> и он же номер поля в ключе вечного лога
+        // это как бы тип для списка List<TestReport> и он же номер поля в ключе вечного лога
         [JsonProperty(PropertyName = "testScenarioNum")]
         public int TestScenarioNum { get; set; }
 
@@ -16,15 +16,15 @@ namespace Shared.Library.Models
         [JsonProperty(PropertyName = "guid")]
         public string Guid { get; set; }
 
-        // оно же, только int
+        // оно же, только int - индекс в списке класса TestReport
         [JsonProperty(PropertyName = "thisReportId")]
-        public int ThisReportId { get; set; }
-        
-        // 
+        public int TheScenarioReportsCount { get; set; }
+
+        // является ли этот отчёт эталонным
         [JsonProperty(PropertyName = "isThisReportReference")]
         public bool IsThisReportTheReference { get; set; }
-        
-        // 
+
+        // версия (эталона) для этого отчёта
         [JsonProperty(PropertyName = "thisReporVersion")]
         public int ThisReporVersion { get; set; }
 

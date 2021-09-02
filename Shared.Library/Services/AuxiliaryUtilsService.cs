@@ -101,10 +101,10 @@ namespace Shared.Library.Services
             if (resultExist)
             {
                 bool resultDelete = await _cache.DeleteKeyIfCancelled(key);
-                Logs.Here().Information("{@K} was removed with result {0}.", new { Key = key }, resultDelete);
+                //Logs.Here().Information("{@K} was removed with result {0}.", new { Key = key }, resultDelete);
                 return resultDelete;
             }
-            Logs.Here().Information("Is {@K} exist - {0}.", new { Key = key }, resultExist);
+            //Logs.Here().Information("Is {@K} exist - {0}.", new { Key = key }, resultExist);
             return !resultExist;
         }
 

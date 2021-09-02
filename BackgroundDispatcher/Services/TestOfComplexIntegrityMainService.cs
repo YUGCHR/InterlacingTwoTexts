@@ -11,6 +11,12 @@ using Shared.Library.Services;
 // перенести таймеры в TestOfComplexIntegrityMainService и оставить без обёртки
 // запрашивать таймеры в рабочих методах непосредственно перед вызовом шага отчёта
 
+// можно поставить тест навсегда, увеличить время ожидания и посмотреть на поведение выгрузки книг на фронте -
+// заведётся второй процесс или нет
+// добавить счётчик, логи и отключение теста по команде
+
+// вариант одновременной обработки рабочих и тестовых задач нерационален - тесты будет искажать лишняя случайная нагрузка
+
 namespace BackgroundDispatcher.Services
 {
     public interface ITestOfComplexIntegrityMainServicee
@@ -20,6 +26,7 @@ namespace BackgroundDispatcher.Services
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
         long FetchWorkStopwatch();
+        int FetchAssignedTestSerialNum();
     }
 
     public class TestOfComplexIntegrityMainService : ITestOfComplexIntegrityMainServicee
@@ -64,7 +71,7 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestOfComplexIntegrityMainService>();
 
         private bool _isTestInProgress;
-        private int _stageReportFieldCounter;
+        private int _currentTestSerialNum;
         private int _currentChainSerialNum;
         private Stopwatch _stopWatchTest;
         private Stopwatch _stopWatchWork;
@@ -72,7 +79,6 @@ namespace BackgroundDispatcher.Services
         // Report of the test time imprint
         // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
         // кроме первого раза, когда вернут уникальный номер
-        // как его потом дальше передавать, надо изучить
         // под этим уникальным номером отчёт о тестах хранится в вечном логе некоторое время
         // можно использовать номера в определённом диапазоне, не пересекающимся с книгами
         // но там же, возможно, делают сплошную выборку
@@ -111,25 +117,58 @@ namespace BackgroundDispatcher.Services
                 // записываем пустышку, только если список пуст
                 theScenarioReports.Add(testReportForScenario);
                 // надо вернуть весь список, чтобы в конце теста в него дописать текущий отчёт
-                theScenarioReportsCount = theScenarioReports.Count;
+                //theScenarioReportsCount = theScenarioReports.Count;
 
                 return (theScenarioReports, false, 0);
             }
 
-            // и тут еще надо проверить, есть ли эталонный или вместо него пустышка
-            // если пустышка, записать вместо неё текущий тест после успешного окончания
-            // в дальнейшем можно проверять специальный ключ settings, в котором будет указано, какой номер записать в эталонный
-            // или ещё можно проверять группу отчётов на совпадение временного сценария -
-            // если больше заданного количества все одинаковые, записывать в эталонный
+            // возможные ситуации(по мере возникновения) -
+            // 1 пустой список с пустышкой в нуле
+            // 2 пустышка в нуле и от одного до пяти отчётов без версии
+            // ---- -
+            //тут ещё ситуация, что пять отчётов без версии, но они разные, только здесь это не волнует, это в конце текста будут разбираться
+            // ситуация --пять разных отчётов без версии-- решается следующим образом -
+            // в конце полученный отчёт сравнивается с предыдущим, если не совпадает, сообщается оператору и удаляется самый старый
+            // таким образом, больше пяти отчётов не скапливается
+            // если совпал с предыдущим, сравнивается со следующим и так далее
+            // ---- -
+            // 3 есть эталон с версией и один элемент той же версии
+            // 4 есть эталон с версией и от одного до пяти отчётов без версии
+            // 5 есть эталон с новой версией, бывший эталон со старой версией и один элемент новой версии
+            // 6 опять добавляются отчёты без версии
+            // и так далее, вроде бы все варианты
+            // опять же, если не совпадает со следующим, то самый старый выкидывается, а новый сохраняется в конец
+            // и так, пока все пять не совпадут, тогда создаётся эталон
 
-            bool isThisReportTheReference = theScenarioReports[0].IsThisReportTheReference;
-            int thisReporVersion = 0;
-            // а тут начинаются варианты с версиями
+            // флаг (признак), является ли этот отчёт действующим эталоном
+            // нужен ли признак, что он был эталоном или это и так будет понятно по номеру версии?
+            bool isThisReportTheReference = false;
+            // счётчик количества отчётов без версий (с нулевой версией) - для определения готовности к спариванию
+            int reportsWOversionsCount = 0;
 
-            // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
-            //_currentTestSerialNum = theScenarioReportsCount;
+            if (theScenarioReportsCount > 1)
+            {
+                // если эталон, проверять с конца остальные элементы, считая те, что без версии,
+                // как только встретится с версией, дальше неинтересно
+                // если не эталон, делать то же самое - то есть, наличие эталона в этот момент вроде бы никого не волнует
+                isThisReportTheReference = theScenarioReports[0].IsThisReportTheReference;
 
-            return (theScenarioReports, isThisReportTheReference, thisReporVersion);
+                for (int i = theScenarioReportsCount - 1; i > 0; i--)
+                {
+                    if (theScenarioReports[i].ThisReporVersion == 0)
+                    {
+                        reportsWOversionsCount++;
+                    }
+                    else
+                    {
+                        // если встретился отчёт с версией, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
+                        // return
+                    }
+                }
+            }
+            Logs.Here().Information("List theScenarioReports - Reference in [0] = {0}, length = {1}, without versions q-ty = {2}.", isThisReportTheReference, theScenarioReportsCount, reportsWOversionsCount);
+
+            return (theScenarioReports, isThisReportTheReference, reportsWOversionsCount);
         }
 
         // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
@@ -138,8 +177,17 @@ namespace BackgroundDispatcher.Services
         {
             int chainSerialNum = Interlocked.Increment(ref _currentChainSerialNum);
 
-            Logs.Here().Debug("The value of _currentTestSerialNum was requested = {0}.", chainSerialNum);
+            Logs.Here().Debug("The value of _currentChainSerialNum was requested = {0}.", chainSerialNum);
             return chainSerialNum;
+        }
+
+        // этот метод возвращает 
+        public int FetchAssignedTestSerialNum()
+        {
+            int testSerialNum = _currentTestSerialNum;
+
+            Logs.Here().Debug("The value of testSerialNum was requested = {0}.", testSerialNum);
+            return testSerialNum;
         }
 
         // этот метод возвращает состояние _isTestInProgress - для быстрого определения наличия теста рабочими методами
@@ -157,6 +205,15 @@ namespace BackgroundDispatcher.Services
             return _stopWatchWork.ElapsedMilliseconds;
         }
 
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // **********************************************************************************************************
+        // **********************************************************************************************************
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+
         // поле "тест запущен" _isTestInProgress ставится в true - его проверяет контроллер при отправке задач
         // устанавливаются необходимые константы
         // записывается ключ глубины теста test1Depth-X - в нём хранится название метода, в котором тест должен закончиться
@@ -165,8 +222,9 @@ namespace BackgroundDispatcher.Services
         public async Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken)
         {
             _isTestInProgress = true;
-            _stageReportFieldCounter = 0;
             _currentChainSerialNum = 0;
+            // сбросить счётчик текущего шага тестового отчёта по таймингу
+            bool resultResetOnStart = _report.Reset_stageReportFieldCounter();
 
             //_stopWatchTest = new Stopwatch();
             _stopWatchTest.Start();
@@ -212,6 +270,7 @@ namespace BackgroundDispatcher.Services
             bool testSettingKey1WasDeleted = await _prepare.TestDepthSetting(constantsSet);
             // сделать перегрузку для множества ключей
             bool testResultsKey1WasDeleted = await _aux.RemoveWorkKeyOnStart(assertProcessedBookAreEqualControl);
+            bool testResultsKey2WasDeleted = await _aux.RemoveWorkKeyOnStart(currentTestReportKey);
             bool controlListOfTestBookFieldsKeyWasDeleted = await _aux.RemoveWorkKeyOnStart(controlListOfTestBookFieldsKey);
 
             if (_aux.SomethingWentWrong(testSettingKey1WasDeleted, testResultsKey1WasDeleted, controlListOfTestBookFieldsKeyWasDeleted))
@@ -224,8 +283,8 @@ namespace BackgroundDispatcher.Services
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            (List<TestReport> theScenarioReports, bool ttt, int tttt) = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
-            
+            (List<TestReport> theScenarioReports, bool isThisReportTheReference, int reportsWOversionsCount) = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
+
             // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
             int currentTestSerialNum = theScenarioReports.Count;
 
@@ -336,20 +395,40 @@ namespace BackgroundDispatcher.Services
             // сбросить счётчик текущего номера тестовой цепочки 
             int countChain = Interlocked.Exchange(ref _currentChainSerialNum, 0);
 
-            // сбросить счётчик текущего шага тестового отчёта по таймингу
-            int countField = Interlocked.Exchange(ref _stageReportFieldCounter, 0);
+            // сбросить счётчик текущего шага тестового отчёта по таймингу - сделать reset в другом классе
+            bool resultResetOnEnd = _report.Reset_stageReportFieldCounter();
 
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet, tsTest99, testScenario);
-            Logs.Here().Information("Report list of timing is {@R}.", new { ReportList = testTimingReportStagesList });
+
+            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
+
+            Logs.Here().Information("theScenarioReports - {@R}, reportsWOversionsCount = {0}, equalReportsCount = {1}.", new { ReportListLength = theScenarioReports.Count }, reportsWOversionsCount, equalReportsCount);
             
-            var result = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, tsTest99, testScenario, testReportHash);
+            List<TestReport.TestReportStage> testTimingReportStagesListCurrent = new();
+            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
+
+            for (int i = 1; i < theScenarioReports.Count; i++)
+            {
+                testTimingReportStagesListCurrent.AddRange(theScenarioReportsLast[i].TestReportStages); // theScenarioReports.Count - 1
+            }
+
+            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
+
+            _ = _report.ViewComparedReportInConsole(constantsSet, tsTest99, testScenario, testTimingReportStagesListCurrent);//testTimingReportStagesList);
             
-
-
-            _ = _report.ViewReportInConsole(constantsSet, tsTest99, testScenario, testTimingReportStagesList);
-
             return _isTestInProgress;
         }
+
+        // key-test-reports-timing-imprints-list
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // **********************************************************************************************************
+        // **********************************************************************************************************
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // ----------------------------------------------------------------------------------------------------------
+        // storage-key-for-current-test-report
 
         private async Task<bool> WaitForTestFinishingTags(ConstantsSet constantsSet, int timeOfAllDelays, string controlListOfTestBookFieldsKey, CancellationToken stoppingToken)
         {
