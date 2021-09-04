@@ -398,18 +398,17 @@ namespace BackgroundDispatcher.Services
             // сбросить счётчик текущего шага тестового отчёта по таймингу - сделать reset в другом классе
             bool resultResetOnEnd = _report.Reset_stageReportFieldCounter();
 
-            (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet, tsTest99, testScenario);
+            (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet);
 
             (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
 
-            Logs.Here().Information("theScenarioReports - {@R}, reportsWOversionsCount = {0}, equalReportsCount = {1}.", new { ReportListLength = theScenarioReports.Count }, reportsWOversionsCount, equalReportsCount);
-            
             List<TestReport.TestReportStage> testTimingReportStagesListCurrent = new();
             //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
 
             for (int i = 1; i < theScenarioReports.Count; i++)
             {
                 testTimingReportStagesListCurrent.AddRange(theScenarioReportsLast[i].TestReportStages); // theScenarioReports.Count - 1
+                Logs.Here().Information("Hash of hashes - {0} in theScenarioReports[{1}] .", theScenarioReportsLast[i].ThisReportHash, i);
             }
 
             //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);

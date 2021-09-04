@@ -81,7 +81,7 @@ namespace BackgroundDispatcher.Services
         private int _currentChainSerialNum;
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", int controlPointNum = 0, int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             if (isTestInProgress)
@@ -94,7 +94,7 @@ namespace BackgroundDispatcher.Services
                     WorkActionNum = workActionNum,
                     WorkActionVal = workActionVal,
                     WorkActionName = workActionName,
-                    WorkActionDescription = workActionDescription,
+                    ControlPointNum = controlPointNum,
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
                 _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
@@ -113,8 +113,9 @@ namespace BackgroundDispatcher.Services
 
             //int count = Volatile.Read(ref _callingNumOfHandlerCallingsDistributor);
 
+            int controlPointNum1 = 1;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, "", controlPointNum1, lastCountStart);
             _ = HandlerCallings(constantsSet, currentChainSerialNum, stoppingToken);
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, "", "HandlerCallings calling has passed", lastCountStart);
 
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfHandlerCallingsDistributor);
             Logs.Here().Information("HandlerCallingsDistributor ended {0} time.", lastCountEnd);
@@ -161,11 +162,13 @@ namespace BackgroundDispatcher.Services
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
             (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, currentChainSerialNum, stoppingToken);
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, sourceKeyWithPlainTexts, "ProcessDataOfSubscribeOnFrom returned sourceKeyWithPlainTexts", -1);
+            int controlPointNum1 = 1;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, sourceKeyWithPlainTexts, controlPointNum1, -1);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, currentChainSerialNum, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, taskPackageGuid, "CreateTaskPackageAndSaveLog returned taskPackageGuid", -1);
+            int controlPointNum2 = 2;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, taskPackageGuid, controlPointNum2, -1);
 
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != "")
@@ -179,7 +182,8 @@ namespace BackgroundDispatcher.Services
 
                 // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
                 bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, currentChainSerialNum, taskPackageGuid);
-                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum , _test.FetchWorkStopwatch(), - 1, isCafeKeyCreated, "isCafeKeyCreated", "DistributeTaskPackageInCafee has passed", -1);
+                int controlPointNum3 = 3;
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum , _test.FetchWorkStopwatch(), - 1, isCafeKeyCreated, "isCafeKeyCreated", controlPointNum3, -1);
 
                 //if (isCafeKeyCreated) // && test is processing now
                 //{

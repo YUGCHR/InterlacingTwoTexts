@@ -92,6 +92,7 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
 
         private bool _isTestInProgressAlready;
+        private int _callingNumOfEventKeyFrom;
 
         public async Task SubscribingPlan(ConstantsSet constantsSet)
         {
@@ -112,6 +113,8 @@ namespace BackgroundDispatcher.Services
             // ключ блокировки повторного запуска теста до окончания уже запущенного
             _isTestInProgressAlready = false;
 
+            _callingNumOfEventKeyFrom = 0;
+
             // подписка на ключ создания задачи (загрузки книги)
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
 
@@ -126,7 +129,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // 
-        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", string workActionDescription = "", int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", int controlPointNum = 0, int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
             bool isTestInProgress = _test.FetchIsTestInProgress();
             // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
@@ -141,7 +144,7 @@ namespace BackgroundDispatcher.Services
                     WorkActionNum = workActionNum,
                     WorkActionVal = workActionVal,
                     WorkActionName = workActionName,
-                    WorkActionDescription = workActionDescription,
+                    ControlPointNum = controlPointNum,
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
                 _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
@@ -160,13 +163,16 @@ namespace BackgroundDispatcher.Services
             {
                 if (cmd == eventCmd)
                 {
+                    int lastCountStart = Interlocked.Increment(ref _callingNumOfEventKeyFrom);
+
                     // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
                     // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
                     currentChainSerialNum = _test.FetchAssignedChainSerialNum();
-                    //currentWorkStopwatch = _test.FetchWorkStopwatch();
-                    _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, "EventCounterOccurred calling has passed", -1);
+                    int controlPointNum1 = 1;
+                    bool result = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, controlPointNum1, lastCountStart);
                     _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
 
+                    int lastCountEnd = Interlocked.Decrement(ref _callingNumOfEventKeyFrom);
                 }
             });
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);

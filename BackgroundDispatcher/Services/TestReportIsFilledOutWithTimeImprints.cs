@@ -20,7 +20,7 @@ namespace BackgroundDispatcher.Services
         bool SetTestScenarioNumber(int testScenario);
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
-        Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario);
+        Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet);
         Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
         bool Reset_stageReportFieldCounter();
     }
@@ -104,24 +104,12 @@ namespace BackgroundDispatcher.Services
             // сделать сначала текстовую таблицу, без тайм - лайн
             // для тайм-лайн надо синтезировать времена выполнения всего метода с данным номером задачи - начало, важный узел и конец метода
 
-            string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
-            //double currentTestReportKeyExistingTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.LifeTime; // ?
-            double currentTestReportKeyExistingTime = 1;
-            Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0} on chain {1}.", sendingTestTimingReportStage.MethodNameWhichCalled, sendingTestTimingReportStage.ChainSerialNumber);
-
             // определяем собственно номер шага текущего отчёта
             int count = Interlocked.Increment(ref _stageReportFieldCounter);
 
             // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
             int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
             Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
-
-            // первый параметр - isRequestForTestStopWatch = true, Work - false
-            // второй параметр - запустить/прочитать = true, остановить/сбросить = false
-            // оба секундомера запускаются и останавливаются в классе TestOfComplexIntegrityMainService, здесь только считываются
-            // возвращается засечка времени в мсек, без остановки секундомера
-            //long tsWork = StopwatchesControlAndRead(false, true);
-            //long tsTest = StopwatchesControlAndRead(true, true);
 
             // ещё можно получать и записывать номер потока, в котором выполняется этот метод
             TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
@@ -148,45 +136,66 @@ namespace BackgroundDispatcher.Services
                 WorkActionVal = sendingTestTimingReportStage.WorkActionVal,
                 // название ключевого значения метода
                 WorkActionName = sendingTestTimingReportStage.WorkActionName,
-                // описание действий метода или текущей ситуации
-                WorkActionDescription = sendingTestTimingReportStage.WorkActionDescription,
+                // номер контрольной точки в методе, где считывается засечка времени
+                ControlPointNum = sendingTestTimingReportStage.ControlPointNum,
                 // количество одновременных вызовов принимаемого рабочего метода
                 CallingCountOfWorkMethod = sendingTestTimingReportStage.CallingCountOfWorkMethod,
                 // количество одновременных вызовов этого метода (AddStageToTestTaskProgressReport)
                 CallingCountOfThisMethod = lastCountStart
             };
 
-            // посчитаем хеш данных шага отчета для последующего сравнения версий
-            //string s0 = testTimingReportStage.StageReportFieldCounter.ToString();
-            string s1 = testTimingReportStage.ChainSerialNumber.ToString();
-            //string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
-            string s3 = testTimingReportStage.MethodNameWhichCalled;
-            string s4 = testTimingReportStage.WorkActionNum.ToString();
-            string s5 = testTimingReportStage.WorkActionVal.ToString();
-            string s6 = testTimingReportStage.WorkActionName;
-            string s7 = testTimingReportStage.WorkActionDescription;
-            string s8 = "reserved1";
-            string s9 = "reserved2";
-            string unitedStageData = $"{s1}_{s3}_{s4}_{s5}_{s6}_{s7}_{s8}_{s9}"; //{s0}-{s2}-
-            string stageReportHash = AuxiliaryUtilsService.CreateMD5(unitedStageData);
-            testTimingReportStage.StageReportHash = stageReportHash;
-            Console.WriteLine(("").PadRight(150, '*'));
-            Logs.Here().Information("{0}). unitedStageData {1} has hash {2}.", count, unitedStageData, stageReportHash);
-            Console.WriteLine(("").PadRight(150, '+'));
-
-            await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
-            Logs.Here().Information("Method Name Which Called {0} was writen in field {1}.", testTimingReportStage.MethodNameWhichCalled, count);
+            // посчитаем хеш данных шага отчета для последующего сравнения версий 
+            KeyType currentTestReportKeyTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey; // storage-key-for-current-test-report / 0.01
+            bool result = await AddHashToStageAndWrite(testTimingReportStage, currentTestReportKeyTime);
 
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
             Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
 
+            return result;
+        }
+
+        private async Task<bool> AddHashToStageAndWrite(TestReport.TestReportStage testTimingReportStage, KeyType currentTestReportKeyTime)
+        {
+            string currentTestReportKey = currentTestReportKeyTime.Value; // storage-key-for-current-test-report
+            //double currentTestReportKeyExistingTime = currentTestReportKeyTime.LifeTime; // 0.01
+            double currentTestReportKeyExistingTime = 1;
+            int count = testTimingReportStage.StageReportFieldCounter;
+            Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0} on chain {1}.", testTimingReportStage.MethodNameWhichCalled, testTimingReportStage.ChainSerialNumber);
+
+            string s1 = testTimingReportStage.ChainSerialNumber.ToString();
+            //string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
+            string s3 = $"{testTimingReportStage.MethodNameWhichCalled}-{testTimingReportStage.ControlPointNum}";
+            //string s4 = testTimingReportStage.WorkActionNum.ToString();
+            string s5 = $"{testTimingReportStage.WorkActionName}-{testTimingReportStage.WorkActionNum} ({testTimingReportStage.WorkActionVal})";
+            //string s6 = testTimingReportStage.WorkActionName;
+            //string s7 = testTimingReportStage.ControlPointNum;
+            string unitedStageData = $"{s1}_{s3}_{s5}";
+
+            testTimingReportStage.StageReportHash = AuxiliaryUtilsService.CreateMD5(unitedStageData);
+
+            //string stageReportHash = AuxiliaryUtilsService.CreateMD5(unitedStageData);
+            //testTimingReportStage.StageReportHash = stageReportHash;
+            //Console.WriteLine(("").PadRight(150, '*'));
+            //Logs.Here().Information("{0}). unitedStageData {1} has hash {2}.", count, unitedStageData, stageReportHash);
+            //Console.WriteLine(("").PadRight(150, '+'));
+
+            await _cache.WriteHashedAsync<int, TestReport.TestReportStage>(currentTestReportKey, count, testTimingReportStage, currentTestReportKeyExistingTime);
+            Logs.Here().Information("Method Name Which Called {0} was writen in field {1}.", testTimingReportStage.MethodNameWhichCalled, count);
+
             return true;
         }
 
-        public async Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet, long tsTest99, int testScenario)
+        // метод получает только константы, самостоятельно достаёт из них нужный ключ,
+        // достаёт сохранённые шаги с засечками времени в словарь,
+        // преобразовывает в список (через массив) и собирает хеши всех шагов для вычисления общего хеша отчёта,
+        // возвращает (отсортированный список) и хеш всего отчёта
+        // дополнительно тут подходящее место отсортировать по номеру цепочки, а зачем по номеру шага
+        // 
+        public async Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet)
         {
             string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
+            // нумерация ключей словаря начинается с 1 (так случилось)
             IDictionary<int, TestReport.TestReportStage> testTimingReportStages = await _cache.FetchHashedAllAsync<int, TestReport.TestReportStage>(currentTestReportKey);
             int testTimingReportStagesCount = testTimingReportStages.Count;
 
@@ -195,34 +204,30 @@ namespace BackgroundDispatcher.Services
             TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount];
             string[] stageHash = new string[testTimingReportStagesCount];
 
-            // тут же не надо добавлять пустой нулевой элемент, он всё портит
-            //testTimingReportStagesArray[0] = new();
-            //testTimingReportStagesList.Add(new());
-            //stageHash[0] = "";
-
+            // или <= testTimingReportStagesCount - индексы начинаются с 1
             for (int i = 1; i < testTimingReportStagesCount + 1; i++) //
             {
                 // записать сумму хешей или хеш хешей в базовый класс
-                stageHash[i-1] = testTimingReportStages[i].StageReportHash;
-                testTimingReportStagesArray[i-1] = testTimingReportStages[i];
-
+                // сдвигаем индексы к нулю
+                stageHash[i - 1] = testTimingReportStages[i].StageReportHash;
+                testTimingReportStagesArray[i - 1] = testTimingReportStages[i];
                 //Logs.Here().Information("for i = {0} to end {1} - List = {2}, Array[i] = {3}, stageHash = {4}.", i, testTimingReportStagesCount, testTimingReportStages[i].StageReportFieldCounter, testTimingReportStagesArray[i-1].StageReportFieldCounter, stageHash[i-1]);
-
             }
 
-            //Logs.Here().Information("testTimingReportStagesArray {@D} length {0}.", new { Array = testTimingReportStagesArray }, testTimingReportStagesArray.Length);
-
-
-            string testReportForHash = String.Join("-", stageHash);
+            List<TestReport.TestReportStage> testTimingReportStagesList = testTimingReportStagesArray.OrderBy(x => x.ChainSerialNumber).ThenBy(x => x.StageReportFieldCounter).ToList();
+            //Logs.Here().Information("testTimingReportStagesList {@D} length {0}.", new { List = testTimingReportStagesList }, testTimingReportStagesList.Count);
+            // важно отсортировать до вычисления общего хеша
+            string testReportForHash = String.Join("_", stageHash);
             string testReportHash = AuxiliaryUtilsService.CreateMD5(testReportForHash);
-            return (testTimingReportStagesArray.ToList(), testReportHash);
+
+            return (testTimingReportStagesList, testReportHash);
         }
 
         public async Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
 
-            Logs.Here().Information("List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStages }, testTimingReportStages.Count);
+            //Logs.Here().Information("List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStages }, testTimingReportStages.Count);
 
             //List<TestReport.TestReportStage> listResult = testTimingReportStages.ConvertAll(x => { x.TheScenarioReportsCount = testScenario; return x; });
             //result = result.Select(c => { c.property1 = 100; return c; }).ToList();
@@ -284,7 +289,7 @@ namespace BackgroundDispatcher.Services
             //                                                           orderby u.StageReportFieldCounter
             //                                                           select u).ToList();
 
-            List<TestReport.TestReportStage> testTimingReportStages = testTimingReportStagesSource.OrderBy(x => x.StageReportFieldCounter).ThenBy(x => x.TheScenarioReportsCount).ToList();
+            List<TestReport.TestReportStage> testTimingReportStages = testTimingReportStagesSource.OrderBy(x => x.StageReportFieldCounter).ThenBy(y => y.ChainSerialNumber).ThenBy(z => z.TheScenarioReportsCount).ToList();
 
             // вынести в отдельный метод и преобразовать словарь в список
             // и ещё метод в список базового класса
@@ -308,7 +313,7 @@ namespace BackgroundDispatcher.Services
 
             int screenFullWidthLinesCount = 228;
             char screenFullWidthTopLineChar = '-';
-            char screenFullWidthBetweenLineChar = '\u1C79'; // Ol Chiki Gaahlaa Ttuddaag --> ᱹ
+            char screenLineChar1C79 = '\u1C79'; // Ol Chiki Gaahlaa Ttuddaag --> ᱹ
 
             // проверить наличие ключа
             // проверить наличие словаря
@@ -322,7 +327,7 @@ namespace BackgroundDispatcher.Services
             TestReport.TestReportStage stageLast = testTimingReportStages[testTimingReportStagesCount - 2];
             int rL05 = (int)stageLast.TsTest;
 
-            Logs.Here().Information("United List - {@F}, {@L}.", new { Stage1 = stage1 }, new { StageLast = stageLast });
+            //Logs.Here().Information("United List - {@F}, {@L}.", new { Stage1 = stage1 }, new { StageLast = stageLast });
             //Logs.Here().Information("United List - {@F}.", new { Stage1 = stage1 });
 
             Console.WriteLine($"\n  Timing imprint report on testScenario No: {testScenario,-3:d} | total stages in the report = {testTimingReportStagesCount,-4:d} | total test time = {(int)tsTest99,5:d} msec."); // \t
@@ -344,12 +349,15 @@ namespace BackgroundDispatcher.Services
             // ----------------------------------------
 
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
-            Console.WriteLine("| {0,5} | {1,5} | {2,-42} | {3,8} | {4,8} | {5,8} | {6,5} | {7,8} | {8,-40} | {9,-40} | {10,-33} |", "stage", "chain", "MethodNameWhichCalled-PointNum/CallingNum", "timePrev", "timeWork", "timeDlt", "W-int", "W-bool", "WorkActionName", "WorkActionDescription", "StageReportHash");
+            Console.WriteLine("|{0,5}|{1,5}|{2,5}| {3,-37} | {4,8} | {5,8} | {6,8} | {7,5} | {8,8} | {9,-40} | {10,-33} |", "stage", "chain", "index", "CallingMethod-PointNum/CallingNum", "timePrev", "timeWork", "timeDlt", "W-int", "W-bool", "WorkActionName", "StageReportHash");
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
 
-            for (int i = 0; i < testTimingReportStagesCount; i++) //
+            int r01Prev = 1;
+            int r04prev = 0;
+
+            for (int i = 0; i <= testTimingReportStagesCount; i++) //
             {
-                int r04prev = 0;
+
                 //if (i > 1)
                 //{
                 //    TestReport.TestReportStage stagePrev = testTimingReportStages[i - 1];
@@ -358,7 +366,6 @@ namespace BackgroundDispatcher.Services
 
                 TestReport.TestReportStage stage = testTimingReportStages[i];
                 int r01 = stage.StageReportFieldCounter;
-                //int r01a = stage.ThisReportId;
                 int r02 = stage.ChainSerialNumber;
                 int r03 = stage.TheScenarioReportsCount;
                 int r04 = (int)stage.TsWork;
@@ -366,20 +373,31 @@ namespace BackgroundDispatcher.Services
                 string r06 = stage.MethodNameWhichCalled;
                 int r07 = stage.WorkActionNum;
                 bool r08 = stage.WorkActionVal;
-                string r09 = stage.WorkActionName;
-                string r10 = stage.WorkActionDescription;
+
+                static string r07Cor(int r07) => r07 < 0 ? " (N/A)" : $"- {r07}";
+
+                //string GetWeatherDisplay(double tempInCelsius) => tempInCelsius < 20.0 ? "Cold." : "Perfect!";
+                string r09 = $"{stage.WorkActionName} {r07Cor(r07)} ({r08})";
+                int r10 = stage.ControlPointNum;
                 int r11 = stage.CallingCountOfWorkMethod;
                 int r12 = stage.CallingCountOfThisMethod;
                 string r13 = stage.StageReportHash;
 
-                string r06Num = $"{r06}-{i} / {r11}";
+                string r06Num = $"{r06}-{r10} / {r11}";
                 int r04delta = 0;// r04 - r04prev;
-                
+                 
                 //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, i = {4} from {5}.", r01, r02, r06, r04, i, testTimingReportStagesCount);
 
-                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,-42} | {3,8:d} | {4,8:d} | {5,8:d} | {6,5:d} | {7,8:b} | {8,-40} | {9,-40} | {10,33} |", r01, r02, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(40).ToArray()), new string(r10.Take(40).ToArray()), r13);
-                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthBetweenLineChar));
+                //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
+                if (r01 > r01Prev)
+                {
+                    //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
+                    Console.WriteLine(("").PadRight(180, screenLineChar1C79)); //screenFullWidthLinesCount
+                }
+                r01Prev = r01;
+                //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
 
+                Console.WriteLine("| {0,3:d} | {1,3:d} | {2,3:d} | {3,-37} | {4,8:d} | {5,8:d} | {6,8:d} | {7,5:d} | {8,8:b} | {9,-40} | {10,33} |", r01, r02, r03, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(40).ToArray()), r13);
                 //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, TimePrev {4}, Delta {5}, i = {6} from {7}.", r01, r02, r06, r04, r04a, r04Delta);
                 // рабочее решение тайм-лайн (часть 2)
                 //int r04Delta = r04 - r04a;
@@ -492,14 +510,14 @@ namespace BackgroundDispatcher.Services
                 int r07 = stage.WorkActionNum;
                 bool r08 = stage.WorkActionVal;
                 string r09 = stage.WorkActionName;
-                string r10 = stage.WorkActionDescription;
+                int r10 = stage.ControlPointNum;
                 int r11 = stage.CallingCountOfWorkMethod;
                 int r12 = stage.CallingCountOfThisMethod;
 
                 string r06Num = $"{r06}-{i} / {r11}";
                 int r04delta = r04 - r04prev;
 
-                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,-42} | {3,8:d} | {4,8:d} | {5,8:d} | {6,5:d} | {7,8:b} | {8,-54} | {9,-54} | ", r01, r02, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(54).ToArray()), new string(r10.Take(54).ToArray()));
+                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,-42} | {3,8:d} | {4,8:d} | {5,8:d} | {6,5:d} | {7,8:b} | {8,-54} | {9,-54} | ", r01, r02, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(54).ToArray()));
                 Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthBetweenLineChar));
 
                 //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, TimePrev {4}, Delta {5}.", r01, r02, r06, r04, r04a, r04Delta);

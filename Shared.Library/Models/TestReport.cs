@@ -78,9 +78,9 @@ namespace Shared.Library.Models
             [JsonProperty(PropertyName = "workActionName")]
             public string WorkActionName { get; set; }
 
-            // описание действий метода или текущей ситуации
+            // номер контрольной точки в методе, где считывается засечка времени
             [JsonProperty(PropertyName = "workActionDescription")]
-            public string WorkActionDescription { get; set; }
+            public int ControlPointNum { get; set; }
 
             // количество одновременных вызовов этого метода
             [JsonProperty(PropertyName = "callingCountOfWorkMethod")]
