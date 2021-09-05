@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -22,7 +23,7 @@ namespace BackgroundDispatcher.Services
     public interface ITestOfComplexIntegrityMainServicee
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
-        public int FetchAssignedChainSerialNum();
+        public int FetchAssignedChainSerialNum(int lastCountStart, [CallerMemberName] string currentMethodName = "");
         public bool FetchIsTestInProgress();
         public Task<bool> RemoveWorkKeyOnStart(string key);
         long FetchWorkStopwatch();
@@ -73,6 +74,7 @@ namespace BackgroundDispatcher.Services
         private bool _isTestInProgress;
         private int _currentTestSerialNum;
         private int _currentChainSerialNum;
+        private int _callingNumOfAssignedChainNum;
         private Stopwatch _stopWatchTest;
         private Stopwatch _stopWatchWork;
 
@@ -102,7 +104,7 @@ namespace BackgroundDispatcher.Services
             (List<TestReport> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TestReport>(eternalTestTimingStagesReportsLog, fieldBookIdWithLanguageId);
             string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
-            Logs.Here().Information("Test report from Eternal Log for Scenario {0} length = {1}.", testScenario, theScenarioReportsCount);
+            //Logs.Here().Information("Test report from Eternal Log for Scenario {0} length = {1}.", testScenario, theScenarioReportsCount);
 
             if (theScenarioReportsCount == 0)
             {
@@ -166,18 +168,29 @@ namespace BackgroundDispatcher.Services
                     }
                 }
             }
-            Logs.Here().Information("List theScenarioReports - Reference in [0] = {0}, length = {1}, without versions q-ty = {2}.", isThisReportTheReference, theScenarioReportsCount, reportsWOversionsCount);
+            //Logs.Here().Information("List theScenarioReports - Reference in [0] = {0}, length = {1}, without versions q-ty = {2}.", isThisReportTheReference, theScenarioReportsCount, reportsWOversionsCount);
 
             return (theScenarioReports, isThisReportTheReference, reportsWOversionsCount);
         }
 
         // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
         // каждый вызов даёт новый серийный номер - больше на 1
-        public int FetchAssignedChainSerialNum()
+        public int FetchAssignedChainSerialNum(int eventFromCountNum, [CallerMemberName] string currentMethodName = "")
         {
+            Logs.Here().Information("--- 180 Step 1 - FetchAssignedChainSerialNum was called by {0} instance No: {1} at time {2}.", currentMethodName, eventFromCountNum, _stopWatchWork.ElapsedMilliseconds);
+
+            int lastCountStart = Interlocked.Increment(ref _callingNumOfAssignedChainNum);
+            
+            Logs.Here().Information("--- 184 Step 2 - Number of this FetchAssignedChainSerialNum = {0} at time {1}.", lastCountStart, _stopWatchWork.ElapsedMilliseconds);
+
             int chainSerialNum = Interlocked.Increment(ref _currentChainSerialNum);
 
-            Logs.Here().Debug("The value of _currentChainSerialNum was requested = {0}.", chainSerialNum);
+            Logs.Here().Information("--- 188 Step 3 - Chain SerialNum was created - {0} at time {1}.", chainSerialNum, _stopWatchWork.ElapsedMilliseconds);
+                    
+            int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAssignedChainNum);
+
+            Logs.Here().Information("--- 192 Step 4 - In this instance Interlocked.Decrement = {0} and chain No: is still {1} at time {2}.", lastCountEnd, chainSerialNum, _stopWatchWork.ElapsedMilliseconds);
+
             return chainSerialNum;
         }
 
@@ -223,6 +236,7 @@ namespace BackgroundDispatcher.Services
         {
             _isTestInProgress = true;
             _currentChainSerialNum = 0;
+            _callingNumOfAssignedChainNum = 0;
             // сбросить счётчик текущего шага тестового отчёта по таймингу
             bool resultResetOnStart = _report.Reset_stageReportFieldCounter();
 

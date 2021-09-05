@@ -19,7 +19,7 @@ namespace BackgroundDispatcher.Services
     {
         public void EventCounterInit(ConstantsSet constantsSet);
         public Task<bool> IsCounterZeroReading(ConstantsSet constantsSet);
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, CancellationToken stoppingToken);
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, int lastCountStart);
         public void Dispose();
     }
 
@@ -163,28 +163,37 @@ namespace BackgroundDispatcher.Services
         }
 
         // метод
-        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, CancellationToken stoppingToken)
+        public Task EventCounterOccurred(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, int fromCallingCount)
         {
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
 
+            Logs.Here().Information("ooo 171 Step 1 - EventCounterOccurred was called by FromInstance No: {0} with chain No: {1} at time {2} .", fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
+
             int lastCountStart = Interlocked.Increment(ref _callingNumOfEventCounterOccurred);
+
+            Logs.Here().Information("ooo 175 Step 2 - EventCounterOccurred instance No: {0} at time {1}.", lastCountStart, _test.FetchWorkStopwatch());
 
             // тут будет проблема с множественным присвоением
             _currentChainSerialNum = currentChainSerialNum;
 
+            Logs.Here().Information("ooo 180 Step 3 - EventCounterOccurred instance No: {0} set _currentChainSerialNum {1} from currentChainSerialNum {2} at time {3}.", lastCountStart, _currentChainSerialNum, currentChainSerialNum, _test.FetchWorkStopwatch());
+
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
-            Logs.Here().Information("Key {0} was received for the {1} time, count = {2}.", eventKey, _callingNumOfEventFrom, count);
+
+            Logs.Here().Information("ooo 185 Step 4 - EventCounterOccurred instance No: {0} Interlocked.Increment {1} at time {2}.", lastCountStart, count, _test.FetchWorkStopwatch());
+
+            //Logs.Here().Information("*** 187 *** -  Counter No: {0} was called by FromEntity No: {1} in chain No: {2} at time {3}.", count, fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             int controlPointNum1 = 1;
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), count, false, "count was Incremented", controlPointNum1, lastCountStart);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), count, false, $"fromNum={fromCallingCount}", controlPointNum1, lastCountStart);
 
             // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
             if (_timerCanBeStarted && count > countTrackingStart - 1)
             {
-                Logs.Here().Information("Event count {0} == {1} was discovered.", count, countTrackingStart);
+                //Logs.Here().Information("Event count {0} == {1} was discovered.", count, countTrackingStart);
                 _ = StartTimerOnce(constantsSet, currentChainSerialNum);
                 int controlPointNum2 = 2;
                 _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), count, _timerCanBeStarted, "StartTimerOnce", controlPointNum2, -1);
@@ -192,17 +201,17 @@ namespace BackgroundDispatcher.Services
 
             if (count > countDecisionMaking - 1)
             {
-                Logs.Here().Information("Event count {0} == {1} was discovered.", count, countDecisionMaking);
+                //Logs.Here().Information("Event count {0} == {1} was discovered.", count, countDecisionMaking);
                 int countForHandlerMergeOfCalling = count;
                 // сразу же сбросить счётчик событий                
                 count = Interlocked.Exchange(ref _callingNumOfEventFrom, 0);
-                Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
+                //Logs.Here().Information("_callingNumOfEventFrom {0} was reset and count = {1}.", _callingNumOfEventFrom, count);
 
                 _ = HandlerMergeOfCalling(constantsSet, currentChainSerialNum);
                 int controlPointNum3 = 3;
                 _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), countForHandlerMergeOfCalling, false, "HandlerMergeOfCalling calling has passed", controlPointNum3, -1);
 
-                Logs.Here().Information("EventCounter was elapsed.");
+                //Logs.Here().Information("EventCounter was elapsed.");
             }
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfEventCounterOccurred);
 

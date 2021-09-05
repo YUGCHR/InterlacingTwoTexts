@@ -148,7 +148,7 @@ namespace BackgroundDispatcher.Services
                     CallingCountOfWorkMethod = callingCountOfTheMethod
                 };
                 _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
-                Logs.Here().Debug("AddStageToTestTaskProgressReport calling has passed, currentChainSerialNum = {0}.", currentChainSerialNum);
+                //Logs.Here().Debug("AddStageToTestTaskProgressReport calling has passed, currentChainSerialNum = {0}.", currentChainSerialNum);
             }
             return isTestInProgress;
         }
@@ -163,14 +163,28 @@ namespace BackgroundDispatcher.Services
             {
                 if (cmd == eventCmd)
                 {
+                    Logs.Here().Information("*** 166 Step 1 - Action FromEntity was called at time {0}.", _test.FetchWorkStopwatch());
+
                     int lastCountStart = Interlocked.Increment(ref _callingNumOfEventKeyFrom);
+
+                    Logs.Here().Information("*** 170 Step 2 - Number of this FromEntity = {0} at time {1}.", lastCountStart, _test.FetchWorkStopwatch());
 
                     // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
                     // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
-                    currentChainSerialNum = _test.FetchAssignedChainSerialNum();
+                    currentChainSerialNum = _test.FetchAssignedChainSerialNum(lastCountStart);
+
+                    Logs.Here().Information("*** 176 Step 3 - FromEntity No: {0} fetched chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+
                     int controlPointNum1 = 1;
                     bool result = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, controlPointNum1, lastCountStart);
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, _cancellationToken);
+                    
+                    Logs.Here().Information("*** 181 Step 4 - FromEntity No: {0} called AddStage and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+
+                    //Logs.Here().Information("*** 183 *** - FromEntity No: {0} will call Counter in chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+                    
+                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, lastCountStart);
+
+                    Logs.Here().Information("*** 187 Step 5 - FromEntity No: {0} called CounterOccurred and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
 
                     int lastCountEnd = Interlocked.Decrement(ref _callingNumOfEventKeyFrom);
                 }
