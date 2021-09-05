@@ -11,6 +11,7 @@ using CachingFramework.Redis.Contracts;
 using CachingFramework.Redis.Contracts.Providers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog.Events;
 using Shared.Library.Models;
 using Shared.Library.Services;
 
@@ -24,8 +25,8 @@ using Shared.Library.Services;
 namespace BackgroundDispatcher.Services
 {
     public interface ICollectTasksInPackageService
-    {        
-        public Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds);        
+    {
+        public Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, int currentChainSerialNum, string sourceKeyWithPlainTexts, List<string> taskPackageFileds, bool isProceededWorkTask = false);
     }
 
     public class CollectTasksInPackageService : ICollectTasksInPackageService
@@ -46,15 +47,15 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<CollectTasksInPackageService>();
 
-        /// вне теста этот метод используется для для создания ключа готового пакета задач -
+        // вне теста этот метод используется для для создания ключа готового пакета задач -
         // с последующей генерацией (другим методом) ключа кафе для оповещения о задачах бэк-сервера
         // сохраняются названия гуид-полей книг, созданные контроллером, но они перезаписываются в новый ключ, уникальный для собранного пакета
         // одновременно, при перезаписи содержимого книг, оно анализируется (вычисляется хэш текста) и проверяется на уникальность
         // если такая книга уже есть, это гуид-поле удаляется
         // здесь этот метод используется для записи хэшей в вечный лог -
         // при этом вычисляются номера версий загружаемых книг, что и нужно вызывающему методу
-        public async Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, string sourceKeyWithPlainTexts, List<string> taskPackageFileds)
-        {            
+        public async Task<string> CreateTaskPackageAndSaveLog(ConstantsSet constantsSet, int currentChainSerialNum, string sourceKeyWithPlainTexts, List<string> taskPackageFileds, bool isProceededWorkTask = false)
+        {
             // план действий метода -
             // генерируем новый гуид - это будет ключ пакета задач
             // достаём по одному тексты и складываем в новый ключ
@@ -63,22 +64,32 @@ namespace BackgroundDispatcher.Services
             if (sourceKeyWithPlainTexts == null)
             {
                 _aux.SomethingWentWrong(false);
-                return null;
+                return "";
             }
 
             string taskPackage = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.Value; // taskPackage
-            double taskPackageGuidLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.LifeTime; // 0.001
+            double taskPackageGuidLifeTime = constantsSet.Prefix.BackgroundDispatcherPrefix.TaskPackage.LifeTime; // 0.01
             string currentPackageGuid = Guid.NewGuid().ToString();
             string taskPackageGuid = $"{taskPackage}:{currentPackageGuid}"; // taskPackage:guid
 
             //List<bool> resultPlainText = new();
             int inPackageTaskCount = 0;
 
-            foreach (var f in taskPackageFileds)
+            foreach (string f in taskPackageFileds)
             {
                 // прочитать первое поле хранилища
                 TextSentence bookPlainText = await _cache.FetchHashedAsync<TextSentence>(sourceKeyWithPlainTexts, f);
-                Logs.Here().Information("Test plain text was read from key-storage");
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("Test plain text was read from key-storage");
+                }
+
+                // тут вроде бы можно удалить исходный ключ, который сейчас имя поля f
+                bool fWasDeleted = await _aux.RemoveWorkKeyOnStart(f);
+                if (fWasDeleted && isProceededWorkTask)
+                {
+                    Logs.Here().Information("{@B} was deleted successfully.", new { Key = f });
+                }
 
                 // вот тут самый подходящий момент посчитать хэш
                 // создать новую версию через хэш и записать её в плоский текст
@@ -98,21 +109,23 @@ namespace BackgroundDispatcher.Services
                 // в тесты можно добавить константу - число, меньше которого тестовые номера книг
                 // тогда ещё добавить оригинальное гуид-поле книги в хранимый хэш и будет легко доставать тестовые тексты
                 // можно добавлять эти поля только если тестовая книга - чтобы зря не увеличивать объём
-                bookPlainText = await _eternal.AddVersionViaHashToPlainText(constantsSet, bookPlainText);
+                bookPlainText = await _eternal.AddVersionViaHashToPlainText(constantsSet, bookPlainText, isProceededWorkTask);
                 // может вернуться null, надо придумать, что с ним делать - это означает, что такой текст есть и работать с ним не надо
+                // вместо null вернётся пустой объект TextSentence, надо придумать, как его опознать
                 // не проверяется второй текст и, очевидно, всё следующие в пакете
                 // возвращать null не надо, просто не будем записывать - и создавать поле задачи в пакете задач
 
-                if (bookPlainText != null)
+                if (bookPlainText.BookId != 0)
                 {
-                    Logs.Here().Information("Hash version was added to {@B}.", new { BookPlainTextGuid = bookPlainText.BookGuid });
-
                     inPackageTaskCount++;
-                    Logs.Here().Information("Hash version was added to {0} book plain text(s).", inPackageTaskCount);
-
                     // создать поле плоского текста
                     await _cache.WriteHashedAsync<TextSentence>(taskPackageGuid, f, bookPlainText, taskPackageGuidLifeTime);
-                    Logs.Here().Information("Plain text {@F} No. {0} was created in {@K}.", new { Filed = f }, inPackageTaskCount, new { Key = taskPackageGuid });
+                    if (isProceededWorkTask)
+                    {
+                        Logs.Here().Information("Hash version was added to {@B}.", new { BookPlainTextGuid = bookPlainText.BookGuid });
+                        Logs.Here().Information("Hash version was added to {0} book plain text(s).", inPackageTaskCount);
+                        Logs.Here().Information("Plain text {@F} No. {0} was created in {@K}.", new { Filed = f }, inPackageTaskCount, new { Key = taskPackageGuid });
+                    }
                 }
             }
 
@@ -132,8 +145,11 @@ namespace BackgroundDispatcher.Services
             {
                 // в конце, при возврате taskPackageGuid проверять счётчик
                 // если ничего не насчитал, то возвратить null - нет задач для пакета
-                Logs.Here().Information("Hash version was added in 0 cases.");
-                return null;
+                if (isProceededWorkTask)
+                {
+                    Logs.Here().Information("Hash version was added in 0 cases.");
+                }
+                return "";
             }
 
             return taskPackageGuid;

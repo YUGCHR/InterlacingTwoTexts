@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using CachingFramework.Redis.Contracts;
@@ -66,25 +67,32 @@ namespace BackgroundDispatcher.Services
     {
         private readonly CancellationToken _cancellationToken;
         private readonly IKeyEventsProvider _keyEvents;
-        private readonly IIntegrationTestService _test;
+        private readonly ITestOfComplexIntegrityMainServicee _test;
+        private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly IEventCounterHandler _count;
+        private readonly ITestResultsAssertServerHealth _assert;
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
             IKeyEventsProvider keyEvents,
-            IIntegrationTestService test,
-            IEventCounterHandler count
+            ITestOfComplexIntegrityMainServicee test,
+            ITestReportIsFilledOutWithTimeImprints report,
+            IEventCounterHandler count,
+            ITestResultsAssertServerHealth assert
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _keyEvents = keyEvents;
             _test = test;
+            _report = report;
             _count = count;
+            _assert = assert;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
 
         private bool _isTestInProgressAlready;
+        private int _callingNumOfEventKeyFrom;
 
         public async Task SubscribingPlan(ConstantsSet constantsSet)
         {
@@ -105,69 +113,108 @@ namespace BackgroundDispatcher.Services
             // ключ блокировки повторного запуска теста до окончания уже запущенного
             _isTestInProgressAlready = false;
 
-            // надо сходить в тесты и инициализировать там местное поле _isTestInProgress
-            // потому что в методе TaskPackageFormationFromPlainText.HandlerCallingDistributore это поле проверяется, чтобы определить тест сейчас или реальная работа
-            // а если тесты ни разу не вызывались, это поле может быть не определено            
-            _test.SetIsTestInProgress(false);
+            _callingNumOfEventKeyFrom = 0;
 
             // подписка на ключ создания задачи (загрузки книги)
             SubscribeOnEventFrom(constantsSet, eventKeyFrom, eventCmd);
-
-            // подписка на фальшивый (тестовый) ключ создания задачи
-            SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
 
             // подписка на ключ для старта тестов
             SubscribeOnTestEvent(constantsSet, eventKeyTest, eventCmd);
 
             char separatorUnit = '-';
-            string messageText = "To start Test please type from Redis console the following command - ";
+            //string messageText = "To start Test please dispatch from Redis console the following command - ";
             string testConsoleCommand = $"127.0.0.1:6379> hset {eventKeyTest} test 1";
             (string frameSeparator1, string inFrameTextMessage) = GenerateMessageInFrame.CreateMeassageInFrame(separatorUnit, testConsoleCommand);
             Logs.Here().Information("To start Test please type from Redis console the following command - \n {0} \n {1} \n {2}", frameSeparator1, inFrameTextMessage, frameSeparator1);
         }
 
-        // bool isTestNotInProgress = !_isTestInProgress;
-        // неудачная идея объединения в один метод, надо обратно разделить на настоящий и фальшивый
-        // и настоящий блокировать при старте теста
-        // где находится гуид запроса контроллера?
-        // надо его обрабатывать и давать контроллеру подтверждение получения задания
-
-        // -----------------------------------------------------------------------------------------------------------------------------------------
-        // при обработке плоского текста посчитать его хэш и сохранить в версии книги и потом проверять
-        // если это та же самая книга, можно не сохранять
-        // очень полезно в плане перемещения мозгов из фронта в бэк - определять версию на сервере и потом показывать пользователю для согласования
-        // -----------------------------------------------------------------------------------------------------------------------------------------
+        // 
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", int controlPointNum = 0, int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
+        {
+            bool isTestInProgress = _test.FetchIsTestInProgress();
+            // проверили, тест сейчас или нет и, если да, обратиться за серийным номером цепочки и записать шаг отчета
+            if (isTestInProgress)
+            {
+                // ещё можно получать и записывать номер потока, в котором выполняется этот метод
+                TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
+                {
+                    ChainSerialNumber = currentChainSerialNum,
+                    TsWork = currentWorkStopwatch,
+                    MethodNameWhichCalled = currentMethodName,
+                    WorkActionNum = workActionNum,
+                    WorkActionVal = workActionVal,
+                    WorkActionName = workActionName,
+                    ControlPointNum = controlPointNum,
+                    CallingCountOfWorkMethod = callingCountOfTheMethod
+                };
+                _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
+                //Logs.Here().Debug("AddStageToTestTaskProgressReport calling has passed, currentChainSerialNum = {0}.", currentChainSerialNum);
+            }
+            return isTestInProgress;
+        }
 
         // подписка на ключ создания задачи (загрузки книги)
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
+            int currentChainSerialNum = -1;
+            //long currentWorkStopwatch = -1;
+
             _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
-                // сразу после успешного старта тестов блокируется подписка на новые задачи
-                // если блокировка всё равно не будет успевать, надо ходить за флагом в класс EventCounterHandler
-                // больше тут не надо блокировать
-                // после появления ключа запуска теста, контроллер не сможет прислать новое задание
-                //bool isTestStarted = _count.IsTestStarted();
-                if (cmd == eventCmd) // && !isTestStarted)
+                if (cmd == eventCmd)
                 {
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, _cancellationToken);
+                    Logs.Here().Information("*** 166 Step 1 - Action FromEntity was called at time {0}.", _test.FetchWorkStopwatch());
+
+                    int lastCountStart = Interlocked.Increment(ref _callingNumOfEventKeyFrom);
+
+                    Logs.Here().Information("*** 170 Step 2 - Number of this FromEntity = {0} at time {1}.", lastCountStart, _test.FetchWorkStopwatch());
+
+                    // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
+                    // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
+                    currentChainSerialNum = _test.FetchAssignedChainSerialNum(lastCountStart);
+
+                    Logs.Here().Information("*** 176 Step 3 - FromEntity No: {0} fetched chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+
+                    int controlPointNum1 = 1;
+                    bool result = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, controlPointNum1, lastCountStart);
+                    
+                    Logs.Here().Information("*** 181 Step 4 - FromEntity No: {0} called AddStage and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+
+                    //Logs.Here().Information("*** 183 *** - FromEntity No: {0} will call Counter in chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+                    
+                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, lastCountStart);
+
+                    Logs.Here().Information("*** 187 Step 5 - FromEntity No: {0} called CounterOccurred and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+
+                    int lastCountEnd = Interlocked.Decrement(ref _callingNumOfEventKeyFrom);
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);
         }
 
         // подписка на ключ кафе и по событию сообщать тестам
+        // надо же, чтобы на событие кафе реагировало только при проведении теста
+        // можно сделать поле класса, управляемое из тестов - при старте ставить в true и потом выключать
+        // или отключать подписку, когда нет тестов - что более правильно
+        // void Unsubscribe(string key);
+        // соответственно, запуск подписки делать тоже из тестов, а отсюда убрать
+        // всё хорошо, только отсюда ходят в тесты, а наоборот нет
+        // можно запускать эту подписку из сработавшей подписки на ключ теста
         private void SubscribeOnEventСafeKey(ConstantsSet constantsSet, string cafeKey, KeyEvent eventCmd)
         {
-            _keyEvents.Subscribe(cafeKey, (key, cmd) => // async
+            bool eventCafeIsNotExisted = true;
+            _keyEvents.Subscribe(cafeKey, async (key, cmd) => // 
             {
-                if (cmd == eventCmd)
+                if (cmd == eventCmd && eventCafeIsNotExisted)
                 {
-                    _ = _test.IsTestResultAsserted(constantsSet, cafeKey, _cancellationToken);
+                    eventCafeIsNotExisted = false;
+                    Logs.Here().Information("Event Cafe occurred, subscription is blocked.");
+
+                    eventCafeIsNotExisted = await _assert.EventCafeOccurred(constantsSet, _cancellationToken);
+
+                    Logs.Here().Information("Event Cafe was processed, subscription is unblocked, eventCafeIsNotExisted - {0}", eventCafeIsNotExisted);
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", cafeKey);
         }
 
@@ -194,21 +241,24 @@ namespace BackgroundDispatcher.Services
                     bool isTestStarted = await _count.IsCounterZeroReading(constantsSet);
                     Logs.Here().Information("isZeroCount returned {0}.", isTestStarted);
 
-                    // здесь (долго быть) всегда - счётчик задач нулевой, новые задачи заблокированы
+                    // здесь (должно быть) всегда - счётчик задач нулевой, новые задачи заблокированы
 
                     // тут можно безопасно сбросить счётчик, только желательно его ещё раз проверить и так далее
                     // счётчик уже сброшен и новая задача заблокирована возвратом
-                    
+                    string cafeKey = constantsSet.Prefix.BackgroundDispatcherPrefix.EventKeyFrontGivesTask.Value; // key-event-front-server-gives-task-package
+                    SubscribeOnEventСafeKey(constantsSet, cafeKey, eventCmd);
+                    Logs.Here().Information("Subscription on Event key {0} was done.", cafeKey);
+
                     Logs.Here().Information("Is test in progress state = {0}, integration test started.", _isTestInProgressAlready);
                     // после окончания теста снять блокировку
                     _isTestInProgressAlready = await _test.IntegrationTestStart(constantsSet, _cancellationToken);
-                    Logs.Here().Information("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
+                    Logs.Here().Debug("Is test in progress state = {0}, integration test finished.", _isTestInProgressAlready);
 
-                    // уже не нужен
-                    _count.TestIsFinished();
-                    Logs.Here().Information("New real Task can be handled.");
+                    _keyEvents.Unsubscribe(cafeKey);
+                    Logs.Here().Debug("Key {0} was unsubscribed.", cafeKey);
 
-
+                    // в самом конце тестов показываем отчёт о временах прохождения контрольных точек (или не здесь)
+                    //_ = _test.ViewReportInConsole(constantsSet);
 
                     // и ещё не забыть проверить состояние рабочего ключа - там могли скопиться задачи
                     // и для этого тоже нужен тест...
@@ -216,7 +266,6 @@ namespace BackgroundDispatcher.Services
 
                 }
             });
-
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyTest);
         }
     }

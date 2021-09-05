@@ -49,68 +49,77 @@ namespace BackgroundDispatcher.Services
 {
     public interface IFormTaskPackageFromPlainText
     {
-        public Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken);
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken);
     }
 
     public class FormTaskPackageFromPlainText : IFormTaskPackageFromPlainText
     {
         private readonly IEternalLogSupportService _eternal;
         private readonly ICollectTasksInPackageService _collect;
-        private readonly IIntegrationTestService _test;
+        private readonly ITestOfComplexIntegrityMainServicee _test;
+        private readonly ITestReportIsFilledOutWithTimeImprints _report;
         private readonly ICacheManagerService _cache;
 
         public FormTaskPackageFromPlainText(
             IEternalLogSupportService eternal,
             ICollectTasksInPackageService collect,
-            IIntegrationTestService test,
+            ITestOfComplexIntegrityMainServicee test,
+            ITestReportIsFilledOutWithTimeImprints report,
             ICacheManagerService cache)
         {
             _eternal = eternal;
             _collect = collect;
             _test = test;
+            _report = report;
             _cache = cache;
+            _callingNumOfHandlerCallingsDistributor = 0;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<FormTaskPackageFromPlainText>();
 
-        public async Task<bool> HandlerCallingsDistributor(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private int _callingNumOfHandlerCallingsDistributor;
+        private int _currentChainSerialNum;
+
+        // 
+        private bool AddStageToProgressReport(ConstantsSet constantsSet, int currentChainSerialNum, long currentWorkStopwatch, int workActionNum = -1, bool workActionVal = false, string workActionName = "", int controlPointNum = 0, int callingCountOfTheMethod = -1, [CallerMemberName] string currentMethodName = "")
         {
-            // добавить счётчик потоков и проверить при большом количестве вызовов
-            // 
-
-            // получить в строку название метода, чтобы сообщить тесту
-            string currentMethodName = FetchCurrentMethodName();
-            Logs.Here().Information("{0} started.", currentMethodName);
-
-            // можно добавить задержку для тестирования
-
-            // уже обработанное поле сразу удалить, чтобы не накапливались
-
-            // в случае теста проверяем, достигнута ли глубина тестирования и заодно сообщаем о ходе теста - достигнутой контрольной точки
-            // можно перенести отчёт о тестировании в следующий метод и сделать только одну глубину - окончательную
-            bool isTestInProgress = _test.IsTestInProgress();
+            bool isTestInProgress = _test.FetchIsTestInProgress();
             if (isTestInProgress)
             {
-                // сообщаем тесту, что глубина достигнута и проверяем, идти ли дальше
-                // если дальше идти не надо, то return прямо здесь
-                // передаем в параметрах название метода, чтобы там определили, из какого места вызвали
-                // название метода из переменной - currentMethodName
-                // инвертировать возврат и переименовать переменную результата в targetDepthReached
-                bool targetDepthNotReached = await _test.IsPreassignedDepthReached(constantsSet, "HandlerCallingDistributore", stoppingToken);
-                Logs.Here().Information("Test reached HandlerCallingDistributor and will move on - {0}.", targetDepthNotReached);
-                if (!targetDepthNotReached)
+                TestReport.TestReportStage sendingTestTimingReportStage = new TestReport.TestReportStage()
                 {
-                    return true;
-                }
+                    ChainSerialNumber = currentChainSerialNum,
+                    TsWork = currentWorkStopwatch,
+                    MethodNameWhichCalled = currentMethodName,
+                    WorkActionNum = workActionNum,
+                    WorkActionVal = workActionVal,
+                    WorkActionName = workActionName,
+                    ControlPointNum = controlPointNum,
+                    CallingCountOfWorkMethod = callingCountOfTheMethod
+                };
+                _ = _report.AddStageToTestTaskProgressReport(constantsSet, sendingTestTimingReportStage);
             }
-            // тут еще можно определить, надо ли обновить константы
-            // хотя константы лучше проверять дальше
-            // тут быстрый вызов без ожидания, чтобы быстрее освободить распределитель для второго потока
-            // в тестировании проверить запуск второго потока - и добавить счётчик потоков в обработчик
+            return isTestInProgress;
+        }
 
-            _ = HandlerCallings(constantsSet, stoppingToken);
+        public bool HandlerCallingsDistributor(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
+        {
+            _currentChainSerialNum = currentChainSerialNum;
 
-            Logs.Here().Information("{0} is returned true.", currentMethodName);
+            // добавить счётчик потоков и проверить при большом количестве вызовов
+            // (это надо быстро (без задержек) сформировать две группы по 6 книг всего 6 пар)
+            int lastCountStart = Interlocked.Increment(ref _callingNumOfHandlerCallingsDistributor);
+            Logs.Here().Information("HandlerCallingsDistributor started {0} time.", lastCountStart);
+
+            //int count = Volatile.Read(ref _callingNumOfHandlerCallingsDistributor);
+
+            int controlPointNum1 = 1;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, "", controlPointNum1, lastCountStart);
+            _ = HandlerCallings(constantsSet, currentChainSerialNum, stoppingToken);
+
+            int lastCountEnd = Interlocked.Decrement(ref _callingNumOfHandlerCallingsDistributor);
+            Logs.Here().Information("HandlerCallingsDistributor ended {0} time.", lastCountEnd);
+
             return true;
         }
 
@@ -124,7 +133,7 @@ namespace BackgroundDispatcher.Services
             return currentMethodName;
         }
 
-        public async Task<int> HandlerCallings(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        public async Task<int> HandlerCallings(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
         {
             // обработчик вызовов - что делает (надо переименовать - не вызовов, а событий подписки или как-то так)
             // получает сообщение о сформированном вызове по поводу subscribeOnFrom
@@ -147,30 +156,45 @@ namespace BackgroundDispatcher.Services
 
             // вообще-то это всё - разместить пакет задач для бэк-сервера и дальше только контролировать выполнение
 
-            string currentMethodName = FetchCurrentMethodName();
-            Logs.Here().Information("{0} started.", currentMethodName);
+            // получить в строку название метода, чтобы сообщить тесту
+            //string currentMethodName = FetchCurrentMethodName();
+            //Logs.Here().Information("{0} started.", currentMethodName);
 
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
-            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, stoppingToken);
+            (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, currentChainSerialNum, stoppingToken);
+            int controlPointNum1 = 1;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, sourceKeyWithPlainTexts, controlPointNum1, -1);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
-            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
-            // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
-            if (taskPackageGuid != null)
-            {
-                // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
-                bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, taskPackageGuid);
+            string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, currentChainSerialNum, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
+            int controlPointNum2 = 2;
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, taskPackageGuid, controlPointNum2, -1);
 
-                if (isCafeKeyCreated) // && test is processing now
-                {
-                    // вызвать метод теста для сообщения об окончании выполнения
-                }
+            // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
+            if (taskPackageGuid != "")
+            {
+                // вот тут подходяще проверить/вызвать тест, отдать ему ключ пакета и пусть сравнивает с тем, что он отдавал на тест
+                // подписка на кафе достаёт словарь и отдаёт его тому же методу
+                // не надо проверять тест или нет, тест сам разберётся
+
+                // здесь может быть нужна небольшая задержка, чтобы тест уверенно успел считать пакет задач
+                // (проверить, его удалят сразу, как схватят или нет)
+
+                // записываем ключ пакета задач в ключ eventKeyFrontGivesTask
+                bool isCafeKeyCreated = await DistributeTaskPackageInCafee(constantsSet, currentChainSerialNum, taskPackageGuid);
+                int controlPointNum3 = 3;
+                _ = AddStageToProgressReport(constantsSet, currentChainSerialNum , _test.FetchWorkStopwatch(), - 1, isCafeKeyCreated, "isCafeKeyCreated", controlPointNum3, -1);
+
+                //if (isCafeKeyCreated) // && test is processing now
+                //{
+                //    // вызвать метод теста для сообщения об окончании выполнения
+                //}
             }
             // никакого возврата никто не ждёт, но на всякий случай вернём ?
             return 0;
         }
 
-        private async Task<(List<string>, string)> ProcessDataOfSubscribeOnFrom(ConstantsSet constantsSet, CancellationToken stoppingToken)
+        private async Task<(List<string>, string)> ProcessDataOfSubscribeOnFrom(ConstantsSet constantsSet, int currentChainSerialNum, CancellationToken stoppingToken)
         {
             // название (назначение) метода - достать ключ и поля плоских текстов из события подписки subscribeOnFrom
 
@@ -178,15 +202,6 @@ namespace BackgroundDispatcher.Services
             // теперь ключ всегда одинаковый - рабочий
             // убрать все присваивания в отдельный метод, чтобы не путаться (уже одно осталось, нечего убирать)
             string eventKeyFrom = constantsSet.EventKeyFrom.Value;
-            //string eventKeyTest = constantsSet.Prefix.IntegrationTestPrefix.KeyStartTestEvent.Value; // test
-            //string eventKeyFromTest = $"{eventKeyFrom}:{eventKeyTest}"; // subscribeOnFrom:test
-            //string eventKey = eventKeyFrom;
-
-            //bool isTestInProgress = _test.IsTestInProgress();
-            //if (isTestInProgress)
-            //{
-            //    eventKey = eventKeyFromTest; // subscribeOnFrom:test
-            //}
 
             IDictionary<string, string> keyFromDataList = await _cache.FetchHashedAllAsync<string>(eventKeyFrom);
             int keyFromDataListCount = keyFromDataList.Count;
@@ -196,11 +211,11 @@ namespace BackgroundDispatcher.Services
             foreach (var d in keyFromDataList)
             {
                 (var f, var v) = d;
-                Logs.Here().Information("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
+                Logs.Here().Debug("Dictionary element is {@F} {@V}.", new { Filed = f }, new { Value = v });
 
                 // удаляем текущее поле (для точности и скорости перед удалением можно проверить существование? и, если есть, то удалять)
                 bool isFieldRemovedSuccessful = await _cache.DelFieldAsync(eventKeyFrom, f);
-                Logs.Here().Information("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom });
+                Logs.Here().Debug("{@F} in {@K} was removed with result {0}.", new { Filed = f }, new { Key = eventKeyFrom }, isFieldRemovedSuccessful);
 
                 // если не удалилось - и фиг с ним, удаляем его из словаря
                 // можно убрать, всё равно словарь больше не используется
@@ -215,9 +230,9 @@ namespace BackgroundDispatcher.Services
                 if (isFieldRemovedSuccessful)
                 {
                     fieldsKeyFromDataList.Add(f);
-                    // можно каждый раз проверять, что ключ одинаковый - если больше нечего делать
+                    // можно каждый раз проверять, что ключ одинаковый - если больше нечего делать (должен быть всегда одинаковый)
                     sourceKeyWithPlainTests = v;
-                    Logs.Here().Information("Future {@K} with {@F} with plain text.", new { Key = v }, new { Filed = f });
+                    Logs.Here().Debug("Future {@K} with {@F} with plain text.", new { Key = v }, new { Filed = f });
                 }
             }
 
@@ -227,7 +242,7 @@ namespace BackgroundDispatcher.Services
             return (fieldsKeyFromDataList, sourceKeyWithPlainTests);
         }
 
-        private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, string taskPackageGuid)
+        private async Task<bool> DistributeTaskPackageInCafee(ConstantsSet constantsSet, int currentChainSerialNum, string taskPackageGuid)
         {
             // только после того, как создан ключ с пакетом задач, можно положить этот ключ в подписной ключ eventKeyFrontGivesTask
             // записываем ключ пакета задач в ключ eventKeyFrontGivesTask, а в поле и в значение - ключ пакета задач

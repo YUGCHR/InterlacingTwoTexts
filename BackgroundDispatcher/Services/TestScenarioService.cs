@@ -43,13 +43,17 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestScenarioService>();
 
-        // метод из ключа описания сценария создаёт последовательность (список) гуид-полей сырых текстов и задержек между ними
+        // метод из ключа описания сценария создаёт
+        // список string rawPlainTextFields гуид-полей сырых текстов
+        // и задержек между ними (List<int> delayList)
+        // и это синхронные списки (используется значение из того, где оно не пустое/нулевое)
+        // в списке полей на месте, где будет задержка стоит "", а списке задержек на месте, где загружаются книги - нули
         public async Task<(List<string>, List<int>)> CreateTestScenarioLists(ConstantsSet constantsSet, List<int> uniqueBookIdsFromStorageKey)
         {
             string testScenarioSequenceKey = constantsSet.Prefix.IntegrationTestPrefix.TestScenarioSequenceKey.Value; // test-scenario-sequence
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
             // ключ, в котором хранятся все хэши - keyBookPlainTextsHashesVersionsList - key-book-plain-texts-hashes-versions-list
-            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.KeyBookPlainTextsHashesVersionsList.Value; // key-book-plain-texts-hashes-versions-list
+            string keyBookPlainTextsHashesVersionsList = constantsSet.Prefix.BackgroundDispatcherPrefix.EternalBookPlainTextHashesLog.Value; // key-book-plain-texts-hashes-versions-list
 
             int uniqueBookIdsFromStorageKeyCount = uniqueBookIdsFromStorageKey.Count;
 
@@ -70,6 +74,12 @@ namespace BackgroundDispatcher.Services
 
             IDictionary<int, int> fieldValuesResult = await _cache.FetchHashedAllAsync<int, int>(testScenarioSequenceKey);
             int fieldValuesResultCount = fieldValuesResult.Count;
+
+
+
+            // тут же словарь приедет не обязательно в правильном порядке - надо использовать не i, а номер из поля
+            // надо вывести порядок полей и посмотреть - что-то не совсем понятно, что тут происходит
+
 
             for (int i = 0; i < fieldValuesResultCount; i++)
             {
@@ -206,8 +216,8 @@ namespace BackgroundDispatcher.Services
                         string bookGuidEng = engPlainTextHash[j].BookGuid;
                         string bookGuidRus = rusPlainTextHash[j].BookGuid;
 
-                        Logs.Here().Information("Eng - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdEng, verHashEng, hashEng, bookGuidEng);
-                        Logs.Here().Information("Rus - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdRus, verHashRus, hashRus, bookGuidRus);
+                        Logs.Here().Verbose("Eng - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdEng, verHashEng, hashEng, bookGuidEng);
+                        Logs.Here().Verbose("Rus - BookId {0}, HashVer {1}, Hash {2}, Guid {3}", bookIdRus, verHashRus, hashRus, bookGuidRus);
 
                     }
                 }

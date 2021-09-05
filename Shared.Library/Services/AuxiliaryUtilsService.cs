@@ -36,7 +36,7 @@ namespace Shared.Library.Services
 
 
         // можно сделать перегрузку с массивом на вход
-        // true соответствует печали
+        // false !!! соответствует печали
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "")
         { // return true if something went wrong!
             const int resultCount = 5;
@@ -94,21 +94,19 @@ namespace Shared.Library.Services
             return true;
         }
 
-
         public async Task<bool> RemoveWorkKeyOnStart(string key)
         {
             // can use Task RemoveAsync(string[] keys, CommandFlags flags = CommandFlags.None);
-            bool result = await _cache.IsKeyExist(key);
-            if (result)
+            bool resultExist = await _cache.IsKeyExist(key);
+            if (resultExist)
             {
-                result = await _cache.DeleteKeyIfCancelled(key);
-                Logs.Here().Information("{@K} was removed with result {0}.", new { Key = key }, result);
-                return result;
+                bool resultDelete = await _cache.DeleteKeyIfCancelled(key);
+                //Logs.Here().Information("{@K} was removed with result {0}.", new { Key = key }, resultDelete);
+                return resultDelete;
             }
-            Logs.Here().Information("{@K} does not exist.", new { Key = key });
-            return !result;
+            //Logs.Here().Information("Is {@K} exist - {0}.", new { Key = key }, resultExist);
+            return !resultExist;
         }
-
 
         // убрать в общую библиотеку
 

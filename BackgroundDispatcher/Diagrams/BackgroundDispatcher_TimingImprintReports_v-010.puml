@@ -1,0 +1,47 @@
+@startuml
+
+state Creat_CASN #lightgreen {
+
+}
+
+
+
+
+state CreateAssignedSerialNum_CASN #lightgreen {
+    state EternalLogAccess #yellow
+    EternalLogAccess : List theScenarioReports
+
+    state if_condition_01 #red
+    if_condition_01: List Length == 0
+    EternalLogAccess -[#red,bold]-> if_condition_01
+
+    state checkList_0
+    checkList_0 : is list[0] reference
+
+    state checkReportsWOVerQty
+    checkReportsWOVerQty : reports q-ty w/o version
+
+    state CASN_return #lightblue
+    CASN_return : return (List, is_0_ref, \nreportsWOversionQty)
+
+    state new_TestReport
+    new_TestReport : add to list
+
+    state theScenarioReports  <<choice>> #blue
+    theScenarioReports : ttt == 0
+    theScenarioReports -[#red,dashed]-> checkList_0 : false
+    theScenarioReports -[#green,bold]-> new_TestReport : true
+
+    if_condition_01 -[#blue,bold]-> theScenarioReports
+
+    checkList_0 --> checkReportsWOVerQty
+    checkReportsWOVerQty --> CASN_return
+    new_TestReport --> CASN_return
+
+
+}
+
+
+
+
+@enduml

@@ -33,7 +33,7 @@ namespace BackgroundDispatcher.Services
 {
     public interface ITestRawBookTextsStorageService
     {
-        public Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test");
+        public Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts); // = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test");
 
 
     }
@@ -53,10 +53,13 @@ namespace BackgroundDispatcher.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestRawBookTextsStorageService>();
 
-
         // сюда можно передать ключ временного хранилища тестовых плоских текстов, если он будет как-то вычисляться,
         // а не генерироваться контроллером с guid BooTextSplit-а - bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test
-        public async Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
+        // производим инвентаризацию хранилища тестовых книг - составляем список полей (всех хранящихся книг) и список уникальных номеров книг (английских, русская книга из пары вычисляется)
+        // storageKeyBookPlainTexts - ключ хранилища исходных текстов тестовых книг
+        // uniqueBookIdsFromStorageKey - список уникальных номеров английских книг
+        // guidFieldsFromStorageKey - список полей всех хранящихся книг
+        public async Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts) // = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
         {
             int chapterFieldsShiftFactor = constantsSet.ChapterFieldsShiftFactor.Value; // 1000000
 

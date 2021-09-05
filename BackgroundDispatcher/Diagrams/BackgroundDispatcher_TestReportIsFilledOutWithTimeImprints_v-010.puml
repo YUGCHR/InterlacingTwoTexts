@@ -1,0 +1,58 @@
+@startuml
+
+
+
+state "TestReportIsFilledOutWithTimeImprints" as _test #lightblue {
+    state _isTestInProgress #magenta
+
+    state IsTestInProgress #lightgreen {
+    }
+    state IntegrationTestStart #lightgreen {
+        state ITS_1 #yellow
+        ITS_1 : set the constants
+        state ITS_2 #yellow
+        ITS_2 : set end method \nof the test
+        state ITS_2a #yellow
+        ITS_2a : remove old keys \non stast (checking)
+        state ITS_3 #yellow
+        ITS_3 : Temporary here - \ncreate test scenario
+        state ITS_4 #yellow
+        ITS_4 : inventory of test \nbooks storage
+        state ITS_4a #yellow
+        ITS_4a :  remove all test keys \nfrom eternal log
+        state ITS_5 #yellow
+        ITS_5 :  create all test keys \nin eternal log
+        state ITS_6 #yellow
+        ITS_6 : create synchronous \nlists with test sequence
+        state ITS_6a #yellow
+        ITS_6a :  remove all test keys \nfrom eternal log
+        state ITS_7 #yellow
+        ITS_7 : create keys with \nbook sequence \nand keys from
+        state ITS_8 #yellow
+        ITS_8 :
+        state ITS_9 #yellow
+        ITS_9 :
+        ITS_1 -down-> ITS_2
+        ITS_2 -down-> ITS_2a
+        ITS_2a -down-> ITS_3
+        ITS_3 -down-> ITS_4
+        ITS_4 -down-> ITS_4a
+        ITS_4a -down-> ITS_5
+        ITS_5 -down-> ITS_6
+        ITS_6 -down-> ITS_6a
+        ITS_6a -down-> ITS_7
+        ITS_7 -down-> ITS_8
+        ITS_8 -down-> ITS_9
+    }
+    state IsTestResultAsserted #lightgreen {
+    }
+    state IsPreassignedDepthReached #lightgreen {
+    }
+
+    state DisplayResultInFrame #lightgreen {
+    }
+    state SetIsTestInProgress #lightgreen {
+    }
+}
+
+@enduml

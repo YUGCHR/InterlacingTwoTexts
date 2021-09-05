@@ -1,0 +1,203 @@
+
+- "FromEntity" No: 1 fetched chain No: 1 at time 18.
+- {Key="subscribeOnFrom"}
+
+- "FromEntity" No: 2 fetched chain No: 2 at time 42.
+- {Key="subscribeOnFrom"}
+
+- FromEntity No: 1 will call Counter in chain No: 2 at time 50.
+- Counter No: 1 was called by FromEntity No: 1 in chain No: 2 at time 62.
+
+- "FromEntity" No: 3 fetched chain No: 3 at time 83.
+- {Key="subscribeOnFrom"}
+
+- FromEntity No: 2 will call Counter in chain No: 2 at time 85.
+- Counter No: 2 was called by FromEntity No: 2 in chain No: 3 at time 100.
+
+- "FromEntity" No: 3 fetched chain No: 4 at time 132.
+- {Key="subscribeOnFrom"}
+
+- FromEntity No: 3 will call Counter in chain No: 3 at time 143.
+- Counter No: 3 was called by FromEntity No: 3 in chain No: 4 at time 161.
+
+- FromEntity No: 3 will call Counter in chain No: 4 at time 196.
+- Counter No: 4 was called by FromEntity No: 3 in chain No: 4 at time 212.
+
+
+- {Key="subscribeOnFrom"}
+
+ *** 184 *** - In this instance 1 calling instance "SubscribeOnEventFrom" No: 1 fetched chain No: 1 at time 12.
+
+ *** 184 *** - In this instance 1 calling instance "SubscribeOnEventFrom" No: 2 fetched chain No: 2 at time 26.
+
+- {Key="subscribeOnFrom"}
+
+ *** 174 *** - FromEntity No: 1 will call Counter in chain No: 2 at time 38.
+
+ *** 179 *** -  Counter No: 1 was called by FromEntity No: 1 in chain No: 2 at time 44.
+
+ *** 184 *** - In this instance 1 calling instance "SubscribeOnEventFrom" No: 3 fetched chain No: 3 at time 49.
+
+- {Key="subscribeOnFrom"}
+
+ *** 174 *** - FromEntity No: 2 will call Counter in chain No: 2 at time 51.
+
+ *** 179 *** -  Counter No: 2 was called by FromEntity No: 2 in chain No: 3 at time 63.
+
+
+
+- {Key="subscribeOnFrom"}
+
+FetchAssignedChainSerialNum-1 xxx 180 xxx - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 1 at time 13.
+
+FetchAssignedChainSerialNum-2 ooo 184 ooo - Number of this instance = 1 at time 20.
+
+FetchAssignedChainSerialNum-3 *** 188 *** - Chain SerialNum was created - 1 at time 25.
+
+#############################
+
+FetchAssignedChainSerialNum-1 xxx 180 xxx - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 2 at time 29.
+
+- {Key="subscribeOnFrom"}
+
+FetchAssignedChainSerialNum-4 *** 192 *** - In this instance Interlocked.Decrement = 0 and chain No: is still 1 at time 30.
+
+FetchAssignedChainSerialNum-2 ooo 184 ooo - Number of this instance = 1 at time 33.
+
+FetchAssignedChainSerialNum-3 *** 188 *** - Chain SerialNum was created - 2 at time 42.
+
+FetchAssignedChainSerialNum-4 *** 192 *** - In this instance Interlocked.Decrement = 0 and chain No: is still 2 at time 48.
+
+FetchAssignedChainSerialNum-1 xxx 180 xxx - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 3 at time 52.
+
+- {Key="subscribeOnFrom"}
+
+FetchAssignedChainSerialNum-2 ooo 184 ooo - Number of this instance = 1 at time 58.
+
+ *** 174 *** - FromEntity No: 1 will call Counter in chain No: 2 at time 66.
+
+FetchAssignedChainSerialNum-3 *** 188 *** - Chain SerialNum was created - 3 at time 69.
+
+ *** 179 *** -  Counter No: 1 was called by FromEntity No: 1 in chain No: 2 at time 75.
+
+FetchAssignedChainSerialNum-4 *** 192 *** - In this instance Interlocked.Decrement = 0 and chain No: is still 3 at time 79.
+
+FetchAssignedChainSerialNum-1 xxx 180 xxx - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 4 at time 82.
+
+- {Key="subscribeOnFrom"}
+
+ *** 174 *** - FromEntity No: 2 will call Counter in chain No: 2 at time 84.
+
+FetchAssignedChainSerialNum-2 ooo 184 ooo - Number of this instance = 1 at time 93.
+
+ *** 179 *** -  Counter No: 2 was called by FromEntity No: 2 in chain No: 3 at time 98.
+
+
+
+
+
+
+
+- {Key="subscribeOnFrom"}
+начало первого инстанса стартового метода
+ *** 166 Step 1 - Action FromEntity was called at time 13.
+
+ *** 170 Step 2 - Number of this FromEntity = 1 at time 20.
+
+ --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 1 at time 25.
+
+начало второго инстанса стартового метода
+ *** 166 Step 1 - Action FromEntity was called at time 29.
+запускающий ключ позже из-за долгого лога (возможно)
+- {Key="subscribeOnFrom"}
+
+ --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 31.
+
+ *** 170 Step 2 - Number of this FromEntity = 2 at time 34.
+
+ --- 188 Step 3 - Chain SerialNum was created - 1 at time 42.
+
+начало второго вызова chain
+ --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 2 at time 44.
+
+конец первого вызова chain
+ --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 1 at time 49.
+
+фактически, вызов должен быть номер 2
+ --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 52.
+
+начало третьего инстанса стартового метода
+ *** 166 Step 1 - Action FromEntity was called at time 55.
+- {Key="subscribeOnFrom"}
+
+первый инстанс получил chain 1
+ *** 176 Step 3 - FromEntity No: 1 fetched chain No: 1 at time 58.
+
+ --- 188 Step 3 - Chain SerialNum was created - 2 at time 61.
+
+ *** 170 Step 2 - Number of this FromEntity = 3 at time 63.
+
+ --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 2 at time 73.
+
+ --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 3 at time 76.
+
+второй инстанс получил chain 2
+ *** 176 Step 3 - FromEntity No: 2 fetched chain No: 2 at time 84.
+
+ --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 87.
+
+ *** 166 Step 1 - Action FromEntity was called at time 90.
+- {Key="subscribeOnFrom"}
+
+ --- 188 Step 3 - Chain SerialNum was created - 3 at time 98.
+
+ *** 170 Step 2 - Number of this FromEntity = 4 at time 100.
+
+первый инстанс потерял 1 - стало 2
+ *** 181 Step 4 - FromEntity No: 1 called AddStage and chain is still 2 at time 109.
+
+ --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 3 at time 111.
+
+ --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 4 at time 113.
+
+третий инстанс получил chain 3
+ *** 176 Step 3 - FromEntity No: 3 fetched chain No: 3 at time 124.
+
+ --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 127.
+
+второй инстанс по прежнему с chain 2
+ *** 181 Step 4 - FromEntity No: 2 called AddStage and chain is still 3 at time 130.
+
+ --- 188 Step 3 - Chain SerialNum was created - 4 at time 140.
+
+ --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 4 at time 151.
+
+ ooo 185 Step 4 - EventCounterOccurred instance No: 1 Interlocked.Increment 1 at time 158.
+
+четвертый инстанс получил chain 4
+ *** 176 Step 3 - FromEntity No: 4 fetched chain No: 4 at time 164.
+
+ ooo 180 Step 3 - EventCounterOccurred instance No: 2 set _currentChainSerialNum 3 from currentChainSerialNum 3 at time 167.
+
+началась каша - у третьего инстанса стало chain 4
+ *** 181 Step 4 - FromEntity No: 3 called AddStage and chain is still 4 at time 173.
+
+ ooo 185 Step 4 - EventCounterOccurred instance No: 2 Interlocked.Increment 2 at time 177.
+
+у первого инстанса уже chain 4
+ *** 187 Step 5 - FromEntity No: 1 called CounterOccurred and chain is still 4 at time 201.
+
+ *** 181 Step 4 - FromEntity No: 4 called AddStage and chain is still 4 at time 205.
+
+ ooo 185 Step 4 - EventCounterOccurred instance No: 3 Interlocked.Increment 3 at time 214.
+
+ ooo 180 Step 3 - EventCounterOccurred instance No: 3 set _currentChainSerialNum 4 from currentChainSerialNum 4 at time 241.
+
+ ooo 185 Step 4 - EventCounterOccurred instance No: 3 Interlocked.Increment 4 at time 251.
+
+у всех chain 4
+ *** 187 Step 5 - FromEntity No: 3 called CounterOccurred and chain is still 4 at time 256.
+
+ *** 187 Step 5 - FromEntity No: 4 called CounterOccurred and chain is still 4 at time 286.
+
+ *** 187 Step 5 - FromEntity No: 2 called CounterOccurred and chain is still 4 at time 297.
