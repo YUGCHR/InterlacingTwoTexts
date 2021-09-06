@@ -163,12 +163,13 @@ namespace BackgroundDispatcher.Services
             // достать ключ и поля (List) плоских текстов из события подписки subscribeOnFrom
             (List<string> fieldsKeyFromDataList, string sourceKeyWithPlainTexts) = await ProcessDataOfSubscribeOnFrom(constantsSet, currentChainSerialNum, stoppingToken);
             int controlPointNum1 = 1;
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, sourceKeyWithPlainTexts, controlPointNum1, -1);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, sourceKeyWithPlainTexts.Substring(0, 29), controlPointNum1, -1);
 
             // ключ пакета задач (новый гуид) и складываем тексты в новый ключ
+            // new string(r09.Take(40).ToArray())
             string taskPackageGuid = await _collect.CreateTaskPackageAndSaveLog(constantsSet, currentChainSerialNum, sourceKeyWithPlainTexts, fieldsKeyFromDataList);
             int controlPointNum2 = 2;
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, taskPackageGuid, controlPointNum2, -1);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), - 1, false, taskPackageGuid.Substring(0, 12), controlPointNum2, -1);
 
             // вот тут, если вернётся null, то можно пройти сразу на выход и ничего не создавать - 
             if (taskPackageGuid != "")
