@@ -1,0 +1,110 @@
+
+[20:53:19 INF (19) CreateScenarioTasksAndEvents - 239] Key was created - {Key="subscribeOnFrom"}
+
+[20:53:19 INF (26) SubscribeOnEventFrom - 166] *** 166 Step 1 - Action FromEntity was called at time 13.
+
+[20:53:19 INF (26) SubscribeOnEventFrom - 170] *** 170 Step 2 - Number of this FromEntity = 1 at time 19.
+
+[20:53:19 INF (26) FetchAssignedChainSerialNum - 180] --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 1 at time 24.
+
+[20:53:19 INF (30) SubscribeOnEventFrom - 166] *** 166 Step 1 - Action FromEntity was called at time 27.
+
+[20:53:19 INF (19) CreateScenarioTasksAndEvents - 239] Key was created - {Key="subscribeOnFrom"}
+
+[20:53:19 INF (26) FetchAssignedChainSerialNum - 184] --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 29.
+
+[20:53:19 INF (30) SubscribeOnEventFrom - 170] *** 170 Step 2 - Number of this FromEntity = 2 at time 31.
+
+[20:53:19 INF (26) FetchAssignedChainSerialNum - 188] --- 188 Step 3 - Chain SerialNum was created - 1 at time 37.
+
+[20:53:19 INF (30) FetchAssignedChainSerialNum - 180] --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 2 at time 39.
+
+[20:53:19 INF (26) FetchAssignedChainSerialNum - 192] --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 1 at time 44.
+
+[20:53:19 INF (30) FetchAssignedChainSerialNum - 184] --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 46.
+
+[20:53:19 INF (19) SubscribeOnEventFrom - 166] *** 166 Step 1 - Action FromEntity was called at time 49.
+
+[20:53:19 INF (20) CreateScenarioTasksAndEvents - 239] Key was created - {Key="subscribeOnFrom"}
+
+[20:53:19 INF (26) SubscribeOnEventFrom - 176] *** 176 Step 3 - FromEntity No: 1 fetched chain No: 1 at time 51.
+
+[20:53:19 INF (30) FetchAssignedChainSerialNum - 188] --- 188 Step 3 - Chain SerialNum was created - 2 at time 53.
+
+[20:53:19 INF (19) SubscribeOnEventFrom - 170] *** 170 Step 2 - Number of this FromEntity = 3 at time 55.
+
+[20:53:19 INF (30) FetchAssignedChainSerialNum - 192] --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 2 at time 63.
+
+[20:53:19 INF (19) FetchAssignedChainSerialNum - 180] --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 3 at time 65.
+
+[20:53:19 INF (30) SubscribeOnEventFrom - 176] *** 176 Step 3 - FromEntity No: 2 fetched chain No: 2 at time 71.
+
+[20:53:19 INF (19) FetchAssignedChainSerialNum - 184] --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 74.
+
+[20:53:19 INF (20) SubscribeOnEventFrom - 166] *** 166 Step 1 - Action FromEntity was called at time 77.
+
+[20:53:19 INF (33) CreateScenarioTasksAndEvents - 239] Key was created - {Key="subscribeOnFrom"}
+ 
+[20:53:19 INF (19) FetchAssignedChainSerialNum - 188] --- 188 Step 3 - Chain SerialNum was created - 3 at time 83.
+
+[20:53:19 INF (20) SubscribeOnEventFrom - 170] *** 170 Step 2 - Number of this FromEntity = 4 at time 85.
+
+ *** 181 Step 4 - FromEntity No: 1 called AddStage and chain is still 2 at time 94.
+
+[20:53:19 INF (19) FetchAssignedChainSerialNum - 192] --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 3 at time 94.
+
+[20:53:19 INF (20) FetchAssignedChainSerialNum - 180] --- 180 Step 1 - FetchAssignedChainSerialNum was called by "SubscribeOnEventFrom" instance No: 4 at time 97.
+
+[20:53:19 INF (26) EventCounterOccurred - 171] ooo 171 Step 1 - EventCounterOccurred was called by FromInstance No: 1 with chain No: 2 at time 104 .
+
+[20:53:19 INF (19) SubscribeOnEventFrom - 176] *** 176 Step 3 - FromEntity No: 3 fetched chain No: 3 at time 106.
+
+[20:53:19 INF (20) FetchAssignedChainSerialNum - 184] --- 184 Step 2 - Number of this FetchAssignedChainSerialNum = 1 at time 110.
+
+[20:53:19 INF (30) SubscribeOnEventFrom - 181] *** 181 Step 4 - FromEntity No: 2 called AddStage and chain is still 3 at time 112.
+
+[20:53:19 INF (26) EventCounterOccurred - 175] ooo 175 Step 2 - EventCounterOccurred instance No: 1 at time {2}.
+
+[20:53:19 INF (20) FetchAssignedChainSerialNum - 188] --- 188 Step 3 - Chain SerialNum was created - 4 at time 121.
+
+[20:53:19 INF (30) EventCounterOccurred - 171] ooo 171 Step 1 - EventCounterOccurred was called by FromInstance No: 2 with chain No: 3 at time 123 .
+
+[20:53:19 INF (26) EventCounterOccurred - 180] ooo 180 Step 3 - EventCounterOccurred instance No: 1 set _currentChainSerialNum 2 from currentChainSerialNum 2 at time 127.
+
+[20:53:19 INF (20) FetchAssignedChainSerialNum - 192] --- 192 Step 4 - In this instance Interlocked.Decrement = 0 and chain No: is still 4 at time 131.
+
+[20:53:19 INF (30) EventCounterOccurred - 175] ooo 175 Step 2 - EventCounterOccurred instance No: 2 at time {2}.
+
+[20:53:19 INF (26) EventCounterOccurred - 185] ooo 185 Step 4 - EventCounterOccurred instance No: 1 Interlocked.Increment 1 at time 138.
+
+[20:53:19 INF (20) SubscribeOnEventFrom - 176] *** 176 Step 3 - FromEntity No: 4 fetched chain No: 4 at time 143.
+
+[20:53:19 INF (30) EventCounterOccurred - 180] ooo 180 Step 3 - EventCounterOccurred instance No: 2 set _currentChainSerialNum 3 from currentChainSerialNum 3 at time 145.
+
+[20:53:19 INF (19) SubscribeOnEventFrom - 181] *** 181 Step 4 - FromEntity No: 3 called AddStage and chain is still 4 at time 149.
+
+[20:53:19 INF (30) EventCounterOccurred - 185] ooo 185 Step 4 - EventCounterOccurred instance No: 2 Interlocked.Increment 2 at time 154.
+
+[20:53:19 INF (19) EventCounterOccurred - 171] ooo 171 Step 1 - EventCounterOccurred was called by FromInstance No: 3 with chain No: 4 at time 159 .
+
+[20:53:19 INF (26) SubscribeOnEventFrom - 187] *** 187 Step 5 - FromEntity No: 1 called CounterOccurred and chain is still 4 at time 178.
+
+[20:53:19 INF (19) EventCounterOccurred - 180] ooo 180 Step 3 - EventCounterOccurred instance No: 3 set _currentChainSerialNum 4 from currentChainSerialNum 4 at time 180.
+
+[20:53:19 INF (20) SubscribeOnEventFrom - 181] *** 181 Step 4 - FromEntity No: 4 called AddStage and chain is still 4 at time 183.
+
+[20:53:19 INF (19) EventCounterOccurred - 185] ooo 185 Step 4 - EventCounterOccurred instance No: 3 Interlocked.Increment 3 at time 192.
+
+[20:53:19 INF (20) EventCounterOccurred - 171] ooo 171 Step 1 - EventCounterOccurred was called by FromInstance No: 4 with chain No: 4 at time 194 .
+
+[20:53:19 INF (20) EventCounterOccurred - 175] ooo 175 Step 2 - EventCounterOccurred instance No: 3 at time {2}.
+
+[20:53:19 INF (20) EventCounterOccurred - 180] ooo 180 Step 3 - EventCounterOccurred instance No: 3 set _currentChainSerialNum 4 from currentChainSerialNum 4 at time 217.
+
+[20:53:19 INF (20) EventCounterOccurred - 185] ooo 185 Step 4 - EventCounterOccurred instance No: 3 Interlocked.Increment 4 at time 226.
+
+[20:53:19 INF (19) SubscribeOnEventFrom - 187] *** 187 Step 5 - FromEntity No: 3 called CounterOccurred and chain is still 4 at time 230.
+
+[20:53:19 INF (20) SubscribeOnEventFrom - 187] *** 187 Step 5 - FromEntity No: 4 called CounterOccurred and chain is still 4 at time 257.
+
+[20:53:19 INF (30) SubscribeOnEventFrom - 187] *** 187 Step 5 - FromEntity No: 2 called CounterOccurred and chain is still 4 at time 265.

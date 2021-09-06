@@ -92,6 +92,7 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
 
         private bool _isTestInProgressAlready;
+        private int _currentChainSerialNum;
         private int _callingNumOfEventKeyFrom;
 
         public async Task SubscribingPlan(ConstantsSet constantsSet)
@@ -156,37 +157,13 @@ namespace BackgroundDispatcher.Services
         // подписка на ключ создания задачи (загрузки книги)
         private void SubscribeOnEventFrom(ConstantsSet constantsSet, string eventKeyFrom, KeyEvent eventCmd)
         {
-            int currentChainSerialNum = -1;
-            //long currentWorkStopwatch = -1;
-
             _keyEvents.Subscribe(eventKeyFrom, (key, cmd) => // async
             {
                 if (cmd == eventCmd)
                 {
-                    Logs.Here().Information("*** 166 Step 1 - Action FromEntity was called at time {0}.", _test.FetchWorkStopwatch());
+                    _count.OccurredEventSubscribeFrom(constantsSet, eventKeyFrom, Interlocked.Increment(ref _currentChainSerialNum), Interlocked.Increment(ref _callingNumOfEventKeyFrom));
 
-                    int lastCountStart = Interlocked.Increment(ref _callingNumOfEventKeyFrom);
-
-                    Logs.Here().Information("*** 170 Step 2 - Number of this FromEntity = {0} at time {1}.", lastCountStart, _test.FetchWorkStopwatch());
-
-                    // можно проверять поле работы теста _isTestInProgressAlready и по нему ходить за серийным номером
-                    // можно перенести генерацию серийного номера цепочки прямо сюда - int count = Interlocked.Increment(ref _currentChainSerialNum);
-                    currentChainSerialNum = _test.FetchAssignedChainSerialNum(lastCountStart);
-
-                    Logs.Here().Information("*** 176 Step 3 - FromEntity No: {0} fetched chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
-
-                    int controlPointNum1 = 1;
-                    bool result = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKeyFrom, controlPointNum1, lastCountStart);
-                    
-                    Logs.Here().Information("*** 181 Step 4 - FromEntity No: {0} called AddStage and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
-
-                    //Logs.Here().Information("*** 183 *** - FromEntity No: {0} will call Counter in chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
-                    
-                    _ = _count.EventCounterOccurred(constantsSet, eventKeyFrom, currentChainSerialNum, lastCountStart);
-
-                    Logs.Here().Information("*** 187 Step 5 - FromEntity No: {0} called CounterOccurred and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
-
-                    int lastCountEnd = Interlocked.Decrement(ref _callingNumOfEventKeyFrom);
+                    _ = Interlocked.Decrement(ref _callingNumOfEventKeyFrom);
                 }
             });
             Logs.Here().Information("Subscription on event key {0} was registered", eventKeyFrom);
@@ -229,6 +206,10 @@ namespace BackgroundDispatcher.Services
                     // тут заблокировать повторное событие до окончания теста
                     _isTestInProgressAlready = true;
                     Logs.Here().Information("Key {0} was received, integration test starts. _isTestInProgressAlready = {1} \n", eventKeyTest, _isTestInProgressAlready);
+
+                    // 
+                    _currentChainSerialNum = 0;
+                    _callingNumOfEventKeyFrom = 0;
 
                     // ещё проверить счётчик и если не нулевой, ждать обнуления
                     // за ним придётся ходить в следующий класс
