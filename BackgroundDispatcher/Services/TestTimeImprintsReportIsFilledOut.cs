@@ -214,6 +214,9 @@ namespace BackgroundDispatcher.Services
                 //Logs.Here().Information("for i = {0} to end {1} - List = {2}, Array[i] = {3}, stageHash = {4}.", i, testTimingReportStagesCount, testTimingReportStages[i].StageReportFieldCounter, testTimingReportStagesArray[i-1].StageReportFieldCounter, stageHash[i-1]);
             }
 
+            // будем сортировать массив хешей перед слиянием и вычислением общего хеша
+            Array.Sort(stageHash);
+
             List<TestReport.TestReportStage> testTimingReportStagesList = testTimingReportStagesArray.OrderBy(x => x.ChainSerialNumber).ThenBy(x => x.StageReportFieldCounter).ToList();
             //Logs.Here().Information("testTimingReportStagesList {@D} length {0}.", new { List = testTimingReportStagesList }, testTimingReportStagesList.Count);
             // важно отсортировать до вычисления общего хеша
@@ -243,7 +246,7 @@ namespace BackgroundDispatcher.Services
 
             // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение
             // 5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
-            int reportsCountToStartComparison = 5;
+            int reportsCountToStartComparison = 3;
             int theScenarioReportsCount = theScenarioReports.Count;
             int equalReportsCount = 0;
 
@@ -267,18 +270,33 @@ namespace BackgroundDispatcher.Services
                     }
                 }
             }
+
+            // в любом случае ставим последний отчёт в конец списка
+            theScenarioReports.Add(theScenarioReport);
+
             // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
             // то сохраняем эталонный отчёт в нулевой индекс
             // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
             // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
             if (equalReportsCount >= reportsCountToStartComparison)
             {
-                // создать и записать эталонный отчёт
+                // поменять индексы на 0 и внутри тоже
+                List<TestReport.TestReportStage> testTimingReportStagesForRef = theScenarioReport.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = 0; return x; });
+                // создать новый TestReport theScenarioRefReport
+                TestReport theScenarioReportRef = new TestReport()
+                {
+                    TestScenarioNum = testScenario,
+                    Guid = currentTestDescription,
+                    TheScenarioReportsCount = testTimingReportStagesForRef[0].TheScenarioReportsCount,
+                    TestReportStages = testTimingReportStagesForRef,
+                    ThisReportHash = testReportHash
+                };
+                theScenarioReports.RemoveAt(0);
+                theScenarioReports.Insert(0, theScenarioReport);
             }
-
-            theScenarioReports.Add(theScenarioReport);
-
             await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
+
+            // надо поменять на 0 номера в каждом элементе во внутреннем списке - данные в таблицу берутся из него
 
             return (theScenarioReports, equalReportsCount);
         }
@@ -322,7 +340,7 @@ namespace BackgroundDispatcher.Services
             int rL05 = (int)stageLast.TsTest;
 
             Console.WriteLine($"\n  Timing imprint report on testScenario No: {testScenario,-3:d} | total stages in the report = {testTimingReportStagesCount,-4:d} | total test time = {(int)tsTest99,5:d} msec."); // \t
-                        
+
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
             Console.WriteLine("|{0,5}|{1,5}|{2,5}| {3,-37} | {4,8} | {5,8} | {6,8} | {7,5} | {8,8} | {9,-40} | {10,-33} |", "stage", "chain", "index", "CallingMethod-PointNum/CallingNum", "timePrev", "timeWork", "timeDlt", "W-int", "W-bool", "WorkActionName", "StageReportHash");
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
@@ -365,7 +383,7 @@ namespace BackgroundDispatcher.Services
                     Console.WriteLine(("").PadRight(180, screenLineChar1C79)); //screenFullWidthLinesCount
                 }
                 r01Prev = r01;
-                
+
                 Console.WriteLine("| {0,3:d} | {1,3:d} | {2,3:d} | {3,-37} | {4,8:d} | {5,8:d} | {6,8:d} | {7,5:d} | {8,8:b} | {9,-40} | {10,33} |", r01, r02, r03, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(40).ToArray()), r13);
             }
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, '*'));

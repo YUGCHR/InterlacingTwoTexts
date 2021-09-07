@@ -106,6 +106,11 @@ namespace BackgroundDispatcher.Services
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
             //Logs.Here().Information("Test report from Eternal Log for Scenario {0} length = {1}.", testScenario, theScenarioReportsCount);
 
+            TestReport.TestReportStage t = new TestReport.TestReportStage()
+            {
+                TheScenarioReportsCount = 0
+            };
+
             if (theScenarioReportsCount == 0)
             {
                 // надо создать пустой первый элемент (вместо new TestReport()), который потом можно заменить на эталонный
@@ -114,7 +119,11 @@ namespace BackgroundDispatcher.Services
                     Guid = referenceTestDescription,
                     IsThisReportTheReference = false,
                     ThisReporVersion = 0,
-                    TestScenarioNum = testScenario
+                    TestScenarioNum = testScenario,
+                    TestReportStages = new List<TestReport.TestReportStage>()
+                    {
+                        t
+                    }
                 };
                 // записываем пустышку, только если список пуст
                 theScenarioReports.Add(testReportForScenario);
@@ -440,7 +449,7 @@ namespace BackgroundDispatcher.Services
             List<TestReport.TestReportStage> testTimingReportStagesListCurrent = new();
             //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
 
-            for (int i = 1; i < theScenarioReportsLast.Count; i++)
+            for (int i = 0; i < theScenarioReportsLast.Count; i++)
             {
                 testTimingReportStagesListCurrent.AddRange(theScenarioReportsLast[i].TestReportStages); // theScenarioReports.Count - 1
                 Logs.Here().Information("Hash of hashes - {0} in theScenarioReports[{1}] .", theScenarioReportsLast[i].ThisReportHash, i);
