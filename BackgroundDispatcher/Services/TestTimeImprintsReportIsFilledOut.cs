@@ -15,7 +15,7 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface ITestReportIsFilledOutWithTimeImprints
+    public interface ITestTimeImprintsReportIsFilledOut
     {
         bool SetTestScenarioNumber(int testScenario);
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
@@ -25,13 +25,13 @@ namespace BackgroundDispatcher.Services
         bool Reset_stageReportFieldCounter();
     }
 
-    public class TestReportIsFilledOutWithTimeImprints : ITestReportIsFilledOutWithTimeImprints
+    public class TestTimeImprintsReportIsFilledOut : ITestTimeImprintsReportIsFilledOut
     {
         private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
         private readonly ICacheManagerService _cache;
 
-        public TestReportIsFilledOutWithTimeImprints(
+        public TestTimeImprintsReportIsFilledOut(
             IHostApplicationLifetime applicationLifetime,
             IAuxiliaryUtilsService aux,
             ICacheManagerService cache)
@@ -43,7 +43,7 @@ namespace BackgroundDispatcher.Services
             //_stopWatchWork = new Stopwatch();
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestReportIsFilledOutWithTimeImprints>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestTimeImprintsReportIsFilledOut>();
 
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
@@ -279,21 +279,10 @@ namespace BackgroundDispatcher.Services
         // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
         public async Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStagesSource)
         {
-            //foreach(var w in testTimingReportStages)
-            //{
-            //    Logs.Here().Information("United List - {@R}.", new { TestTimingReportStage = w }); //, Length = {0}  , testTimingReportStages.Count);
-
-            //}
-
             //List<TestReport.TestReportStage> testTimingReportStages = (from u in testTimingReportStagesSource
             //                                                           orderby u.StageReportFieldCounter
             //                                                           select u).ToList();
-
             List<TestReport.TestReportStage> testTimingReportStages = testTimingReportStagesSource.OrderBy(x => x.StageReportFieldCounter).ThenBy(y => y.ChainSerialNumber).ThenBy(z => z.TheScenarioReportsCount).ToList();
-
-            // вынести в отдельный метод и преобразовать словарь в список
-            // и ещё метод в список базового класса
-
 
             // сначала перегнать все данные в печатный массив, определить максимумы,
             // сделать нормировку масштабирования для заданной ширины печати тайм - лайна
@@ -305,8 +294,6 @@ namespace BackgroundDispatcher.Services
             // сделать сначала текстовую таблицу, без тайм - лайн
             // для тайм-лайн надо синтезировать времена выполнения всего метода с данным номером задачи - начало, важный узел и конец метода
             // тогда будет понятно, зачем нужен тайм - лайн
-
-            //string currentTestReportKey = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey.Value; // storage-key-for-current-test-report
 
             //char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
             //int timeScaling = 5;
@@ -327,27 +314,8 @@ namespace BackgroundDispatcher.Services
             TestReport.TestReportStage stageLast = testTimingReportStages[testTimingReportStagesCount - 2];
             int rL05 = (int)stageLast.TsTest;
 
-            //Logs.Here().Information("United List - {@F}, {@L}.", new { Stage1 = stage1 }, new { StageLast = stageLast });
-            //Logs.Here().Information("United List - {@F}.", new { Stage1 = stage1 });
-
             Console.WriteLine($"\n  Timing imprint report on testScenario No: {testScenario,-3:d} | total stages in the report = {testTimingReportStagesCount,-4:d} | total test time = {(int)tsTest99,5:d} msec."); // \t
-
-            // рабочее решение тайм-лайн (часть 1)
-            //Console.WriteLine($"Timing imprint report:\t{testScenario,3:d} ({testTimingReportStagesCount})");
-            //TestReport.TestReportStage stage1 = testTimingReportStages[1];
-            //int r101 = stage1.StageReportFieldCounter;
-            //int r102 = stage1.ChainSerialNumber;
-            //int r103 = stage1.TheScenarioReportsCount;
-            //int r104 = (int)stage1.TsWork;
-            //long r105 = stage1.TsTest;
-            //string r106 = stage1.MethodNameWhichCalled;
-            //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}", r101, r102, r104, 0, r104, );
-
-            //int qnty1 = (int)((double)r104 / timeScaling) + 1;
-            //string elapsedTimeForLine1 = ("").PadLeft(r104, ttt);
-            //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}", r101, r102, r104, 0, r104, elapsedTimeForLine1);
-            // ----------------------------------------
-
+                        
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
             Console.WriteLine("|{0,5}|{1,5}|{2,5}| {3,-37} | {4,8} | {5,8} | {6,8} | {7,5} | {8,8} | {9,-40} | {10,-33} |", "stage", "chain", "index", "CallingMethod-PointNum/CallingNum", "timePrev", "timeWork", "timeDlt", "W-int", "W-bool", "WorkActionName", "StageReportHash");
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
@@ -357,7 +325,6 @@ namespace BackgroundDispatcher.Services
 
             for (int i = 0; i <= testTimingReportStagesCount; i++) //
             {
-
                 //if (i > 1)
                 //{
                 //    TestReport.TestReportStage stagePrev = testTimingReportStages[i - 1];
@@ -375,8 +342,8 @@ namespace BackgroundDispatcher.Services
                 bool r08 = stage.WorkActionVal;
 
                 static string r07Cor(int r07) => r07 < 0 ? " (N/A)" : $"- {r07}";
-
                 //string GetWeatherDisplay(double tempInCelsius) => tempInCelsius < 20.0 ? "Cold." : "Perfect!";
+
                 string r09 = $"{stage.WorkActionName} {r07Cor(r07)} ({r08})";
                 int r10 = stage.ControlPointNum;
                 int r11 = stage.CallingCountOfWorkMethod;
@@ -384,47 +351,15 @@ namespace BackgroundDispatcher.Services
                 string r13 = stage.StageReportHash;
 
                 string r06Num = $"{r06}-{r10} / {r11}";
-                int r04delta = 0;// r04 - r04prev;
-                 
-                //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, i = {4} from {5}.", r01, r02, r06, r04, i, testTimingReportStagesCount);
+                int r04delta = 0; // r04 - r04prev;
 
-                //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
                 if (r01 > r01Prev)
                 {
-                    //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
                     Console.WriteLine(("").PadRight(180, screenLineChar1C79)); //screenFullWidthLinesCount
                 }
                 r01Prev = r01;
-                //Logs.Here().Information("r03 = {0}, Chain = {1}", r03, r03Prev);
-
+                
                 Console.WriteLine("| {0,3:d} | {1,3:d} | {2,3:d} | {3,-37} | {4,8:d} | {5,8:d} | {6,8:d} | {7,5:d} | {8,8:b} | {9,-40} | {10,33} |", r01, r02, r03, r06Num, r04prev, r04, r04delta, r07, r08, new string(r09.Take(40).ToArray()), r13);
-                //Logs.Here().Information("Stage {0}, Chain {1}, Name {2}, Time {3}, TimePrev {4}, Delta {5}, i = {6} from {7}.", r01, r02, r06, r04, r04a, r04Delta);
-                // рабочее решение тайм-лайн (часть 2)
-                //int r04Delta = r04 - r04a;
-                //string elapsedTimeForLineDot = ("").PadLeft(r04a, '.');
-                //string elapsedTimeForLineSqv = ("").PadLeft(r04Delta, ttt);
-                //Console.WriteLine("{0,3:d} | {1,3:d} || {2,6:d} | {3,6:d} | {4,6:d} - {5}{6}", r01, r02, r04, r04a, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
-                // ----------------------------------------
-                //int qntyPrev = (int)((double)r04a / timeScaling) - 1;
-                //qntyPrevSum += qntyPrev;
-                //int qnty = (int)((double)r04Delta / timeScaling) + 1;
-
-                //string elapsedTimeForLineDot = ("").PadLeft(qntyPrevSum, '.');
-
-                //string reportView = String.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d}", r01, r02, r06, r04);
-                //string reportView = string.Format("{0,3:d} | {0,3:d} | {12,-30} | {46,6:d} - {56,100}", r01, r02, r06, r04, elapsedTimeForLine);
-
-                //_ = String.Format("{0,-12} {2,12:N0} {1,8:yyyy}");
-                // first argument, left align, 12 character wide column
-                // second argument, right align, 8 character wide column
-                // third argument, right align, 12 character wide column
-
-                //Console.WriteLine("{0,-20} {1,5}\n", "Name", "Hours");
-                //Console.WriteLine("{0,-20} {1,5:N1}", "Vasya", 10);
-
-                //Console.WriteLine("{0,3:d} | {1,3:d} | {2,-30} | {3,6:d} | {4,6:d} | {5,6:d} - {6}{7}", r01, r02, r06, r04, qntyPrevSum, r04Delta, elapsedTimeForLineDot, elapsedTimeForLineSqv);
-                //Console.WriteLine($"Stage:\t{r01,3:d} | {r02,3:d} | {r03,3:d} | {r04,3:d} | {r05,3:d} | {r06,3:d} | {r07,3:d} | {r08,3:d} | {r09,3:d} | {r10,3:d} | {r11,3:d} | {r12,3:d}");
-                // HandlerCallingsDistributor
             }
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, '*'));
 

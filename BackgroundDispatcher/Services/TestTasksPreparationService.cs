@@ -114,7 +114,7 @@ namespace BackgroundDispatcher.Services
         private readonly IAuxiliaryUtilsService _aux;
         private readonly ICollectTasksInPackageService _collect;
         private readonly ITestScenarioService _scenario;
-        private readonly ITestRawBookTextsStorageService _store;
+        private readonly ITestStorageServiceOfRawBookTexts _store;
         private readonly IRawBookTextAddAndNotifyService _add;
         private readonly ICacheManagerService _cache;
 
@@ -122,7 +122,7 @@ namespace BackgroundDispatcher.Services
             IAuxiliaryUtilsService aux,
             ICollectTasksInPackageService collect,
             ITestScenarioService scenario,
-            ITestRawBookTextsStorageService store,
+            ITestStorageServiceOfRawBookTexts store,
             IRawBookTextAddAndNotifyService add,
             ICacheManagerService cache)
         {

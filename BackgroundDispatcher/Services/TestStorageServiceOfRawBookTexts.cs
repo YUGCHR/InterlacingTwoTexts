@@ -31,19 +31,17 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface ITestRawBookTextsStorageService
+    public interface ITestStorageServiceOfRawBookTexts
     {
         public Task<(List<int>, List<string>)> CreateTestBookIdsListFromStorageKey(ConstantsSet constantsSet, string storageKeyBookPlainTexts); // = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test");
-
-
     }
 
-    public class TestRawBookTextsStorageService : ITestRawBookTextsStorageService
+    public class TestStorageServiceOfRawBookTexts : ITestStorageServiceOfRawBookTexts
     {
         private readonly IAuxiliaryUtilsService _aux;
         private readonly ICacheManagerService _cache;
 
-        public TestRawBookTextsStorageService(
+        public TestStorageServiceOfRawBookTexts(
             IAuxiliaryUtilsService aux, 
             ICacheManagerService cache)
         {
@@ -51,7 +49,15 @@ namespace BackgroundDispatcher.Services
             _cache = cache;
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestRawBookTextsStorageService>();
+        // есть способ сделать этот ключ заранее известным -
+        // надо в режим записи тестовых книг добавить изменение ключа записи в стандартный (стабильный) из констант
+        // тогда можно всюду не передавать, но можно уже и не менять (наверное)
+        // ещё вариант - добавить слово тест в начале и потом искать ключ по маске, не обращая внимания на гуид 
+        // тогда можно суммировать несколько ключей с тестовыми книгами
+        // можно объединить две идеи - BookPlainText будет сохранять ключи с гуид,
+        // а тест будет проверять их все по маске и сохранять в свой постоянный ключ - а исходные удалять
+        // ещё предусмотреть удаление - какой-то способ очистки ключа хранения тестовых книг
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestStorageServiceOfRawBookTexts>();
 
         // сюда можно передать ключ временного хранилища тестовых плоских текстов, если он будет как-то вычисляться,
         // а не генерироваться контроллером с guid BooTextSplit-а - bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test

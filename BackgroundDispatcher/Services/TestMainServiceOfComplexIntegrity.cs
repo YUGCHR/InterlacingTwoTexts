@@ -20,7 +20,7 @@ using Shared.Library.Services;
 
 namespace BackgroundDispatcher.Services
 {
-    public interface ITestOfComplexIntegrityMainServicee
+    public interface ITestMainServiceOfComplexIntegrity
     {
         public Task<bool> IntegrationTestStart(ConstantsSet constantsSet, CancellationToken stoppingToken);
         public int FetchAssignedChainSerialNum(int lastCountStart, [CallerMemberName] string currentMethodName = "");
@@ -30,30 +30,30 @@ namespace BackgroundDispatcher.Services
         int FetchAssignedTestSerialNum();
     }
 
-    public class TestOfComplexIntegrityMainService : ITestOfComplexIntegrityMainServicee
+    public class TestMainServiceOfComplexIntegrity : ITestMainServiceOfComplexIntegrity
     {
         private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
         private readonly IConvertArrayToKeyWithIndexFields _convert;
         private readonly ITestScenarioService _scenario;
-        private readonly ITestRawBookTextsStorageService _store;
+        private readonly ITestStorageServiceOfRawBookTexts _store;
         private readonly ICollectTasksInPackageService _collect;
         private readonly IEternalLogSupportService _eternal;
         private readonly ICacheManagerService _cache;
         private readonly ITestTasksPreparationService _prepare;
-        private readonly ITestReportIsFilledOutWithTimeImprints _report;
+        private readonly ITestTimeImprintsReportIsFilledOut _report;
 
-        public TestOfComplexIntegrityMainService(
+        public TestMainServiceOfComplexIntegrity(
             IHostApplicationLifetime applicationLifetime,
             IAuxiliaryUtilsService aux,
             IConvertArrayToKeyWithIndexFields convert,
             ITestScenarioService scenario,
-            ITestRawBookTextsStorageService store,
+            ITestStorageServiceOfRawBookTexts store,
             ICollectTasksInPackageService collect,
             IEternalLogSupportService eternal,
             ICacheManagerService cache,
             ITestTasksPreparationService prepare,
-            ITestReportIsFilledOutWithTimeImprints report)
+            ITestTimeImprintsReportIsFilledOut report)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _aux = aux;
@@ -69,7 +69,7 @@ namespace BackgroundDispatcher.Services
             _stopWatchWork = new Stopwatch();
         }
 
-        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestOfComplexIntegrityMainService>();
+        private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestMainServiceOfComplexIntegrity>();
 
         private bool _isTestInProgress;
         private int _currentTestSerialNum;

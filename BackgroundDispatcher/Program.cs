@@ -137,10 +137,10 @@ namespace BackgroundDispatcher
                     // namespace BackgroundDispatcher.Services
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestScenarioService, TestScenarioService>();
-                    services.AddScoped<ITestOfComplexIntegrityMainServicee, TestOfComplexIntegrityMainService>();
-                    services.AddScoped<ITestReportIsFilledOutWithTimeImprints, TestReportIsFilledOutWithTimeImprints>();
+                    services.AddScoped<ITestMainServiceOfComplexIntegrity, TestMainServiceOfComplexIntegrity>();
+                    services.AddScoped<ITestTimeImprintsReportIsFilledOut, TestTimeImprintsReportIsFilledOut>();
                     services.AddScoped<ITestResultsAssertServerHealth, TestResultsAssertServerHealth>();
-                    services.AddScoped<ITestRawBookTextsStorageService, TestRawBookTextsStorageService>();
+                    services.AddScoped<ITestStorageServiceOfRawBookTexts, TestStorageServiceOfRawBookTexts>();
                     services.AddScoped<IEternalLogSupportService, EternalLogSupportService>();
                     services.AddScoped<ICollectTasksInPackageService, CollectTasksInPackageService>();
                     services.AddScoped<ITestTasksPreparationService, TestTasksPreparationService>();

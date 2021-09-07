@@ -17,15 +17,15 @@ namespace BackgroundDispatcher.Services
         private readonly CancellationToken _cancellationToken;
         private readonly IAuxiliaryUtilsService _aux;
         private readonly ICacheManagerService _cache;
-        private readonly ITestOfComplexIntegrityMainServicee _test;
-        private readonly ITestReportIsFilledOutWithTimeImprints _report;
+        private readonly ITestMainServiceOfComplexIntegrity _test;
+        private readonly ITestTimeImprintsReportIsFilledOut _report;
 
         public TestResultsAssertServerHealth(
             IHostApplicationLifetime applicationLifetime,
             IAuxiliaryUtilsService aux,
             ICacheManagerService cache,
-            ITestOfComplexIntegrityMainServicee test,
-            ITestReportIsFilledOutWithTimeImprints report)
+            ITestMainServiceOfComplexIntegrity test,
+            ITestTimeImprintsReportIsFilledOut report)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _aux = aux;
