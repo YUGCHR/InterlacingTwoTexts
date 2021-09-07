@@ -180,13 +180,13 @@ namespace BackgroundDispatcher.Services
             Logs.Here().Information("--- 180 Step 1 - FetchAssignedChainSerialNum was called by {0} instance No: {1} at time {2}.", currentMethodName, eventFromCountNum, _stopWatchWork.ElapsedMilliseconds);
 
             int lastCountStart = Interlocked.Increment(ref _callingNumOfAssignedChainNum);
-            
+
             Logs.Here().Information("--- 184 Step 2 - Number of this FetchAssignedChainSerialNum = {0} at time {1}.", lastCountStart, _stopWatchWork.ElapsedMilliseconds);
 
             int chainSerialNum = Interlocked.Increment(ref _currentChainSerialNum);
 
             Logs.Here().Information("--- 188 Step 3 - Chain SerialNum was created - {0} at time {1}.", chainSerialNum, _stopWatchWork.ElapsedMilliseconds);
-                    
+
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAssignedChainNum);
 
             Logs.Here().Information("--- 192 Step 4 - In this instance Interlocked.Decrement = {0} and chain No: is still {1} at time {2}.", lastCountEnd, chainSerialNum, _stopWatchWork.ElapsedMilliseconds);
@@ -416,19 +416,10 @@ namespace BackgroundDispatcher.Services
 
             (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
 
-            List<TestReport.TestReportStage> testTimingReportStagesListCurrent = new();
-            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
-
-            for (int i = 1; i < theScenarioReports.Count; i++)
-            {
-                testTimingReportStagesListCurrent.AddRange(theScenarioReportsLast[i].TestReportStages); // theScenarioReports.Count - 1
-                Logs.Here().Information("Hash of hashes - {0} in theScenarioReports[{1}] .", theScenarioReportsLast[i].ThisReportHash, i);
-            }
-
-            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
+            List<TestReport.TestReportStage> testTimingReportStagesListCurrent = TheReportsConfluenceForView(theScenarioReportsLast);
 
             _ = _report.ViewComparedReportInConsole(constantsSet, tsTest99, testScenario, testTimingReportStagesListCurrent);//testTimingReportStagesList);
-            
+
             return _isTestInProgress;
         }
 
@@ -442,6 +433,23 @@ namespace BackgroundDispatcher.Services
         // ----------------------------------------------------------------------------------------------------------
         // ----------------------------------------------------------------------------------------------------------
         // storage-key-for-current-test-report
+
+        private List<TestReport.TestReportStage> TheReportsConfluenceForView(List<TestReport> theScenarioReportsLast)
+        {
+
+            List<TestReport.TestReportStage> testTimingReportStagesListCurrent = new();
+            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
+
+            for (int i = 1; i < theScenarioReportsLast.Count; i++)
+            {
+                testTimingReportStagesListCurrent.AddRange(theScenarioReportsLast[i].TestReportStages); // theScenarioReports.Count - 1
+                Logs.Here().Information("Hash of hashes - {0} in theScenarioReports[{1}] .", theScenarioReportsLast[i].ThisReportHash, i);
+            }
+
+            //Logs.Here().Information("United List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStagesListCurrent }, testTimingReportStagesListCurrent.Count);
+
+            return testTimingReportStagesListCurrent;
+        }
 
         private async Task<bool> WaitForTestFinishingTags(ConstantsSet constantsSet, int timeOfAllDelays, string controlListOfTestBookFieldsKey, CancellationToken stoppingToken)
         {

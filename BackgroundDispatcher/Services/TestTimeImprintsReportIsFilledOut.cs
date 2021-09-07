@@ -241,11 +241,14 @@ namespace BackgroundDispatcher.Services
                 ThisReportHash = testReportHash
             };
 
-            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли спаривание
+            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение
             // 5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
             int reportsCountToStartComparison = 5;
             int theScenarioReportsCount = theScenarioReports.Count;
             int equalReportsCount = 0;
+
+            // спрашиваем количество отчётов без версии, полученное в начале теста с константой
+            // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
             if (reportsWOversionsCount > reportsCountToStartComparison)
             {
                 for (int i = theScenarioReportsCount - 1; i > 0; i--)
@@ -264,6 +267,10 @@ namespace BackgroundDispatcher.Services
                     }
                 }
             }
+            // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
+            // то сохраняем эталонный отчёт в нулевой индекс
+            // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
+            // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
             if (equalReportsCount >= reportsCountToStartComparison)
             {
                 // создать и записать эталонный отчёт
