@@ -101,7 +101,7 @@ namespace BackgroundDispatcher.Services
 
         public void OccurredEventSubscribeFrom(ConstantsSet constantsSet, string eventKey, int currentChainSerialNum, int fromCallingCount)
         {
-            Logs.Here().Information("*** 104 Step 1 - OccurredEventSubscribeFrom was called by FromInstance No: {0} with chain = {1} at time {2}.", fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("*** 104 Step 1 - OccurredEventSubscribeFrom was called by FromInstance No: {0} with chain = {1} at time {2}.", fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             int lastCountStart = Interlocked.Increment(ref _callingNumOfOccurredEventSubscribeFrom);
 
@@ -115,7 +115,7 @@ namespace BackgroundDispatcher.Services
             int controlPointNum1 = 1;
             bool result = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), -1, false, eventKey, controlPointNum1, lastCountStart);
 
-            Logs.Here().Information("*** 118 Step 3 - OccurredEventSubscribeFrom No: {0} called AddStage and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("*** 118 Step 3 - OccurredEventSubscribeFrom No: {0} called AddStage and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             //Logs.Here().Information("*** 183 *** - FromEntity No: {0} will call Counter in chain No: {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
 
@@ -123,7 +123,7 @@ namespace BackgroundDispatcher.Services
 
             _ = CountOccurredEventFrom(constantsSet, currentChainSerialNum, lastCountStart);
 
-            Logs.Here().Information("*** 126 Step 4 - OccurredEventSubscribeFrom No: {0} called CounterOccurred and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("*** 126 Step 4 - OccurredEventSubscribeFrom No: {0} called CounterOccurred and chain is still {1} at time {2}.", lastCountStart, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             _ = Interlocked.Decrement(ref _callingNumOfOccurredEventSubscribeFrom);
         }
@@ -134,7 +134,7 @@ namespace BackgroundDispatcher.Services
             int countTrackingStart = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountTrackingStart.Value; // 2
             int countDecisionMaking = constantsSet.IntegerConstant.BackgroundDispatcherConstant.CountDecisionMaking.Value; // 6
 
-            Logs.Here().Information("ooo 137 Step 1 - EventCounterOccurred was called by FromInstance No: {0} with chain No: {1} at time {2} .", fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("ooo 137 Step 1 - EventCounterOccurred was called by FromInstance No: {0} with chain No: {1} at time {2} .", fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             int lastCountStart = Interlocked.Increment(ref _callingNumOfEventCounterOccurred);
 
@@ -143,12 +143,12 @@ namespace BackgroundDispatcher.Services
             // тут будет проблема с множественным присвоением
             _currentChainSerialNum = currentChainSerialNum;
 
-            Logs.Here().Information("ooo 146 Step 3 - EventCounterOccurred instance No: {0} set _currentChainSerialNum {1} from currentChainSerialNum {2} at time {3}.", lastCountStart, _currentChainSerialNum, currentChainSerialNum, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("ooo 146 Step 3 - EventCounterOccurred instance No: {0} set _currentChainSerialNum {1} from currentChainSerialNum {2} at time {3}.", lastCountStart, _currentChainSerialNum, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             // считать вызовы подписки и запустить таймер после первого (второго?) вызова
             int count = Interlocked.Increment(ref _callingNumOfEventFrom);
 
-            Logs.Here().Information("ooo 151 Step 4 - EventCounterOccurred instance No: {0} Interlocked.Increment {1} at time {2}.", lastCountStart, count, _test.FetchWorkStopwatch());
+            //Logs.Here().Information("ooo 151 Step 4 - EventCounterOccurred instance No: {0} Interlocked.Increment {1} at time {2}.", lastCountStart, count, _test.FetchWorkStopwatch());
 
             //Logs.Here().Information("*** 187 *** -  Counter No: {0} was called by FromEntity No: {1} in chain No: {2} at time {3}.", count, fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
 
