@@ -423,7 +423,7 @@ namespace BackgroundDispatcher.Services
 
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet);
 
-            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
+            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.ExistingReportsComparisonToSelectReference(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
 
             List<TestReport.TestReportStage> testTimingReportStagesListCurrent = TheReportsConfluenceForView(theScenarioReportsLast);
 

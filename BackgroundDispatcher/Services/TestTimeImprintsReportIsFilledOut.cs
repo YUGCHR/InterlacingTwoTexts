@@ -21,7 +21,7 @@ namespace BackgroundDispatcher.Services
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
         Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet);
-        Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
+        Task<(List<TestReport>, int)> ExistingReportsComparisonToSelectReference(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
         bool Reset_stageReportFieldCounter();
     }
 
@@ -226,7 +226,8 @@ namespace BackgroundDispatcher.Services
             return (testTimingReportStagesList, testReportHash);
         }
 
-        public async Task<(List<TestReport>, int)> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
+        // WriteTestScenarioReportsList
+        public async Task<(List<TestReport>, int)> ExistingReportsComparisonToSelectReference(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
 
@@ -252,7 +253,7 @@ namespace BackgroundDispatcher.Services
 
             // спрашиваем количество отчётов без версии, полученное в начале теста с константой
             // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
-            if (reportsWOversionsCount > reportsCountToStartComparison)
+            if (reportsWOversionsCount >= reportsCountToStartComparison)
             {
                 for (int i = theScenarioReportsCount - 1; i > 0; i--)
                 {
@@ -271,6 +272,17 @@ namespace BackgroundDispatcher.Services
                 }
             }
 
+
+            //считать сколько именно совпало, чтобы понять, какие удалять - тоже с конца, перед добавлением нового
+            //ещё же версии завести и сравнивать -нужен список версий или где-то хранить максимальную?
+            //наверное, максимальная будет всегда в текущем эталоне
+            //когда появляется новый эталон, со старой версией ещё есть один отчёт, кроме эталона, то есть, старый эталон сдвинуть вперёд, а второй отчёт найти и удалить
+            //этот отчёт будет последним с версией
+            //добавить серийный номер теста -или считывать номер последнего теста в списке и прибавлять единицу или гуид?
+            //серийный номер хорошо выводить в таблице, чтобы было заметно, как располагаются отчёты в списке
+
+
+            // 
             // в любом случае ставим последний отчёт в конец списка
             theScenarioReports.Add(theScenarioReport);
 
@@ -294,11 +306,19 @@ namespace BackgroundDispatcher.Services
                 theScenarioReports.RemoveAt(0);
                 theScenarioReports.Insert(0, theScenarioReport);
             }
-            await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
+
+            bool res = await WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, testScenario, theScenarioReports);
 
             // надо поменять на 0 номера в каждом элементе во внутреннем списке - данные в таблицу берутся из него
 
             return (theScenarioReports, equalReportsCount);
+        }
+
+        private async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, int testScenario, List<TestReport> theScenarioReports)
+        {
+            await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
+
+            return true;
         }
 
         // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
