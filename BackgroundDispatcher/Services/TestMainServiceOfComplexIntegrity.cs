@@ -101,7 +101,7 @@ namespace BackgroundDispatcher.Services
         private async Task<(List<TestReport>, bool, int)> CreateAssignedSerialNum(int testScenario, string eternalTestTimingStagesReportsLog, CancellationToken stoppingToken)
         {
             int fieldBookIdWithLanguageId = testScenario;
-            (List<TestReport> theScenarioReports, int theScenarioReportsCount) = await _eternal.EternalLogAccess<TestReport>(eternalTestTimingStagesReportsLog, fieldBookIdWithLanguageId);
+            (List<TestReport> ReportsListOfTheScenario, int ReportsListOfTheScenarioCount) = await _eternal.EternalLogAccess<TestReport>(eternalTestTimingStagesReportsLog, fieldBookIdWithLanguageId);
             string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
             //Logs.Here().Information("Test report from Eternal Log for Scenario {0} length = {1}.", testScenario, theScenarioReportsCount);
@@ -111,7 +111,7 @@ namespace BackgroundDispatcher.Services
                 TheScenarioReportsCount = 0
             };
 
-            if (theScenarioReportsCount == 0)
+            if (ReportsListOfTheScenarioCount == 0)
             {
                 // надо создать пустой первый элемент (вместо new TestReport()), который потом можно заменить на эталонный
                 TestReport testReportForScenario = new TestReport() // RemoveTextFromTextSentence(bookPlainText)
@@ -126,11 +126,11 @@ namespace BackgroundDispatcher.Services
                     }
                 };
                 // записываем пустышку, только если список пуст
-                theScenarioReports.Add(testReportForScenario);
+                ReportsListOfTheScenario.Add(testReportForScenario);
                 // надо вернуть весь список, чтобы в конце теста в него дописать текущий отчёт
                 //theScenarioReportsCount = theScenarioReports.Count;
 
-                return (theScenarioReports, false, 0);
+                return (ReportsListOfTheScenario, false, 0);
             }
 
             // возможные ситуации(по мере возникновения) -
@@ -157,16 +157,16 @@ namespace BackgroundDispatcher.Services
             // счётчик количества отчётов без версий (с нулевой версией) - для определения готовности к спариванию
             int reportsWOversionsCount = 0;
 
-            if (theScenarioReportsCount > 1)
+            if (ReportsListOfTheScenarioCount > 1)
             {
                 // если эталон, проверять с конца остальные элементы, считая те, что без версии,
                 // как только встретится с версией, дальше неинтересно
                 // если не эталон, делать то же самое - то есть, наличие эталона в этот момент вроде бы никого не волнует
-                isThisReportTheReference = theScenarioReports[0].IsThisReportTheReference;
+                isThisReportTheReference = ReportsListOfTheScenario[0].IsThisReportTheReference;
 
-                for (int i = theScenarioReportsCount - 1; i > 0; i--)
+                for (int i = ReportsListOfTheScenarioCount - 1; i > 0; i--)
                 {
-                    if (theScenarioReports[i].ThisReporVersion == 0)
+                    if (ReportsListOfTheScenario[i].ThisReporVersion == 0)
                     {
                         reportsWOversionsCount++;
                     }
@@ -179,7 +179,7 @@ namespace BackgroundDispatcher.Services
             }
             //Logs.Here().Information("List theScenarioReports - Reference in [0] = {0}, length = {1}, without versions q-ty = {2}.", isThisReportTheReference, theScenarioReportsCount, reportsWOversionsCount);
 
-            return (theScenarioReports, isThisReportTheReference, reportsWOversionsCount);
+            return (ReportsListOfTheScenario, isThisReportTheReference, reportsWOversionsCount);
         }
 
         // этот метод возвращает текущий номер тестовой цепочки - начиная от события From - для маркировки прохода рабочими методами
@@ -306,10 +306,10 @@ namespace BackgroundDispatcher.Services
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            (List<TestReport> theScenarioReports, bool isThisReportTheReference, int reportsWOversionsCount) = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
+            (List<TestReport> ReportsListOfTheScenario, bool isThisReportTheReference, int reportsWOversionsCount) = await CreateAssignedSerialNum(testScenario, eternalTestTimingStagesReportsLog.Value, stoppingToken);
 
             // это будет серийный номер текущего теста - начинаться всегда будет с первого, нулевой зарезервирован для эталона
-            int currentTestSerialNum = theScenarioReports.Count;
+            int currentTestSerialNum = ReportsListOfTheScenario.Count;
 
             // тут установить номер сценария для AddStageToTestTaskProgressReport
             _ = _report.SetTestScenarioNumber(currentTestSerialNum);
@@ -423,7 +423,7 @@ namespace BackgroundDispatcher.Services
 
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet);
 
-            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.ExistingReportsComparisonToSelectReference(eternalTestTimingStagesReportsLog, theScenarioReports, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
+            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.ProcessingReportsForReferenceAssignment(constantsSet, ReportsListOfTheScenario, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
 
             List<TestReport.TestReportStage> testTimingReportStagesListCurrent = TheReportsConfluenceForView(theScenarioReportsLast);
 

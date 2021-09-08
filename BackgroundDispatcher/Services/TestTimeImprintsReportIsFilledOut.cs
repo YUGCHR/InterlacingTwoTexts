@@ -21,7 +21,7 @@ namespace BackgroundDispatcher.Services
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
         Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet);
-        Task<(List<TestReport>, int)> ExistingReportsComparisonToSelectReference(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
+        Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
         bool Reset_stageReportFieldCounter();
     }
 
@@ -227,7 +227,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // WriteTestScenarioReportsList
-        public async Task<(List<TestReport>, int)> ExistingReportsComparisonToSelectReference(KeyType eternalTestTimingStagesReportsLog, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
+        public async Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
 
@@ -236,7 +236,7 @@ namespace BackgroundDispatcher.Services
             //List<TestReport.TestReportStage> listResult = testTimingReportStages.ConvertAll(x => { x.TheScenarioReportsCount = testScenario; return x; });
             //result = result.Select(c => { c.property1 = 100; return c; }).ToList();
 
-            TestReport theScenarioReport = new TestReport()
+            TestReport theReportOfTheScenario = new TestReport()
             {
                 TestScenarioNum = testScenario,
                 Guid = currentTestDescription,
@@ -246,18 +246,18 @@ namespace BackgroundDispatcher.Services
             };
 
             // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение
-            // 5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
+            // 3/5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
             int reportsCountToStartComparison = 3;
-            int theScenarioReportsCount = theScenarioReports.Count;
+            int theScenarioReportsCount = ReportsListOfTheScenario.Count;
             int equalReportsCount = 0;
 
-            // спрашиваем количество отчётов без версии, полученное в начале теста с константой
+            // сравниваем количество отчётов без версии, полученное в начале теста с константой
             // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
             if (reportsWOversionsCount >= reportsCountToStartComparison)
             {
                 for (int i = theScenarioReportsCount - 1; i > 0; i--)
                 {
-                    bool reportsInPairAreEqual = String.Equals(testReportHash, theScenarioReports[i].ThisReportHash);
+                    bool reportsInPairAreEqual = String.Equals(testReportHash, ReportsListOfTheScenario[i].ThisReportHash);
 
                     if (reportsInPairAreEqual)
                     {
@@ -282,9 +282,9 @@ namespace BackgroundDispatcher.Services
             //серийный номер хорошо выводить в таблице, чтобы было заметно, как располагаются отчёты в списке
 
 
-            // 
             // в любом случае ставим последний отчёт в конец списка
-            theScenarioReports.Add(theScenarioReport);
+            // не в любом, а если отчётов мало вообще или не хватает одинаковых
+            ReportsListOfTheScenario.Add(theReportOfTheScenario);
 
             // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
             // то сохраняем эталонный отчёт в нулевой индекс
@@ -293,7 +293,7 @@ namespace BackgroundDispatcher.Services
             if (equalReportsCount >= reportsCountToStartComparison)
             {
                 // поменять индексы на 0 и внутри тоже
-                List<TestReport.TestReportStage> testTimingReportStagesForRef = theScenarioReport.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = 0; return x; });
+                List<TestReport.TestReportStage> testTimingReportStagesForRef = theReportOfTheScenario.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = 0; return x; });
                 // создать новый TestReport theScenarioRefReport
                 TestReport theScenarioReportRef = new TestReport()
                 {
@@ -303,19 +303,28 @@ namespace BackgroundDispatcher.Services
                     TestReportStages = testTimingReportStagesForRef,
                     ThisReportHash = testReportHash
                 };
-                theScenarioReports.RemoveAt(0);
-                theScenarioReports.Insert(0, theScenarioReport);
+                ReportsListOfTheScenario.RemoveAt(0);
+                ReportsListOfTheScenario.Insert(0, theReportOfTheScenario);
             }
 
-            bool res = await WriteTestScenarioReportsList(eternalTestTimingStagesReportsLog, testScenario, theScenarioReports);
+            bool res = await WriteTestScenarioReportsList(constantsSet, testScenario, ReportsListOfTheScenario);
 
             // надо поменять на 0 номера в каждом элементе во внутреннем списке - данные в таблицу берутся из него
 
-            return (theScenarioReports, equalReportsCount);
+            return (ReportsListOfTheScenario, equalReportsCount);
         }
 
-        private async Task<bool> WriteTestScenarioReportsList(KeyType eternalTestTimingStagesReportsLog, int testScenario, List<TestReport> theScenarioReports)
+        private bool ExistingReportsComparison(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports)
         {
+
+
+            return true;
+        }
+
+        private async Task<bool> WriteTestScenarioReportsList(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports)
+        {
+            KeyType eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog; // key-test-reports-timing-imprints-list
+
             await _cache.WriteHashedAsync<int, List<TestReport>>(eternalTestTimingStagesReportsLog.Value, testScenario, theScenarioReports, eternalTestTimingStagesReportsLog.LifeTime);
 
             return true;
