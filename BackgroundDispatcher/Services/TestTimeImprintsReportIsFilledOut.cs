@@ -229,12 +229,12 @@ namespace BackgroundDispatcher.Services
         // WriteTestScenarioReportsList
         public async Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
+            // 3/5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
+            int reportsCountToStartComparison = 3;
+
             string currentTestDescription = $"Current test report for Scenario {testScenario}";
 
-            //Logs.Here().Information("List - {@R}, Length = {0}.", new { TestTimingReportStages = testTimingReportStages }, testTimingReportStages.Count);
-
-            //List<TestReport.TestReportStage> listResult = testTimingReportStages.ConvertAll(x => { x.TheScenarioReportsCount = testScenario; return x; });
-            //result = result.Select(c => { c.property1 = 100; return c; }).ToList();
+            int equalReportsCount = ExistingReportsComparison(reportsCountToStartComparison, ReportsListOfTheScenario, testReportHash, reportsWOversionsCount);
 
             TestReport theReportOfTheScenario = new TestReport()
             {
@@ -244,33 +244,6 @@ namespace BackgroundDispatcher.Services
                 TestReportStages = testTimingReportStages,
                 ThisReportHash = testReportHash
             };
-
-            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение
-            // 3/5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
-            int reportsCountToStartComparison = 3;
-            int theScenarioReportsCount = ReportsListOfTheScenario.Count;
-            int equalReportsCount = 0;
-
-            // сравниваем количество отчётов без версии, полученное в начале теста с константой
-            // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
-            if (reportsWOversionsCount >= reportsCountToStartComparison)
-            {
-                for (int i = theScenarioReportsCount - 1; i > 0; i--)
-                {
-                    bool reportsInPairAreEqual = String.Equals(testReportHash, ReportsListOfTheScenario[i].ThisReportHash);
-
-                    if (reportsInPairAreEqual)
-                    {
-                        equalReportsCount++;
-                    }
-                    else
-                    {
-                        // если встретился отчёт с другим хешем, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
-                        // но надо посмотреть на счётчик - если нет даже двух одинаковых, то выходить совсем, иначе - уже описано
-                        // return
-                    }
-                }
-            }
 
 
             //считать сколько именно совпало, чтобы понять, какие удалять - тоже с конца, перед добавлением нового
@@ -314,11 +287,34 @@ namespace BackgroundDispatcher.Services
             return (ReportsListOfTheScenario, equalReportsCount);
         }
 
-        private bool ExistingReportsComparison(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports)
+        private int ExistingReportsComparison(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, string testReportHash, int reportsWOversionsCount)
         {
+            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение            
+            int theScenarioReportsCount = ReportsListOfTheScenario.Count;
+            int equalReportsCount = 0;
 
+            // сравниваем количество отчётов без версии, полученное в начале теста с константой
+            // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
+            if (reportsWOversionsCount >= reportsCountToStartComparison)
+            {
+                for (int i = theScenarioReportsCount - 1; i > 0; i--)
+                {
+                    bool reportsInPairAreEqual = String.Equals(testReportHash, ReportsListOfTheScenario[i].ThisReportHash);
 
-            return true;
+                    if (reportsInPairAreEqual)
+                    {
+                        equalReportsCount++;
+                    }
+                    else
+                    {
+                        // если встретился отчёт с другим хешем, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
+                        // но надо посмотреть на счётчик - если нет даже двух одинаковых, то выходить совсем, иначе - уже описано
+                        // return
+                    }
+                }
+            }
+
+            return equalReportsCount;
         }
 
         private async Task<bool> WriteTestScenarioReportsList(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports)
