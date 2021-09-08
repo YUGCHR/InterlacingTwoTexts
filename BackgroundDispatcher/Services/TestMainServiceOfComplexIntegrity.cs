@@ -423,7 +423,30 @@ namespace BackgroundDispatcher.Services
 
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await _report.ConvertDictionaryWithReportToList(constantsSet);
 
-            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.ProcessingReportsForReferenceAssignment(constantsSet, ReportsListOfTheScenario, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
+            // потом вынести в метод
+            string currentTestDescription = $"Current test report for Scenario {testScenario}";
+            TestReport theReportOfTheScenario = new TestReport()
+            {
+                TestScenarioNum = testScenario,
+                Guid = currentTestDescription,
+                TheScenarioReportsCount = testTimingReportStagesList[0].TheScenarioReportsCount,
+                TestReportStages = testTimingReportStagesList,
+                ThisReportHash = testReportHash
+            };
+
+            // поменять индексы на 0 и внутри тоже
+            List<TestReport.TestReportStage> testTimingReportStagesForRef = theReportOfTheScenario.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = 0; return x; });
+            // создать новый TestReport theScenarioRefReport
+            TestReport theScenarioReportRef = new TestReport()
+            {
+                TestScenarioNum = testScenario,
+                Guid = currentTestDescription,
+                TheScenarioReportsCount = testTimingReportStagesForRef[0].TheScenarioReportsCount,
+                TestReportStages = testTimingReportStagesForRef,
+                ThisReportHash = testReportHash
+            };
+
+            (List<TestReport> theScenarioReportsLast, int equalReportsCount) = await _report.ProcessingReportsForReferenceAssignment(constantsSet, ReportsListOfTheScenario, theReportOfTheScenario, theScenarioReportRef, testTimingReportStagesList, reportsWOversionsCount, testScenario, testReportHash);
 
             List<TestReport.TestReportStage> testTimingReportStagesListCurrent = TheReportsConfluenceForView(theScenarioReportsLast);
 

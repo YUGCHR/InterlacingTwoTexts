@@ -21,7 +21,7 @@ namespace BackgroundDispatcher.Services
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
         Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
         Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet);
-        Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> theScenarioReports, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
+        Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, TestReport theReportOfTheScenario, TestReport theScenarioReportRef, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash);
         bool Reset_stageReportFieldCounter();
     }
 
@@ -226,25 +226,13 @@ namespace BackgroundDispatcher.Services
             return (testTimingReportStagesList, testReportHash);
         }
 
-        // WriteTestScenarioReportsList
-        public async Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
+        // 
+        public async Task<(List<TestReport>, int)> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, TestReport theReportOfTheScenario, TestReport theScenarioReportRef, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash)
         {
             // 3/5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
             int reportsCountToStartComparison = 3;
 
-            string currentTestDescription = $"Current test report for Scenario {testScenario}";
-
             int equalReportsCount = ExistingReportsComparison(reportsCountToStartComparison, ReportsListOfTheScenario, testReportHash, reportsWOversionsCount);
-
-            TestReport theReportOfTheScenario = new TestReport()
-            {
-                TestScenarioNum = testScenario,
-                Guid = currentTestDescription,
-                TheScenarioReportsCount = testTimingReportStages[0].TheScenarioReportsCount,
-                TestReportStages = testTimingReportStages,
-                ThisReportHash = testReportHash
-            };
-
 
             //считать сколько именно совпало, чтобы понять, какие удалять - тоже с конца, перед добавлением нового
             //ещё же версии завести и сравнивать -нужен список версий или где-то хранить максимальную?
@@ -254,37 +242,37 @@ namespace BackgroundDispatcher.Services
             //добавить серийный номер теста -или считывать номер последнего теста в списке и прибавлять единицу или гуид?
             //серийный номер хорошо выводить в таблице, чтобы было заметно, как располагаются отчёты в списке
 
-
             // в любом случае ставим последний отчёт в конец списка
             // не в любом, а если отчётов мало вообще или не хватает одинаковых
             ReportsListOfTheScenario.Add(theReportOfTheScenario);
 
-            // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
-            // то сохраняем эталонный отчёт в нулевой индекс
-            // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
-            // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
-            if (equalReportsCount >= reportsCountToStartComparison)
-            {
-                // поменять индексы на 0 и внутри тоже
-                List<TestReport.TestReportStage> testTimingReportStagesForRef = theReportOfTheScenario.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = 0; return x; });
-                // создать новый TestReport theScenarioRefReport
-                TestReport theScenarioReportRef = new TestReport()
-                {
-                    TestScenarioNum = testScenario,
-                    Guid = currentTestDescription,
-                    TheScenarioReportsCount = testTimingReportStagesForRef[0].TheScenarioReportsCount,
-                    TestReportStages = testTimingReportStagesForRef,
-                    ThisReportHash = testReportHash
-                };
-                ReportsListOfTheScenario.RemoveAt(0);
-                ReportsListOfTheScenario.Insert(0, theReportOfTheScenario);
-            }
+
+            ReportsListOfTheScenario = FindIdenticalReportsCount(reportsCountToStartComparison, ReportsListOfTheScenario, theScenarioReportRef, equalReportsCount);
+
 
             bool res = await WriteTestScenarioReportsList(constantsSet, testScenario, ReportsListOfTheScenario);
 
             // надо поменять на 0 номера в каждом элементе во внутреннем списке - данные в таблицу берутся из него
 
             return (ReportsListOfTheScenario, equalReportsCount);
+        }
+
+        // 
+        private List<TestReport> FindIdenticalReportsCount(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, TestReport theScenarioReportRef, int equalReportsCount)
+        {
+            // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
+            // то сохраняем эталонный отчёт в нулевой индекс
+            // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
+            // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
+
+            if (equalReportsCount >= reportsCountToStartComparison)
+            {
+
+                ReportsListOfTheScenario.RemoveAt(0);
+                ReportsListOfTheScenario.Insert(0, theScenarioReportRef);
+            }
+
+            return ReportsListOfTheScenario;
         }
 
         private int ExistingReportsComparison(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, string testReportHash, int reportsWOversionsCount)
