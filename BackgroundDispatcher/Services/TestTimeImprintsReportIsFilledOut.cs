@@ -227,6 +227,16 @@ namespace BackgroundDispatcher.Services
             return reportsListOfTheScenario;
         }
 
+        // метод создаёт и возвращает новый отчёт TestReport testReportForScenario для списка отчётов, записывая в него -
+        // testScenario - номер сценария (он же - поле в ключе списков отчётов),
+        // theScenarioReportsCount - номер отчёта в этом сценарии (он же индекс этого нового отчёта в списке),
+        // isThisReportTheReference - флаг, является ли этот отчёт эталоном,
+        // thisReporVersion - версия отчёта (для эталона и последнего сохраняемого, даже если совпадает с эталоном),
+        // testReportStages - собственно свежий список контрольных точек последнего отчёта,
+        // thisReportHash - хеш этого списка (без времени точек)
+        // кроме того, внутри метода создаётся описание - обычный отчёт или эталонный и
+        // номер отчёта (индекс) заносится во все элементы внутреннего списка контрольных точек - возможно, временно - для отображения в таблице сразу всего списка отчётов по сценарию
+        // в дальнейшем передать сюда ещё константы для теста описания
         public TestReport CreateNewTestReport(int testScenario, int theScenarioReportsCount, bool isThisReportTheReference, int thisReporVersion, List<TestReport.TestReportStage> testReportStages, string thisReportHash)
         {
             string referenceTestDescription = $"Reference test report for Scenario {testScenario}";
@@ -241,7 +251,7 @@ namespace BackgroundDispatcher.Services
                 TheScenarioReportsCount = theScenarioReportsCount,
                 IsThisReportTheReference = isThisReportTheReference,
                 ThisReporVersion = thisReporVersion,
-                TestReportStages = testReportStages,
+                TestReportStages = testReportStages.ConvertAll(x => { x.TheScenarioReportsCount = theScenarioReportsCount; return x; }),
                 ThisReportHash = thisReportHash
             };
             return testReportForScenario;
@@ -333,11 +343,11 @@ namespace BackgroundDispatcher.Services
 
             int theScenarioReportsCountRef = 0;
             // поменять индексы на 0 и внутри тоже
-            List<TestReport.TestReportStage> testTimingReportStagesForRef = theReportOfTheScenario.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = theScenarioReportsCountRef; return x; });
+            //List<TestReport.TestReportStage> testTimingReportStagesForRef = theReportOfTheScenario.TestReportStages.ConvertAll(x => { x.TheScenarioReportsCount = theScenarioReportsCountRef; return x; });
             
-            TestReport theScenarioReportRef = CreateNewTestReport(testScenario, theScenarioReportsCount, true, -1, testTimingReportStagesForRef, testReportHash);
+            //TestReport theScenarioReportRef = CreateNewTestReport(testScenario, theScenarioReportsCount, true, -1, testTimingReportStagesForRef, testReportHash);
 
-            ReportsListOfTheScenario = FindIdenticalReportsCount(reportsCountToStartComparison, ReportsListOfTheScenario, theScenarioReportRef, equalReportsCount);
+            //ReportsListOfTheScenario = FindIdenticalReportsCount(reportsCountToStartComparison, ReportsListOfTheScenario, theScenarioReportRef, equalReportsCount);
 
             ReportsListOfTheScenario.Add(theReportOfTheScenario);
 
