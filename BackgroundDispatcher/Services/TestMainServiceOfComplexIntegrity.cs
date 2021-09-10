@@ -420,7 +420,7 @@ namespace BackgroundDispatcher.Services
 
 
 
-            bool res = await _report.ProcessingReportsForReferenceAssignment(constantsSet, testScenario, tsTest99);
+            bool res = await _report.AssemblingReportsListFromSourceStages(constantsSet, testScenario, tsTest99);
             //Task<bool> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, bool isThisReportTheReference, int reportsWOversionsCount, int testScenario, int tsTest99)
 
 
