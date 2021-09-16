@@ -215,13 +215,13 @@ namespace BackgroundDispatcher.Services
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
             List<TestReport> reportsListOfTheScenario = await LookAndCreateBaseReport(constantsSet, testScenario);
 
-            bool resView1 = ViewListOfReportsInConsole(constantsSet, tsTest99, testScenario, reportsListOfTheScenario);
-
+            string description1 = "before ReportsAnalysisForReferenceAssigning";
+            bool resView1 = ViewListOfReportsInConsole(constantsSet, description1, testScenario, reportsListOfTheScenario);
 
             reportsListOfTheScenario = ReportsAnalysisForReferenceAssigning(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
 
-
-            bool resView2 = ViewListOfReportsInConsole(constantsSet, tsTest99, testScenario, reportsListOfTheScenario);
+            string description2 = "after ReportsAnalysisForReferenceAssigning";
+            bool resView2 = ViewListOfReportsInConsole(constantsSet, description2, testScenario, reportsListOfTheScenario);
 
 
             // создали новый отчёт
@@ -434,7 +434,9 @@ namespace BackgroundDispatcher.Services
                     if (equalReportsCount >= equalReportsCountToRemoveDifferents)
                     {
                         // удаляем все без версий, но несовпадающие с equalReportsCountToStartRefAssigning последними
+
                     }
+
                 }
             }
 
@@ -665,7 +667,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
-        private bool ViewListOfReportsInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport> reportsListOfTheScenario)
+        private bool ViewListOfReportsInConsole(ConstantsSet constantsSet, string description, int testScenario, List<TestReport> reportsListOfTheScenario)
         {
             //char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
 
@@ -675,10 +677,10 @@ namespace BackgroundDispatcher.Services
             char screenFullWidthTopLineChar = '-';
             char screenFullWidthBetweenLineChar = '\u1C79'; // Ol Chiki Gaahlaa Ttuddaag --> ᱹ
 
-            Console.WriteLine($"\n  Timing imprint report List on testScenario No: {testScenario,-3:d} | List report count = {reportsListOfTheScenario.Count,-4:d} | total test time = {(int)tsTest99,5:d} msec."); // \t
+            Console.WriteLine($"\n  Timing imprint report List on testScenario No: {testScenario,-3:d} | List report count = {reportsListOfTheScenario.Count,-4:d} | {description}."); // \t
 
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
-            Console.WriteLine("| {0,5} | {1,5} | {2,5} | {3,5} | {4,30} | {5,5} | {6,5} |", "scnrm", "index", "versn", "isRef", "hash", "stags", "i");
+            Console.WriteLine("| {0,5} | {1,5} | {2,5} | {3,5} | {4,37} | {5,6} | {6,5} |", "scnrm", "index", "ver.N", "isRef", "this report hash", "stages", "i");
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
 
             for (int i = 0; i < reportsListOfTheScenarioCount; i++) //
@@ -691,7 +693,7 @@ namespace BackgroundDispatcher.Services
                 string r05 = stage.ThisReportHash;
                 int r06 = stage.TestReportStages.Count;
 
-                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,5:d} | {3,5} | {4,30} | {5,5:d} | {6,5:d} |", r01, r02, r03, r04, r05, r06, i);
+                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,5:d} | {3,5} | {4,37} | {5,6:d} | {6,5:d} |", r01, r02, r03, r04, r05, r06, i);
                 Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthBetweenLineChar));
             }
 
