@@ -215,12 +215,13 @@ namespace BackgroundDispatcher.Services
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
             List<TestReport> reportsListOfTheScenario = await LookAndCreateBaseReport(constantsSet, testScenario);
 
-            bool resView = ViewListOfReportsInConsole(constantsSet, tsTest99, testScenario, reportsListOfTheScenario);
+            bool resView1 = ViewListOfReportsInConsole(constantsSet, tsTest99, testScenario, reportsListOfTheScenario);
 
 
             reportsListOfTheScenario = ReportsAnalysisForReferenceAssigning(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
 
-            
+
+            bool resView2 = ViewListOfReportsInConsole(constantsSet, tsTest99, testScenario, reportsListOfTheScenario);
 
 
             // создали новый отчёт
