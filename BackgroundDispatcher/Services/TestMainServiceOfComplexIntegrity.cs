@@ -323,6 +323,7 @@ namespace BackgroundDispatcher.Services
             // storageKeyBookPlainTexts - ключ хранилища исходных текстов тестовых книг
             // uniqueBookIdsFromStorageKey - список уникальных номеров английских книг
             // guidFieldsFromStorageKey - список полей всех хранящихся книг
+            // надо проверять наличие тестового ключа вообще и полученного результата в частности
             (List<int> uniqueBookIdsFromStorageKey, List<string> guidFieldsFromStorageKey) = await _store.CreateTestBookIdsListFromStorageKey(constantsSet, storageKeyBookPlainTexts); //, string storageKeyBookPlainTexts = "bookPlainTexts:bookSplitGuid:5a272735-4be3-45a3-91fc-152f5654e451:test")
 
             // используя список уникальных ключей, надо удалить все тестовые ключи из вечного лога

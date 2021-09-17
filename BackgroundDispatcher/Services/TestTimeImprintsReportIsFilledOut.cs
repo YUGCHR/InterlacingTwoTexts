@@ -345,7 +345,6 @@ namespace BackgroundDispatcher.Services
             // счётчик одинаковых отчётов, чтобы определить, что пришло время создавать эталон
             int equalReportsCount = 0;
             bool wereConsistentlyEqual = true;
-            int refIndex = 0;
             int maxVersion = 0;
             // если в списке уже что-то есть, кроме добавленной пустышки в пустой, изучаем элементы списка
             int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
@@ -361,6 +360,7 @@ namespace BackgroundDispatcher.Services
                 // 3 - bool false, int > 0 - эталон не создавать, присвоить текущему обычному отчету версию int и записать его в конец списка
                 // фактически, первый и третий вариант одинаковые
 
+                int refIndex = 0;
                 isThisReportTheReference = reportsListOfTheScenario[refIndex].IsThisReportTheReference;
                 if (isThisReportTheReference)
                 {
@@ -369,8 +369,13 @@ namespace BackgroundDispatcher.Services
                     if (theReportsWithRefAreEqual)
                     {
                         // действующий эталон устраивает, новый делать не надо, текущий отчёт записать в конец с версией этого эталона
-                        TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
-                        reportsListOfTheScenario.Add(theReportOfTheScenario);
+                        TestReport theReportOfTheScenarioRefVer = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
+                        reportsListOfTheScenario.Add(theReportOfTheScenarioRefVer);
+
+                        Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
+
+                        string description3 = "the current ref is actual, we do not need to make a new one, we will write the current report to the end with the version of this ref";
+                        bool resView3 = ViewListOfReportsInConsole(constantsSet, description3, testScenario, reportsListOfTheScenario);
 
                         return reportsListOfTheScenario;
                     }
@@ -382,8 +387,8 @@ namespace BackgroundDispatcher.Services
 
                 for (int i = reportsListOfTheScenarioCount - 1; i > 0; i--)
                 {
-                    // проверяем очередной отчёт из списка на наличие версии, если её нет, идём внутрь (нет, уже не будем - если версия есть, будем искать максимальную)
-                    if (reportsListOfTheScenario[i].ThisReporVersion == 0)
+                    // проверяем очередной отчёт из списка на наличие версии, если её нет, идём внутрь
+                    if (reportsListOfTheScenario[i].ThisReporVersion <= 0)
                     {
                         // увеличиваем счётчик отчётов без версий (типа, свежих и несравненных)
                         reportsWOversionsCount++;
@@ -403,11 +408,11 @@ namespace BackgroundDispatcher.Services
                 }
 
                 // рассмотрим варианты - 
-                // 1 reportsWOversionsCount < reportsCountToStartComparison - ничего не делаем, выходим при возможности
+                // 1 reportsWOversionsCount < reportsCountToStartComparison - просто добавляем отчёт без версии
                 // 2 reportsWOversionsCount >=, equalReportsCount < reportsCountToStartComparison - проверяем equalReportsCount >= - equalReportsCountToStartRefAssigning - удаляем все без версий, но несовпадающие с двумя (или больше?) последними
                 // тут ещё надо бы искать совпадающие подряд, а если раз не совпало, дальше уже не искать
                 // 3 оба больше (равны на самом деле) - можно создавать эталон
-
+                // 
 
                 // отчётов без версий достаточное количество для обработки (сравнение хешей)
                 if (reportsWOversionsCount >= reportsCountToStartComparison)
@@ -423,30 +428,43 @@ namespace BackgroundDispatcher.Services
                         //Logs.Here().Information("Removed 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
                         reportsListOfTheScenario.Insert(0, theScenarioReportRef);
                         //Logs.Here().Information("Inserted Ref at 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
-                        
+
                         // текущий отчёт записать в конец с версией нового эталона
-                        TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
-                        reportsListOfTheScenario.Add(theReportOfTheScenario);
+                        TestReport theReportOfTheScenarioVerNewRef = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
+                        reportsListOfTheScenario.Add(theReportOfTheScenarioVerNewRef);
+
+                        Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
+
+                        string description4 = "here we need to create a reference report and increase the current version by 1 for further use";
+                        bool resView4 = ViewListOfReportsInConsole(constantsSet, description4, testScenario, reportsListOfTheScenario);
 
                         return reportsListOfTheScenario;
                     }
-                    // 
+                    // одинаковых отчётов ещё мало для захвата власти, но уже достаточно для подавления несогласных
                     if (equalReportsCount >= equalReportsCountToRemoveDifferents)
                     {
-                        // удаляем все без версий, но несовпадающие с equalReportsCountToStartRefAssigning последними
-
+                        // удаляем всех без версий, но несовпадающие с equalReportsCountToStartRefAssigning последними
+                        reportsListOfTheScenario.RemoveAll(r => r.ThisReporVersion <= 0 && !String.Equals(testReportHash, r.ThisReportHash));
                     }
-
                 }
+                // отчётов без версий недостаточное количество для обработки (проведения сравнения хешей) и, возможно, по дороге удалили всех несогласных
+                // добавляем новый отчёт в конец списка без версии
+                TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, -1, testTimingReportStagesList, testReportHash);
+                reportsListOfTheScenario.Add(theReportOfTheScenario);
             }
 
-            // 
-            //int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
-            
+            string description5 = "add a new report to the end of the list without version";
+            bool resView5 = ViewListOfReportsInConsole(constantsSet, description5, testScenario, reportsListOfTheScenario);
 
-            // эталонного отчёта нет (иначе сюда бы не попали), сравнивать рано, версий ещё нет - только записать текущий в конец
-            thisReportMustBecomeReference = false;
             return reportsListOfTheScenario;
+        }
+
+        // Search predicate returns true if a TestReport is without version and hash is the same as the sample.
+        private static bool DownWithDissent(string testReportHash, TestReport theReportOfTheScenario)
+        {
+            bool reportsInPairAreEqual = String.Equals(testReportHash, theReportOfTheScenario.ThisReportHash);
+            bool reportWOversion = theReportOfTheScenario.ThisReporVersion <= 0;
+            return !reportsInPairAreEqual && reportWOversion;
         }
 
         private async Task<List<TestReport.TestReportStage>> TheReportsConfluenceForView(ConstantsSet constantsSet, int testScenario)
