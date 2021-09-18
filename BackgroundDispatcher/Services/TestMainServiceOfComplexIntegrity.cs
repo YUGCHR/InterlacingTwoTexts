@@ -418,15 +418,13 @@ namespace BackgroundDispatcher.Services
             // сбросить счётчик текущего шага тестового отчёта по таймингу - сделать reset в другом классе
             bool resultResetOnEnd = _report.Reset_stageReportFieldCounter();
 
-
-
-
             bool res = await _report.AssemblingReportsListFromSourceStages(constantsSet, testScenario, tsTest99);
             //Task<bool> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, bool isThisReportTheReference, int reportsWOversionsCount, int testScenario, int tsTest99)
 
+            //-------------- формирование итоговой таблицы с полным списком отчётов по сценарию (возможно временное) --------------
+            // да, перенести на после вызова этого метода - в самый конец тестов
 
-
-
+            _ = await _report.ViewComparedReportInConsole(constantsSet, tsTest99, testScenario);//, testTimingReportStagesListCurrent);//testTimingReportStagesList);
 
             return _isTestInProgress;
         }
