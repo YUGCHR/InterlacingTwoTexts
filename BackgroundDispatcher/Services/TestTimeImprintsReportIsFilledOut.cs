@@ -158,8 +158,8 @@ namespace BackgroundDispatcher.Services
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             List<TestReport> reportsListOfTheScenario = await LooksScenarioReportsListToAddCurrent(constantsSet, testScenario);
 
-            string description1 = "before ReportsAnalysisForReferenceAssigning";
-            bool resView1 = ViewListOfReportsInConsole(constantsSet, description1, testScenario, reportsListOfTheScenario);
+            string description_0 = "The List Before Time";
+            bool resView1 = ViewListOfReportsInConsole(constantsSet, description_0, testScenario, reportsListOfTheScenario);
 
             // 3/5 - взять из констант, назвать типа количество отчётов для начала проведения сравнения - ReportsCountToStartComparison
             int reportsCountToStartComparison = 3;
@@ -170,19 +170,18 @@ namespace BackgroundDispatcher.Services
             int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
             if (reportsListOfTheScenarioCount > 1)
             {
-                int maxVersion = await CheckReferenceToAssignVersion(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
-                // можно возвращать версию через out, а основным значением возвращать true
-                if (maxVersion > 0)
+                bool writeResult_1 = await CheckReferenceToAssignVersion(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
+                if (writeResult_1)
                 {
                     // запись в ключ произведена
                     return true;
                 }
 
                 // а здесь находимся, потому что эталона нет, надо узнавать насчёт его создания
-
                 // reportsWOversionsCount - счётчик количества отчётов без версий (с нулевой версией) - для определения готовности к спариванию
                 // equalReportsCount - счётчик одинаковых отчётов, чтобы определить, что пришло время создавать эталон
                 (int reportsWOversionsCount, int equalReportsCount) = CountEqualWOversionReports(reportsListOfTheScenario, testReportHash);
+                Logs.Here().Information("CountEqualWOversionReports returned reportsWOversionsCount = {0} and equalReportsCount = {1}.", reportsWOversionsCount, equalReportsCount);
 
                 // рассмотрим варианты - 
                 // 1 reportsWOversionsCount < reportsCountToStartComparison - просто добавляем отчёт без версии
@@ -198,7 +197,7 @@ namespace BackgroundDispatcher.Services
                     {
                         // здесь надо создать (возможно новый) эталонный отчёт, а текущий отчет записать в конец списка
                         // запись в ключ произведена - return true
-                        return await CreateNewReference(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash, maxVersion); ;
+                        return await CreateNewReference(constantsSet, testScenario, reportsListOfTheScenario, testTimingReportStagesList, testReportHash); ;
                     }
                     // одинаковых отчётов ещё мало для захвата власти, но уже достаточно для подавления несогласных
                     if (equalReportsCount >= equalReportsCountToRemoveDifferents)
@@ -210,23 +209,26 @@ namespace BackgroundDispatcher.Services
                     }
                 }
             }
-            // отчётов без версий недостаточное количество для обработки (проведения сравнения хешей) и, возможно, по дороге удалили всех несогласных
+            // отчетов в списке нет вообще или
+            // отчетов без версий недостаточное количество для обработки (проведения сравнения хешей) и, возможно, по дороге удалили всех несогласных
             // добавляем новый отчёт в конец списка без версии
             TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, -1, testTimingReportStagesList, testReportHash);
             reportsListOfTheScenario.Add(theReportOfTheScenario);
 
-            string description5 = "add a new report to the end of the list without version";
-            bool resView5 = ViewListOfReportsInConsole(constantsSet, description5, testScenario, reportsListOfTheScenario);
+            string description_5 = "add a new report to the end of the list without version";
+            bool resView5 = ViewListOfReportsInConsole(constantsSet, description_5, testScenario, reportsListOfTheScenario);
 
             bool writeResult = await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
             // запись в ключ произведена
             return true;
         }
 
-        private async Task<bool> CreateNewReference(ConstantsSet constantsSet, int testScenario, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash, int maxVersion)
+        private async Task<bool> CreateNewReference(ConstantsSet constantsSet, int testScenario, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
         {
             int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
-            // здесь надо создать эталонный отчёт и увеличить текущую версию, если она положительная, на 1 для дальнейшего применения
+            // здесь надо проверить наличие эталона, узнать его версию и увеличить ее на 1 для дальнейшего применения
+            // если эталона нет, присвоить версию 1
+            int maxVersion = reportsListOfTheScenario[0].ThisReporVersion;
             if (maxVersion > 0)
             {
                 maxVersion++;
@@ -235,21 +237,24 @@ namespace BackgroundDispatcher.Services
             {
                 maxVersion = 1;
             }
+            // создаем новый эталон
             TestReport theScenarioReportRef = CreateNewTestReport(testScenario, 0, true, maxVersion, testTimingReportStagesList, testReportHash);
             //Logs.Here().Information("Source {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+            // а вот старый удалять не надо, удалить надо только пустышку
             reportsListOfTheScenario.RemoveAt(0);
             //Logs.Here().Information("Removed 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+            // записываем новый эталон в нулевой индекс
             reportsListOfTheScenario.Insert(0, theScenarioReportRef);
             //Logs.Here().Information("Inserted Ref at 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
 
-            // текущий отчёт записать в конец с версией нового эталона
+            // создаем текущий отчёт и записываем его в конец с версией нового эталона
             TestReport theReportOfTheScenarioVerNewRef = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
             reportsListOfTheScenario.Add(theReportOfTheScenarioVerNewRef);
 
             Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
 
-            string description4 = "here we need to create a reference report and increase the current version by 1 for further use";
-            bool resView4 = ViewListOfReportsInConsole(constantsSet, description4, testScenario, reportsListOfTheScenario);
+            string description_3 = "(NEW) reference report was created and current report was added at the end with the same version";
+            bool resView_3 = ViewListOfReportsInConsole(constantsSet, description_3, testScenario, reportsListOfTheScenario);
 
             // здесь вызвать запись в ключ и закончить (return true - запись в ключ произведена)
             await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
@@ -277,7 +282,7 @@ namespace BackgroundDispatcher.Services
                     }
                 };
 
-                TestReport testReportForScenario = CreateNewTestReport(testScenario, 0, false, 0, testReportStages, "");
+                TestReport testReportForScenario = CreateNewTestReport(testScenario, 0, false, -1, testReportStages, "");
                 // записываем пустышку, только если список пуст
                 reportsListOfTheScenario.Add(testReportForScenario);
             }
@@ -349,7 +354,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // check for the reference to assign version
-        private async Task<int> CheckReferenceToAssignVersion(ConstantsSet constantsSet, int testScenario, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
+        private async Task<bool> CheckReferenceToAssignVersion(ConstantsSet constantsSet, int testScenario, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
         {
             // если нулевой элемент списка является эталоном, проверяем текущий отчёт на совпадение с эталонным
             // если да, то присвоить текущему обычному отчету версию эталона, записать его в конец списка и записать в ключ
@@ -374,14 +379,14 @@ namespace BackgroundDispatcher.Services
                     string description3 = "the current ref is actual, we will write the current report to the end with the version of this ref";
                     bool resView3 = ViewListOfReportsInConsole(constantsSet, description3, testScenario, reportsListOfTheScenario);
 
-                    // здесь вызвать запись в ключ и закончить (return maxVersion > 0 - запись в ключ произведена)
+                    // здесь вызвать запись в ключ и закончить (return true - запись в ключ произведена)
                     await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
-                    return maxVersion;
+                    return true;
                 }
                 // здесь находимся, потому что эталон есть, но он устарел - новый отчёт(ы) с ним не совпадает, надо узнавать насчёт создания нового - так же return -1
             }
-            // здесь возвращаем -1
-            return maxVersion;
+            // здесь возвращаем, что надо продолжать
+            return false;
         }
 
         // Search predicate returns true if a TestReport is without version and hash is the same as the sample.
