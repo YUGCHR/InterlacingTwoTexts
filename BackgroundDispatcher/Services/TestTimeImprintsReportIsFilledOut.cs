@@ -17,21 +17,9 @@ namespace BackgroundDispatcher.Services
 {
     public interface ITestTimeImprintsReportIsFilledOut
     {
-        //bool SetTestScenarioNumber(int testScenario);
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
-        //Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario, List<TestReport.TestReportStage> testTimingReportStages);
-        //Task<(List<TestReport.TestReportStage>, string)> ConvertDictionaryWithReportToList(ConstantsSet constantsSet);
-        //Task<bool> ProcessingReportsForReferenceAssignment(ConstantsSet constantsSet, List<TestReport> ReportsListOfTheScenario, TestReport theReportOfTheScenario, TestReport theScenarioReportRef, List<TestReport.TestReportStage> testTimingReportStages, int reportsWOversionsCount, int testScenario, string testReportHash, int tsTest99);
-
-
         Task<bool> AssemblingReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99);
-
-
         bool Reset_stageReportFieldCounter();
-        //int ExistingReportsComparison(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, string testReportHash, int reportsWOversionsCount);
-        //List<TestReport> FindIdenticalReportsCount(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, TestReport theScenarioReportRef, int equalReportsCount);
-        //Task<string> WriteTestScenarioReportsList(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports);
-        //Task<(List<TestReport>, bool, int)> CreateAssignedSerialNum(int testScenario, string eternalTestTimingStagesReportsLog);
     }
 
     public class TestTimeImprintsReportIsFilledOut : ITestTimeImprintsReportIsFilledOut
@@ -51,8 +39,6 @@ namespace BackgroundDispatcher.Services
             _eternal = eternal;
             _aux = aux;
             _cache = cache;
-            //_stopWatchTest = new Stopwatch();
-            //_stopWatchWork = new Stopwatch();
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<TestTimeImprintsReportIsFilledOut>();
@@ -60,40 +46,6 @@ namespace BackgroundDispatcher.Services
         private int _stageReportFieldCounter;
         private int _currentTestSerialNum;
         private int _callingNumOfAddStageToTestTaskProgressReport;
-        //private Stopwatch _stopWatchTest;
-        //private Stopwatch _stopWatchWork;
-
-        // Report of the test time imprint
-        // рабочим методами не нужно ждать возврата из теста - передали, что нужно и забыли
-        // кроме первого раза, когда вернут уникальный номер
-        // как его потом дальше передавать, надо изучить
-        // под этим уникальным номером отчёт о тестах хранится в вечном логе некоторое время
-        // можно использовать номера в определённом диапазоне, не пересекающимся с книгами
-        // но там же, возможно, делают сплошную выборку
-        // и для уникального номера брать предыдущий из вечного лога, если нет, то 1
-        // неудобно, надо делать сплошную выборку, проще хранить предыдущий номер в каком-то ключе
-        // а, в нулевом поле будет храниться список всех тестов, можно просто измерять длину списка
-        // ещё же номер сценария влияет на время выполнения
-        // в вечном логе будет номер сценария в качестве bookId - получить номер сценария
-        // приготовить все номера в другом методе и сохранить их в поля класса
-        // за серийным номером ходить в другой метод FetchAssignedSerialNum - где он нужен
-        // надо попробовать создать две шестёрки задач в два потока
-
-        // список тестов (каждый элемент - один проход) на поле номера сценария в ключе вечного лога
-        // много одинаковых проходов хранить нет смысла -
-        // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
-        // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
-        // также этот метод устанавливает текущую версию теста в поле класса
-
-        //public bool SetTestScenarioNumber(int testScenario)
-        //{
-        //    if (testScenario > 0)
-        //    {
-        //        _currentTestSerialNum = testScenario;
-        //        return true;
-        //    }
-        //    return false;
-        //}
 
         public bool Reset_stageReportFieldCounter()
         {
@@ -109,7 +61,7 @@ namespace BackgroundDispatcher.Services
 
         // этот метод вызывается только из рабочих методов других классов
         // он получает имя рабочего метода currentMethodName, выполняющего тест в данный момент, номер тестовой цепочки и остальное в TestReport.TestReportStage testTimingReportStage
-        // ещё он собирает собственный счётчик вызовов, определяет номер шага отчёта и делает засечки с двух таймеров
+        // ещё он собирает собственный счётчик вызовов, определяет номер шага отчёта и делает засечки с двух (пока одного) таймеров
         public async Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage)
         {
             // изменить названия точек методов на номера точек по порядку - можно синтезировать при печати имяМетода-1
@@ -121,7 +73,6 @@ namespace BackgroundDispatcher.Services
 
             // ещё полезно иметь счётчик вызовов - чтобы определить многопоточность
             int lastCountStart = Interlocked.Increment(ref _callingNumOfAddStageToTestTaskProgressReport);
-            //Logs.Here().Information("AddStageToTestTaskProgressReport started {0} time. Stage = {1}.", lastCountStart, count);
 
             // ещё можно получать и записывать номер потока, в котором выполняется этот метод
             TestReport.TestReportStage testTimingReportStage = new TestReport.TestReportStage()
@@ -157,11 +108,11 @@ namespace BackgroundDispatcher.Services
             };
 
             // посчитаем хеш данных шага отчета для последующего сравнения версий 
-            KeyType currentTestReportKeyTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey; // storage-key-for-current-test-report / 0.01
+            // storage-key-for-current-test-report / 0.01 - ключ хранения шагов отчета
+            KeyType currentTestReportKeyTime = constantsSet.Prefix.IntegrationTestPrefix.CurrentTestReportKey;
             bool result = await AddHashToStageAndWrite(testTimingReportStage, currentTestReportKeyTime);
 
             int lastCountEnd = Interlocked.Decrement(ref _callingNumOfAddStageToTestTaskProgressReport);
-            //Logs.Here().Information("AddStageToTestTaskProgressReport ended {0} time.", lastCountEnd);
 
             return result;
         }
@@ -170,7 +121,7 @@ namespace BackgroundDispatcher.Services
         {
             string currentTestReportKey = currentTestReportKeyTime.Value; // storage-key-for-current-test-report
             //double currentTestReportKeyExistingTime = currentTestReportKeyTime.LifeTime; // 0.01
-            double currentTestReportKeyExistingTime = 1;
+            double currentTestReportKeyExistingTime = 1; // временное значение на время отладки
             int count = testTimingReportStage.StageReportFieldCounter;
             Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0} on chain {1}.", testTimingReportStage.MethodNameWhichCalled, testTimingReportStage.ChainSerialNumber);
 
@@ -197,23 +148,16 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        //-------------------------------------------------------------------------------------------------------
-        //-------------------------------------------------------------------------------------------------------
-        //-------------------------------------------------------------------------------------------------------
-        // список тестов (каждый элемент - один проход) на поле номера сценария в ключе вечного лога
-        // много одинаковых проходов хранить нет смысла -
-        // после N одинаковых проходов, N+1 проход копируется в эталон и все (или только N?) одинаковые удаляются
-
         // MAIN - обработка отчётов, выбор эталона, формирование и запись списка, печать сводной таблицы
         // сборка отчётов из пошаговых списков и сохранение их списка в ключе
         public async Task<bool> AssemblingReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99)
         {
-            // создали список текущих измерений контрольных точек (внутренний список отсчёта)
+            // создали список (из словаря, который из ключа) текущих измерений контрольных точек (внутренний список отсчёта)
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await ConvertDictionaryWithReportToList(constantsSet);
 
             // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
             // также этот метод устанавливает текущую версию теста в поле класса - для использования рабочими методами
-            List<TestReport> reportsListOfTheScenario = await LookAndCreateBaseReport(constantsSet, testScenario);
+            List<TestReport> reportsListOfTheScenario = await LooksScenarioReportsListToAdd(constantsSet, testScenario);
 
             string description1 = "before ReportsAnalysisForReferenceAssigning";
             bool resView1 = ViewListOfReportsInConsole(constantsSet, description1, testScenario, reportsListOfTheScenario);
@@ -266,7 +210,7 @@ namespace BackgroundDispatcher.Services
 
         // получаем список отчётов по данному сценарию, чтобы в конце теста в него дописать текущий отчёт
         // также этот метод устанавливает текущую версию теста в поле класса - нет
-        private async Task<List<TestReport>> LookAndCreateBaseReport(ConstantsSet constantsSet, int testScenario)
+        private async Task<List<TestReport>> LooksScenarioReportsListToAdd(ConstantsSet constantsSet, int testScenario)
         {
             int fieldBookIdWithLanguageId = testScenario;
             string eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog.Value; // key-test-reports-timing-imprints-list
