@@ -18,7 +18,7 @@ namespace BackgroundDispatcher.Services
     public interface ITestTimeImprintsReportIsFilledOut
     {
         Task<bool> AddStageToTestTaskProgressReport(ConstantsSet constantsSet, TestReport.TestReportStage sendingTestTimingReportStage);
-        Task<bool> AssemblingReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99);
+        Task<bool> ProcessReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99);
         Task<bool> ViewComparedReportInConsole(ConstantsSet constantsSet, long tsTest99, int testScenario);
         bool Reset_stageReportFieldCounter();
     }
@@ -68,6 +68,13 @@ namespace BackgroundDispatcher.Services
             // сделать сначала текстовую таблицу, без тайм - лайн
             // для тайм-лайн надо синтезировать времена выполнения всего метода с данным номером задачи - начало, важный узел и конец метода
 
+            string truncatedWorkActionName = sendingTestTimingReportStage.WorkActionName;
+            int truncatedWorkActionNamePosition = sendingTestTimingReportStage.WorkActionName.IndexOf('=');
+            if (truncatedWorkActionNamePosition > 0)
+            {
+                truncatedWorkActionName = sendingTestTimingReportStage.WorkActionName.Substring(0, truncatedWorkActionNamePosition);
+            }
+
             // определяем собственно номер шага текущего отчёта
             int count = Interlocked.Increment(ref _stageReportFieldCounter);
 
@@ -98,7 +105,8 @@ namespace BackgroundDispatcher.Services
                 // ключевое значение bool
                 WorkActionVal = sendingTestTimingReportStage.WorkActionVal,
                 // название ключевого значения метода
-                WorkActionName = sendingTestTimingReportStage.WorkActionName,
+                //WorkActionName = sendingTestTimingReportStage.WorkActionName,
+                WorkActionName = truncatedWorkActionName,
                 // номер контрольной точки в методе, где считывается засечка времени
                 ControlPointNum = sendingTestTimingReportStage.ControlPointNum,
                 // количество одновременных вызовов принимаемого рабочего метода
@@ -125,11 +133,19 @@ namespace BackgroundDispatcher.Services
             int count = testTimingReportStage.StageReportFieldCounter;
             Logs.Here().Information("AddStageToTestTaskProgressReport was called by {0} on chain {1}.", testTimingReportStage.MethodNameWhichCalled, testTimingReportStage.ChainSerialNumber);
 
+            // перенести усечение строки в вычисление хешей
+            string truncatedWorkActionName = testTimingReportStage.WorkActionName;
+            int truncatedWorkActionNamePosition = testTimingReportStage.WorkActionName.IndexOf('=');
+            if (truncatedWorkActionNamePosition > 0)
+            {
+                truncatedWorkActionName = testTimingReportStage.WorkActionName.Substring(0, truncatedWorkActionNamePosition);
+            }
+
             string s1 = testTimingReportStage.ChainSerialNumber.ToString();
             //string s2 = testTimingReportStage.TheScenarioReportsCount.ToString(); // ?
             string s3 = $"{testTimingReportStage.MethodNameWhichCalled}-{testTimingReportStage.ControlPointNum}";
             //string s4 = testTimingReportStage.WorkActionNum.ToString();
-            string s5 = $"{testTimingReportStage.WorkActionName}-{testTimingReportStage.WorkActionNum} ({testTimingReportStage.WorkActionVal})";
+            string s5 = $"{truncatedWorkActionName}-{testTimingReportStage.WorkActionNum} ({testTimingReportStage.WorkActionVal})";
             //string s6 = testTimingReportStage.WorkActionName;
             //string s7 = testTimingReportStage.ControlPointNum;
             string unitedStageData = $"{s1}_{s3}_{s5}";
@@ -148,9 +164,11 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
+        // сохраняется избыточное количество одинаковых тестов при наличии выбранного эталона
+        // взошедший на трон эталон должен удалить всех своих двойников, кроме вновь прибывающих
         // MAIN - обработка отчётов, выбор эталона, формирование и запись списка, печать сводной таблицы
         // сборка отчётов из пошаговых списков и сохранение их списка в ключе
-        public async Task<bool> AssemblingReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99)
+        public async Task<bool> ProcessReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99)
         {
             // создали список (из словаря, который из ключа) текущих измерений контрольных точек (внутренний список отсчёта)
             (List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash) = await ConvertDictionaryWithReportToList(constantsSet);
@@ -237,12 +255,16 @@ namespace BackgroundDispatcher.Services
             {
                 maxVersion = 1;
             }
+
             // создаем новый эталон
             TestReport theScenarioReportRef = CreateNewTestReport(testScenario, 0, true, maxVersion, testTimingReportStagesList, testReportHash);
             //Logs.Here().Information("Source {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+
+
             // а вот старый удалять не надо, удалить надо только пустышку
             reportsListOfTheScenario.RemoveAt(0);
             //Logs.Here().Information("Removed 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+
             // записываем новый эталон в нулевой индекс
             reportsListOfTheScenario.Insert(0, theScenarioReportRef);
             //Logs.Here().Information("Inserted Ref at 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
@@ -458,63 +480,6 @@ namespace BackgroundDispatcher.Services
             return (testTimingReportStagesList, testReportHash);
         }
 
-        // 
-        private List<TestReport> FindIdenticalReportsCount(int reportsCountToStartComparison, List<TestReport> reportsListOfTheScenario, TestReport theScenarioReportRef, int equalReportsCount)
-        {
-            // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
-            // то сохраняем эталонный отчёт в нулевой индекс
-            // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
-            // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
-
-            Logs.Here().Information("Ref to insert {@F}.", new { ReportRef = theScenarioReportRef });
-
-            if (equalReportsCount >= reportsCountToStartComparison)
-            {
-                Logs.Here().Information("Source {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
-
-                reportsListOfTheScenario.RemoveAt(0);
-
-                Logs.Here().Information("Removed 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
-
-                reportsListOfTheScenario.Insert(0, theScenarioReportRef);
-
-                Logs.Here().Information("Inserted Ref at 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
-
-            }
-
-            return reportsListOfTheScenario;
-        }
-
-        private int ExistingReportsComparison(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, string testReportHash, int reportsWOversionsCount)
-        {
-            // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение            
-            int theScenarioReportsCount = ReportsListOfTheScenario.Count;
-            int equalReportsCount = 0;
-
-            // сравниваем количество отчётов без версии, полученное в начале теста с константой
-            // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
-            if (reportsWOversionsCount >= reportsCountToStartComparison)
-            {
-                for (int i = theScenarioReportsCount - 1; i > 0; i--)
-                {
-                    bool reportsInPairAreEqual = String.Equals(testReportHash, ReportsListOfTheScenario[i].ThisReportHash);
-
-                    if (reportsInPairAreEqual)
-                    {
-                        equalReportsCount++;
-                    }
-                    else
-                    {
-                        // если встретился отчёт с другим хешем, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
-                        // но надо посмотреть на счётчик - если нет даже двух одинаковых, то выходить совсем, иначе - уже описано
-                        // return
-                    }
-                }
-            }
-
-            return equalReportsCount;
-        }
-
         private async Task<bool> WriteTestScenarioReportsList(ConstantsSet constantsSet, int testScenario, List<TestReport> theScenarioReports)
         {
             KeyType eternalTestTimingStagesReportsLog = constantsSet.Prefix.IntegrationTestPrefix.EternalTestTimingStagesReportsLog; // key-test-reports-timing-imprints-list
@@ -617,7 +582,7 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        // метод выводит таблицу с результатами текущего отчёта о времени прохождения теста по контрольным точкам
+        // метод выводит таблицу списка отчетов 
         private bool ViewListOfReportsInConsole(ConstantsSet constantsSet, string description, int testScenario, List<TestReport> reportsListOfTheScenario)
         {
             //char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
@@ -655,8 +620,62 @@ namespace BackgroundDispatcher.Services
 
 
 
+        //// 
+        //private List<TestReport> FindIdenticalReportsCount(int reportsCountToStartComparison, List<TestReport> reportsListOfTheScenario, TestReport theScenarioReportRef, int equalReportsCount)
+        //{
+        //    // сравниваем количество одинаковых отчётов с константой и если равно (больше вроде бы не может быть),
+        //    // то сохраняем эталонный отчёт в нулевой индекс
+        //    // предварительно надо проверить, что там сейчас - и, если эталон с другой (меньшей) версией,
+        //    // то вытолкнуть (вставить) его в первый индекс (не затереть первый)
 
+        //    Logs.Here().Information("Ref to insert {@F}.", new { ReportRef = theScenarioReportRef });
 
+        //    if (equalReportsCount >= reportsCountToStartComparison)
+        //    {
+        //        Logs.Here().Information("Source {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+
+        //        reportsListOfTheScenario.RemoveAt(0);
+
+        //        Logs.Here().Information("Removed 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+
+        //        reportsListOfTheScenario.Insert(0, theScenarioReportRef);
+
+        //        Logs.Here().Information("Inserted Ref at 0 {@R} length {0}.", new { ReportsList = reportsListOfTheScenario }, reportsListOfTheScenario.Count);
+
+        //    }
+
+        //    return reportsListOfTheScenario;
+        //}
+
+        //private int ExistingReportsComparison(int reportsCountToStartComparison, List<TestReport> ReportsListOfTheScenario, string testReportHash, int reportsWOversionsCount)
+        //{
+        //    // прежде чем записывать новый отчёт в список, надо узнать, не требуется ли сравнение            
+        //    int theScenarioReportsCount = ReportsListOfTheScenario.Count;
+        //    int equalReportsCount = 0;
+
+        //    // сравниваем количество отчётов без версии, полученное в начале теста с константой
+        //    // если оно больше, то начинаем цикл сравнения хешей отчётов, чтобы понять, сколько их набралось одинаковых
+        //    if (reportsWOversionsCount >= reportsCountToStartComparison)
+        //    {
+        //        for (int i = theScenarioReportsCount - 1; i > 0; i--)
+        //        {
+        //            bool reportsInPairAreEqual = String.Equals(testReportHash, ReportsListOfTheScenario[i].ThisReportHash);
+
+        //            if (reportsInPairAreEqual)
+        //            {
+        //                equalReportsCount++;
+        //            }
+        //            else
+        //            {
+        //                // если встретился отчёт с другим хешем, сразу можно выйти из цикла с проверкой - потом оформить в отдельный метод
+        //                // но надо посмотреть на счётчик - если нет даже двух одинаковых, то выходить совсем, иначе - уже описано
+        //                // return
+        //            }
+        //        }
+        //    }
+
+        //    return equalReportsCount;
+        //}
 
         //// метод сравнивает предыдущие отчёты с текущим (в виде его хеша)
         //// и на выходе возвращает инструкции, что делать дальше, варианта два (уже три) -

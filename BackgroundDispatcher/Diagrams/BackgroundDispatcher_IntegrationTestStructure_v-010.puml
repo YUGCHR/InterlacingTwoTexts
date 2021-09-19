@@ -1,0 +1,139 @@
+@startuml
+
+skinparam state {
+    FontName Impact
+    FontColor DarkBlue
+}
+
+state "IntegrationTestStructure" as main #lightblue {
+    state _isTestInProgress #magenta
+
+    state IsTestInProgress #lightgreen {
+    }
+    state "TestMainServiceOfComplexIntegrity" as test #lightgreen {
+        state TMS_0 #yellow
+        TMS_0 : set the properties \n_stopWatchTest.Start
+        state TMS_1 #yellow
+        TMS_1 : set the constants
+        state TMS_2 #yellow
+        TMS_2 : set end method \nof the test
+        state TMS_2a #yellow
+        TMS_2a : remove old keys \non stast (checking)
+        state TMS_3 #yellow
+        TMS_3 : Temporary here - \ncreate test scenario
+        state TMS_4 #yellow
+        TMS_4 : inventory of test \nbooks storage
+        state TMS_4a #yellow
+        TMS_4a :  remove all test keys \nfrom eternal log
+        state TMS_5 #yellow
+        TMS_5 :  create all test keys \nin eternal log
+        state TMS_6 #yellow
+        TMS_6 : create synchronous \nlists with test sequence
+        state TMS_6a #yellow
+        TMS_6a :  remove all test keys \nfrom eternal log
+        state TMS_7 #yellow
+        TMS_7 : create keys with \nbook sequence \nand keys from
+        state TMS_8 #yellow
+        TMS_8 :
+        state TMS_9 #yellow
+        TMS_9 :
+        TMS_0 -down[hidden]-> TMS_1
+        TMS_1 -down[hidden]-> TMS_2
+        TMS_2 -down[hidden]-> TMS_2a
+        TMS_2a -down[hidden]-> TMS_3
+        TMS_3 -down[hidden]-> TMS_4
+        TMS_4 -down[hidden]-> TMS_4a
+        TMS_4a -down[hidden]-> TMS_5
+        TMS_5 -down[hidden]-> TMS_6
+        TMS_6 -down[hidden]-> TMS_6a
+        TMS_6a -down[hidden]-> TMS_7
+        TMS_7 -down[hidden]-> TMS_8
+        TMS_8 -down[hidden]-> TMS_9
+    }
+
+
+    state CreateTestScenarioKey #green {
+    }
+    state CreateTestBookIdsListFromStorageKey #green {
+    }
+    state RemoveTestBookIdFieldsFromEternalLog #green {
+    }
+
+    state "CreateTaskPackageAndSaveLog" as save #orange {
+    }
+    'text:yellow
+    save : #text could not be colorized
+
+    state IsTestInProgress #lightgreen {
+    }
+
+
+
+    state CreateMD5 #lightgreen {
+    }
+    state IsTestResultAsserted #lightgreen {
+    }
+    state IsPreassignedDepthReached #lightgreen {
+    }
+    state DisplayResultInFrame #lightgreen {
+    }
+    state SetIsTestInProgress #lightgreen {
+    }
+    state IsTestInProgress #lightgreen {
+    }
+
+
+
+    state "TestTimeImprintsReportIsFilledOut" as report #lightgreen {
+        state TTI_1 #yellow
+        TTI_1 : Serilog.ILogger
+        state TTI_2 #yellow
+        TTI_2 : Reset_\nstageReportFieldCounter
+        state TTI_2a #yellow
+        TTI_2a : AddStageToTestTaskProgressReport
+        state TTI_3 #yellow
+        TTI_3 : AddHashToStageAndWrite
+
+        state TTI_4 #yellow
+        TTI_4 : AssemblingReportsListFromSourceStages
+        state TTI_4a #yellow
+        TTI_4a : ConvertDictionaryWithReportToList        
+        state TTI_4b #yellow
+        TTI_4b : LooksScenarioReportsListToAddCurrent
+        state TTI_4c #yellow
+        TTI_4c : ViewListOfReportsInConsole
+        state TTI_4d #yellow
+        TTI_4d : CheckReferenceToAssignVersion
+        state TTI_4e #yellow
+        TTI_4e : CountEqualWOversionReports
+        state TTI_4f #yellow
+        TTI_4f : CreateNewReference
+        state TTI_4g #yellow
+        TTI_4g : ViewListOfReportsInConsole
+        state TTI_4h #yellow
+        TTI_4h : WriteTestScenarioReportsList
+        
+        state TTI_5 #yellow
+        TTI_5 : ViewComparedReportInConsole
+        state TTI_6 #yellow
+        TTI_6 : ViewListOfReportsInConsole
+
+        TTI_2a --> TTI_3
+        TTI_4 --> TTI_4a
+        TTI_4 --> TTI_4b
+        TTI_4 --> TTI_4c
+        TTI_4 --> TTI_4d
+        TTI_4 --> TTI_4e
+        TTI_4 --> TTI_4f
+        TTI_4 --> TTI_4g
+        TTI_4 --> TTI_4h
+
+    }
+
+    TMS_0 --> TTI_2
+    TTI_4a --> CreateMD5
+
+    
+}
+
+@enduml

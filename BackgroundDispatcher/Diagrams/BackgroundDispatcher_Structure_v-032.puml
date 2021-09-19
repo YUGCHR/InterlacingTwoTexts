@@ -1,5 +1,16 @@
 @startuml
 
+'skinparam backgroundColor LightYellow
+'skinparam state {
+'StartColor MediumBlue
+'EndColor Red
+'BackgroundColor Peru
+'BackgroundColor<<Warning>> Olive
+'BorderColor Gray
+'FontName Impact
+'FontColor Red
+'}
+
 state "сервер-диспетчер BackgroundDispatcher" as BackgroundDispatcher #pink {
     state "Start This Server" as ProgramCS #red
 

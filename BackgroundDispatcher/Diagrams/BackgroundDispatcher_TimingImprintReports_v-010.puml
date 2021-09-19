@@ -1,6 +1,6 @@
 @startuml
 
-state Creat_CASN #lightgreen {
+state Create_CASN #lightgreen {
 
 }
 
