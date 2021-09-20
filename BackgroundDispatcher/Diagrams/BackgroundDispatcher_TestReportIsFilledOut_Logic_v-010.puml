@@ -1,70 +1,97 @@
 @startuml
 
-
-
 state ProcessReportsListFromSourceStages #lightblue {
-    state Analysis_1 #magenta
-    Analysis_1 : analyse new report and \nlist of existing reports
+    state comment_Analysis_1 #magenta
+    comment_Analysis_1 : analyse new report and \nlist of existing reports
 
-    state testTimingReportStagesList
+    state ConvertDictionaryWithReportToList #lightgreen
+    ConvertDictionaryWithReportToList : create testTimingReportStagesList and \ntestReportHash from key
+    state LooksScenarioReportsListToAddCurrent #lightgreen
+    LooksScenarioReportsListToAddCurrent : take reportsListOfTheScenario and \nperhaps create empty element[0]
+    state testTimingReportStagesList #YellowGreen
     testTimingReportStagesList : new report
-    state reportsListOfTheScenario
+    state reportsListOfTheScenario #YellowGreen
     reportsListOfTheScenario : list of existing reports
-
+    state reportsListOfTheScenario_Count #lightgreen
+    reportsListOfTheScenario_Count : if (reportsListOfTheScenarioCount > 1)
     state reportsListOfTheScenario_0 #lightgreen
     reportsListOfTheScenario_0 : check is isRef property of \nreportsListOfTheScenario[0]
-
-    state isReportsListOfTheScenario_0_REF <<choice>>
-    isReportsListOfTheScenario_0_REF -[#red]-> testTimingReportStagesList_Hash : isRef = true
-    isReportsListOfTheScenario_0_REF -[#green,bold]-> reportsInListWOversionCount : isRef = false
-
-    reportsListOfTheScenario_0 --> isReportsListOfTheScenario_0_REF
-    state Action_1 #YellowGreen
-    Action_1 : remove all non-ref reports \nexcept the new one
-
-    state isNewHashIdenticalTo_0_REF <<choice>>
-    isNewHashIdenticalTo_0_REF -[#red]-> Action_1 : the same
-    isNewHashIdenticalTo_0_REF -[#green,bold]-> reportsInListWOversionCount : different one
-
     state testTimingReportStagesList_Hash #lightgreen
     testTimingReportStagesList_Hash : check is new report hash identical to \nreportsListOfTheScenario[0]
-
     state reportsInListWOversionCount #lightgreen
     reportsInListWOversionCount : count reports without versions
-
+    state reportsInListWOreferenceRemove #lightgreen
     state reportsWOversionsCount #lightgreen
+    state Block_Consistently #lightgreen
+    Block_Consistently : if (... && wereConsistentlyEqual)
+    state wereConsistentlyEqual #lightgreen
+    wereConsistentlyEqual : set false to stop count
+    state equalReportsCount #lightgreen
+    equalReportsCount : equalReportsCount++;
+    state CountingResults #lightgreen
+    state isThisReporWOVersion #lightgreen
+    isThisReporWOVersion : if (ThisReporVersion <= 0)
+    state CreateNewTestReport #lightgreen
+    CreateNewTestReport : reportsListOfTheScenario.Add\n(theReportOfTheScenario)
+
+    state comment_Action_0 #magenta
+    comment_Action_0 : add current report \nto the end of List
+    state comment_Action_1 #magenta
+    comment_Action_1 : remove all non-ref reports \nexcept the new one
+    state Cycle_1 #orange
+    Cycle_1 : for (i = last; i > 0; i--)
+
+    ConvertDictionaryWithReportToList --> testTimingReportStagesList
+    LooksScenarioReportsListToAddCurrent --> reportsListOfTheScenario
+
+    state isReportsListOfTheScenario_0_REF <<choice>>
+    isReportsListOfTheScenario_0_REF -[#blue,bold]-> testTimingReportStagesList_Hash : isRef = true
+    isReportsListOfTheScenario_0_REF -[#green,bold]-> reportsInListWOversionCount : isRef = false
+
+    state isReportsListOfTheScenario_Count_m1 <<choice>>
+    isReportsListOfTheScenario_Count_m1 -[#blue,bold]-> reportsListOfTheScenario_0 : Count > 1
+    isReportsListOfTheScenario_Count_m1 -[#green,bold]-> comment_Action_0 : Count = 1
+
+    reportsListOfTheScenario_0 --> isReportsListOfTheScenario_0_REF
+
+    state isNewHashIdenticalTo_0_REF <<choice>>
+    isNewHashIdenticalTo_0_REF -[#blue,bold]-> comment_Action_1 : the same
+    isNewHashIdenticalTo_0_REF -[#green,bold]-> reportsInListWOversionCount : different one
+
+
 
     state reportsListOfTheScenario_i_version <<choice>>
-    reportsListOfTheScenario_i_version -[#red]-> Block_Consistently : without
-    reportsListOfTheScenario_i_version -[#green,bold]-> none : with version
+    reportsListOfTheScenario_i_version -[#blue,bold]-> none : with version
+    reportsListOfTheScenario_i_version -[#green,bold]-> Block_Consistently : without
 
     Block_Consistently --> reportsWOversionsCount
 
     state reportsListOfTheScenario_i_hash <<choice>>
-    reportsListOfTheScenario_i_hash -[#red]-> equalReportsCount : same
+    reportsListOfTheScenario_i_hash -[#blue,bold]-> equalReportsCount : same
     reportsListOfTheScenario_i_hash -[#green,bold]-> wereConsistentlyEqual : different
 
     wereConsistentlyEqual --> Block_Consistently
 
-    state Cycle_1 #orange
-    Cycle_1 : for (i = last; i > 0; i--)
-    state reportsInListWOreferenceRemove #lightgreen
+    testTimingReportStagesList --> comment_Analysis_1
+    reportsListOfTheScenario --> comment_Analysis_1
+    comment_Analysis_1 --> reportsListOfTheScenario_Count
+    reportsListOfTheScenario_Count --> isReportsListOfTheScenario_Count_m1
 
-    testTimingReportStagesList --> Analysis_1
-    reportsListOfTheScenario --> Analysis_1
-    Analysis_1 --> reportsListOfTheScenario_0
     testTimingReportStagesList_Hash --> isNewHashIdenticalTo_0_REF
 
-    Action_1 --> reportsInListWOreferenceRemove
+    comment_Action_0 --> CreateNewTestReport
+
+    comment_Action_1 --> reportsInListWOreferenceRemove
     reportsInListWOversionCount --> Cycle_1
 
-    Cycle_1 --> reportsListOfTheScenario_i_version
+    Cycle_1 --> isThisReporWOVersion
+    isThisReporWOVersion --> reportsListOfTheScenario_i_version
     reportsWOversionsCount --> reportsListOfTheScenario_i_hash
 
-    none --> Cycle_1
-    equalReportsCount --> Cycle_1
+    none -[#orange,bold]-> Cycle_1 : to new cycle
+    equalReportsCount -[#orange,bold]-> Cycle_1 : to new cycle
 
-    Cycle_1 --> CountingResults
+    equalReportsCount --> CountingResults : after cycle ended
 
 
 

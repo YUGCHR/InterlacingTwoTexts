@@ -153,7 +153,7 @@ namespace BackgroundDispatcher.Services
             //Logs.Here().Information("*** 187 *** -  Counter No: {0} was called by FromEntity No: {1} in chain No: {2} at time {3}.", count, fromCallingCount, currentChainSerialNum, _test.FetchWorkStopwatch());
 
             int controlPointNum1 = 1;
-            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), count, false, $"fromNum.=.{fromCallingCount}", controlPointNum1, lastCountStart);
+            _ = AddStageToProgressReport(constantsSet, currentChainSerialNum, _test.FetchWorkStopwatch(), count, false, $"fromNum*= {fromCallingCount}", controlPointNum1, lastCountStart);
 
             // на втором вызове запускаем таймер на N секунд (второй вызов - это 2, а не 1)
 
