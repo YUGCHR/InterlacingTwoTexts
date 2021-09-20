@@ -21,7 +21,9 @@ state ProcessReportsListFromSourceStages #lightblue {
     state reportsInListWOversionCount #lightgreen
     reportsInListWOversionCount : count reports without versions
     state reportsInListWOreferenceRemove #lightgreen
+    reportsInListWOreferenceRemove : RemoveAll(r => !r.IsThisReportTheReference)
     state reportsWOversionsCount #lightgreen
+    reportsWOversionsCount : reportsWOversionsCount++
     state Block_Consistently #lightgreen
     Block_Consistently : if (... && wereConsistentlyEqual)
     state wereConsistentlyEqual #lightgreen
@@ -29,10 +31,39 @@ state ProcessReportsListFromSourceStages #lightblue {
     state equalReportsCount #lightgreen
     equalReportsCount : equalReportsCount++;
     state CountingResults #lightgreen
+    CountingResults : reportsWOversionsCount \nequalReportsCount
     state isThisReporWOVersion #lightgreen
     isThisReporWOVersion : if (ThisReporVersion <= 0)
-    state CreateNewTestReport #lightgreen
-    CreateNewTestReport : reportsListOfTheScenario.Add\n(theReportOfTheScenario)
+    state reportsCountToStartComparison #lightgreen
+    reportsCountToStartComparison : number of reports to start comparison
+    state equalReportsCountToCreateReference #lightgreen
+    equalReportsCountToCreateReference : the number of consecutive matching reports \nto remove any further mismatched
+    state CreateNewReference #lightgreen
+    CreateNewReference : create the reference report
+    state equalReportsCountToRemoveDifferents #lightgreen
+    equalReportsCountToRemoveDifferents : similar reports are still not enough to seize power, \nbut already enough to suppress dissenting
+    state SavedEmptyElement0 #lightgreen
+    SavedEmptyElement0 : temporary saved empty element from [0]
+    state RestoreEmptyElement0 #lightgreen
+    RestoreEmptyElement0 : restore saved empty element in [0]
+    state reportsInListWOversionRemove #lightgreen
+    reportsInListWOversionRemove : RemoveAll(without version && the same hashes))
+
+    state isReferenceExistedIn0 #lightgreen
+    isReferenceExistedIn0 : is index[0] reference (or empty)
+    state maxVersionSet1 #lightgreen
+    maxVersionSet1 : maxVersion = 1
+    state maxVersionIncrement #lightgreen
+    maxVersionIncrement : maxVersion++
+    state RemoveEmptyIn0 #lightgreen
+    RemoveEmptyIn0 : RemoveAt(0)
+    state NewTestReportInsertIn0 #lightgreen
+    NewTestReportInsertIn0 : Insert(0, theScenarioReportRef)
+
+    state CreateAndAddNewTestReport #lightgreen
+    CreateAndAddNewTestReport : reportsListOfTheScenario.Add\n(theReportOfTheScenario)
+    state WriteTestScenarioReportsList #Red
+    WriteTestScenarioReportsList : return true - key was set
 
     state comment_Action_0 #magenta
     comment_Action_0 : add current report \nto the end of List
@@ -58,19 +89,36 @@ state ProcessReportsListFromSourceStages #lightblue {
     isNewHashIdenticalTo_0_REF -[#blue,bold]-> comment_Action_1 : the same
     isNewHashIdenticalTo_0_REF -[#green,bold]-> reportsInListWOversionCount : different one
 
-
-
     state reportsListOfTheScenario_i_version <<choice>>
     reportsListOfTheScenario_i_version -[#blue,bold]-> none : with version
-    reportsListOfTheScenario_i_version -[#green,bold]-> Block_Consistently : without
+    reportsListOfTheScenario_i_version -[#green,bold]-> reportsWOversionsCount : without
 
-    Block_Consistently --> reportsWOversionsCount
+    reportsWOversionsCount --> Block_Consistently
 
     state reportsListOfTheScenario_i_hash <<choice>>
     reportsListOfTheScenario_i_hash -[#blue,bold]-> equalReportsCount : same
     reportsListOfTheScenario_i_hash -[#green,bold]-> wereConsistentlyEqual : different
 
+    state reportsCountEnoughToStartComparison <<choice>>
+    reportsCountEnoughToStartComparison -[#blue,bold]-> equalReportsCountToCreateReference : >=
+    reportsCountEnoughToStartComparison -[#green,bold]-> CreateAndAddNewTestReport : <
+
+    state equalReportsCountEnoughToRemoveDifferents <<choice>>
+    equalReportsCountEnoughToRemoveDifferents -[#blue,bold]-> CreateNewReference : >=
+    equalReportsCountEnoughToRemoveDifferents -[#green,bold]-> equalReportsCountToRemoveDifferents : <
+
+    state isRefExisted <<choice>>
+    isRefExisted -[#blue,bold]-> maxVersionIncrement : true
+    isRefExisted -[#green,bold]-> maxVersionSet1 : false
+
+    CreateNewReference --> isReferenceExistedIn0
+    isReferenceExistedIn0 --> isRefExisted
+    maxVersionSet1 --> RemoveEmptyIn0
     wereConsistentlyEqual --> Block_Consistently
+
+    RemoveEmptyIn0 --> NewTestReportInsertIn0
+    maxVersionIncrement --> NewTestReportInsertIn0
+    NewTestReportInsertIn0 --> CreateAndAddNewTestReport
 
     testTimingReportStagesList --> comment_Analysis_1
     reportsListOfTheScenario --> comment_Analysis_1
@@ -79,26 +127,30 @@ state ProcessReportsListFromSourceStages #lightblue {
 
     testTimingReportStagesList_Hash --> isNewHashIdenticalTo_0_REF
 
-    comment_Action_0 --> CreateNewTestReport
+    comment_Action_0 --> CreateAndAddNewTestReport
+    CreateAndAddNewTestReport --> WriteTestScenarioReportsList
+    reportsInListWOreferenceRemove --> CreateAndAddNewTestReport
 
     comment_Action_1 --> reportsInListWOreferenceRemove
     reportsInListWOversionCount --> Cycle_1
 
     Cycle_1 --> isThisReporWOVersion
     isThisReporWOVersion --> reportsListOfTheScenario_i_version
-    reportsWOversionsCount --> reportsListOfTheScenario_i_hash
+    Block_Consistently --> reportsListOfTheScenario_i_hash
 
     none -[#orange,bold]-> Cycle_1 : to new cycle
     equalReportsCount -[#orange,bold]-> Cycle_1 : to new cycle
 
     equalReportsCount --> CountingResults : after cycle ended
+    CountingResults --> reportsCountToStartComparison
+    reportsCountToStartComparison --> reportsCountEnoughToStartComparison
 
-
-
-
+    equalReportsCountToCreateReference --> equalReportsCountEnoughToRemoveDifferents
+    equalReportsCountToRemoveDifferents --> SavedEmptyElement0
+    SavedEmptyElement0 --> reportsInListWOversionRemove
+    reportsInListWOversionRemove --> RestoreEmptyElement0
+    RestoreEmptyElement0 --> CreateAndAddNewTestReport
 
 }
-
-
 
 @enduml

@@ -164,8 +164,6 @@ namespace BackgroundDispatcher.Services
             return true;
         }
 
-        // сохраняется избыточное количество одинаковых тестов при наличии выбранного эталона
-        // взошедший на трон эталон должен удалить всех своих двойников, кроме вновь прибывающих
         // MAIN - обработка отчетов, выбор эталона, формирование и запись списка, печать сводной таблицы
         // сборка отчетов из пошаговых списков и сохранение их списка в ключе
         public async Task<bool> ProcessReportsListFromSourceStages(ConstantsSet constantsSet, int testScenario, long tsTest99)
@@ -264,13 +262,13 @@ namespace BackgroundDispatcher.Services
 
                         // удаляем всех без версий, но несовпадающие с equalReportsCountToRemoveDifferents последними
                         // важный момент - тут удалится и пустышка [0], этого нельзя допустить
-                        TestReport tempZeroIndexEmpty = reportsListOfTheScenario[0];
+                        TestReport SavedEmptyElement0 = reportsListOfTheScenario[0];
                         reportsListOfTheScenario.RemoveAll(r => r.ThisReporVersion <= 0 && !String.Equals(testReportHash, r.ThisReportHash));
 
                         string description_7a = "7a - deleted all reports according to the above conditions including index[0]";
                         bool resView_7a = ViewListOfReportsInConsole(constantsSet, description_7a, testScenario, reportsListOfTheScenario);
 
-                        reportsListOfTheScenario.Insert(0, tempZeroIndexEmpty);
+                        reportsListOfTheScenario.Insert(0, SavedEmptyElement0);
 
                         string description_7b = "7b - index[0] was restored";
                         bool resView_7b = ViewListOfReportsInConsole(constantsSet, description_7b, testScenario, reportsListOfTheScenario);
