@@ -36,6 +36,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared.Library", "Shared.Li
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BackgroundDispatcher", "BackgroundDispatcher\BackgroundDispatcher.csproj", "{7892FDBB-1726-48BA-8845-3C36CD067980}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundDispatcherTests", "BackgroundDispatcherTests\BackgroundDispatcherTests.csproj", "{96123C4B-5895-42E8-9DEA-FC98AE2C5DF6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -74,6 +76,10 @@ Global
 		{7892FDBB-1726-48BA-8845-3C36CD067980}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7892FDBB-1726-48BA-8845-3C36CD067980}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7892FDBB-1726-48BA-8845-3C36CD067980}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96123C4B-5895-42E8-9DEA-FC98AE2C5DF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96123C4B-5895-42E8-9DEA-FC98AE2C5DF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96123C4B-5895-42E8-9DEA-FC98AE2C5DF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96123C4B-5895-42E8-9DEA-FC98AE2C5DF6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

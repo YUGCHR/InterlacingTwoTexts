@@ -321,9 +321,20 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("isRefExisted = {0} and maxVersion was set {1}.", isRefExisted, maxVersion);
             }
 
+
+
+
+            // здесь надо посчитать все средние, отклонения и прочие
+            // здесь уже известно, что отчётов достаточно для эталона, но надо выбрать нужные - без версий и с правильным хешем
+
+
+
+
+
+
             // создаем новый эталон
             TestReport theScenarioReportRef = CreateNewTestReport(testScenario, 0, true, maxVersion, testTimingReportStagesList, testReportHash);
-            
+
             string description_2r = "2r - RemoveAt(0) may has happened";
             bool resView_2r = ViewListOfReportsInConsole(constantsSet, description_2r, testScenario, reportsListOfTheScenario);
 
@@ -346,6 +357,59 @@ namespace BackgroundDispatcher.Services
             await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
 
             return true;
+        }
+
+
+        // здесь надо посчитать все средние, дисперсии, стандартные отклонения
+        public static List<TestReport> CalculateAverageVarianceDeviations(List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
+        {
+            int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
+
+            // перед циклом присвоить в Т предыдущее новый отчёт testTimingReportStagesList
+            // при инициализации перед циклом записать в М время TsWork, а в S - 0
+            List<TestReport.TestReportStage> tPrev = testTimingReportStagesList.Select(x => { x.SlidingAverageWork = (int)x.TsWork; x.SlidingVarianceWork = 0; return x; }).ToList();
+            int stagesListCount = testTimingReportStagesList.Count;
+            int K = 0;
+
+            for (int i = reportsListOfTheScenarioCount - 1; i > 0; i--)
+            {
+                // отчёт сначала проверить, что без версии и совпадает хеш
+                bool isReportUsable = reportsListOfTheScenario[i].ThisReporVersion <= 0 && !String.Equals(testReportHash, reportsListOfTheScenario[i].ThisReportHash);
+                if (isReportUsable)
+                {
+                    // заодно занести в счётчик количество значений (обработанных отчётов) - это К
+                    K++;
+                    // в цикле достать этот же список из последнего отчёта
+                    List<TestReport.TestReportStage> tCurrent = reportsListOfTheScenario[i].TestReportStages;
+
+                    // имея два внутренних списка, пройти по ним и для каждого времени вычислить среднее и отклонение
+                    for (int j = 0; j < stagesListCount; j++)
+                    {
+                        // timeCurrent - это X в формуле Mk = Mk-1 + (Xk – Mk-1)/k и Sk = Sk-1 + (Xk – Mk-1)*(xk – Mk)
+                        int timeCurrent = (int)tCurrent[j].TsWork;
+                        // это Mk-1
+                        int averageMkPrev = tPrev[j].SlidingAverageWork;
+
+                        // Mk = Mk-1 + (Xk – Mk-1)/k
+                        int averageMk = averageMkPrev + (timeCurrent - averageMkPrev) / K;
+
+                        // это Sk-1
+                        int varianceSkPrev = tPrev[j].SlidingVarianceWork;
+
+                        // Sk = Sk-1 + (Xk – Mk-1)*(xk – Mk)
+                        int varianceSk = varianceSkPrev + (timeCurrent - averageMkPrev) * (timeCurrent - averageMk);
+
+                        // добавить во внутренний список М и S
+                        tCurrent[j].SlidingAverageWork = averageMk;
+                        tCurrent[j].SlidingVarianceWork = varianceSk;
+                    }
+                    // перед концом цикла занести текущий отчёт в Т предыдущее
+                    tPrev = tCurrent;
+                    // это можно не присваивать, он и так там живет
+                    reportsListOfTheScenario[i].TestReportStages = tCurrent;
+                }
+            }
+            return reportsListOfTheScenario;
         }
 
         // получаем список отчетов по данному сценарию, чтобы в конце теста в него дописать текущий отчет
@@ -536,25 +600,25 @@ namespace BackgroundDispatcher.Services
             //Logs.Here().Information("testTimingReportStages {@D} length {0}.", new { IDictionary = testTimingReportStages }, testTimingReportStagesCount);
 
             TestReport.TestReportStage[] testTimingReportStagesArray = new TestReport.TestReportStage[testTimingReportStagesCount];
-            string[] stageHash = new string[testTimingReportStagesCount];
+            string[] stageHashes = new string[testTimingReportStagesCount];
 
             // или <= testTimingReportStagesCount - индексы начинаются с 1
             for (int i = 1; i < testTimingReportStagesCount + 1; i++) //
             {
                 // записать сумму хешей или хеш хешей в базовый класс
                 // сдвигаем индексы к нулю
-                stageHash[i - 1] = testTimingReportStages[i].StageReportHash;
+                stageHashes[i - 1] = testTimingReportStages[i].StageReportHash;
                 testTimingReportStagesArray[i - 1] = testTimingReportStages[i];
                 //Logs.Here().Information("for i = {0} to end {1} - List = {2}, Array[i] = {3}, stageHash = {4}.", i, testTimingReportStagesCount, testTimingReportStages[i].StageReportFieldCounter, testTimingReportStagesArray[i-1].StageReportFieldCounter, stageHash[i-1]);
             }
 
             // будем сортировать массив хешей перед слиянием и вычислением общего хеша
-            Array.Sort(stageHash);
+            Array.Sort(stageHashes);
 
             List<TestReport.TestReportStage> testTimingReportStagesList = testTimingReportStagesArray.OrderBy(x => x.ChainSerialNumber).ThenBy(x => x.StageReportFieldCounter).ToList();
             //Logs.Here().Information("testTimingReportStagesList {@D} length {0}.", new { List = testTimingReportStagesList }, testTimingReportStagesList.Count);
             // важно отсортировать до вычисления общего хеша
-            string testReportForHash = String.Join("_", stageHash);
+            string testReportForHash = String.Join("_", stageHashes);
             string testReportHash = AuxiliaryUtilsService.CreateMD5(testReportForHash);
 
             return (testTimingReportStagesList, testReportHash);
