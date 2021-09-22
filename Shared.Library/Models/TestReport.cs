@@ -60,11 +60,11 @@ namespace Shared.Library.Models
 
             // вычисляемое в потоке скользящее среднее арифметическое
             [JsonProperty(PropertyName = "slidingAverageWork")]
-            public int SlidingAverageWork { get; set; }
+            public double SlidingAverageWork { get; set; }
 
             // вычисляемая в потоке скользящая дисперсия
             [JsonProperty(PropertyName = "slidingVarianceWork")]
-            public int SlidingVarianceWork { get; set; }
+            public double SlidingVarianceWork { get; set; }
 
             // отметка времени от начала теста
             [JsonProperty(PropertyName = "tsTest")]

@@ -367,41 +367,58 @@ namespace BackgroundDispatcher.Services
 
             // перед циклом присвоить в Т предыдущее новый отчёт testTimingReportStagesList
             // при инициализации перед циклом записать в М время TsWork, а в S - 0
-            List<TestReport.TestReportStage> tPrev = testTimingReportStagesList.Select(x => { x.SlidingAverageWork = (int)x.TsWork; x.SlidingVarianceWork = 0; return x; }).ToList();
+            List<TestReport.TestReportStage> tPrev = testTimingReportStagesList.Select(x => { x.SlidingAverageWork = (double)x.TsWork; x.SlidingVarianceWork = 0; return x; }).ToList();
             int stagesListCount = testTimingReportStagesList.Count;
             int K = 0;
 
             for (int i = reportsListOfTheScenarioCount - 1; i > 0; i--)
             {
                 // отчёт сначала проверить, что без версии и совпадает хеш
-                bool isReportUsable = reportsListOfTheScenario[i].ThisReporVersion <= 0 && !String.Equals(testReportHash, reportsListOfTheScenario[i].ThisReportHash);
+                bool isReportUsable = reportsListOfTheScenario[i].ThisReporVersion < 0 && String.Equals(testReportHash, reportsListOfTheScenario[i].ThisReportHash);
+                
+                // Console.WriteLine($"i = {i}, version = {reportsListOfTheScenario[i].ThisReporVersion}, hashSample = {testReportHash}, thisHash = {reportsListOfTheScenario[i].ThisReportHash}, isReportUsable = {isReportUsable}");
+                
+                // See Knuth TAOCP vol 2, 3rd edition, page 232 and https://www.johndcook.com/blog/standard_deviation/
                 if (isReportUsable)
                 {
+                    //Console.WriteLine($"i = {i}, isReportUsable = {isReportUsable}");
+
                     // заодно занести в счётчик количество значений (обработанных отчётов) - это К
                     K++;
                     // в цикле достать этот же список из последнего отчёта
                     List<TestReport.TestReportStage> tCurrent = reportsListOfTheScenario[i].TestReportStages;
 
+                    //var report = reportsListOfTheScenario[i];
                     // имея два внутренних списка, пройти по ним и для каждого времени вычислить среднее и отклонение
                     for (int j = 0; j < stagesListCount; j++)
                     {
+                        //var tsWork = report.TestReportStages[j].TsWork;
+                        //var slidingAverageWork = report.TestReportStages[j].SlidingAverageWork;
+
+
                         // timeCurrent - это X в формуле Mk = Mk-1 + (Xk – Mk-1)/k и Sk = Sk-1 + (Xk – Mk-1)*(xk – Mk)
-                        int timeCurrent = (int)tCurrent[j].TsWork;
+                        double timeCurrent = (double)tCurrent[j].TsWork;
                         // это Mk-1
-                        int averageMkPrev = tPrev[j].SlidingAverageWork;
+                        double averageMkPrev = tPrev[j].SlidingAverageWork;
 
                         // Mk = Mk-1 + (Xk – Mk-1)/k
-                        int averageMk = averageMkPrev + (timeCurrent - averageMkPrev) / K;
+                        double averageMk = averageMkPrev + (timeCurrent - averageMkPrev) / K;
 
                         // это Sk-1
-                        int varianceSkPrev = tPrev[j].SlidingVarianceWork;
+                        double varianceSkPrev = tPrev[j].SlidingVarianceWork;
 
                         // Sk = Sk-1 + (Xk – Mk-1)*(xk – Mk)
-                        int varianceSk = varianceSkPrev + (timeCurrent - averageMkPrev) * (timeCurrent - averageMk);
+                        double varianceSk = varianceSkPrev + (timeCurrent - averageMkPrev) * (timeCurrent - averageMk);
 
                         // добавить во внутренний список М и S
                         tCurrent[j].SlidingAverageWork = averageMk;
                         tCurrent[j].SlidingVarianceWork = varianceSk;
+
+                        if (j == 0)
+                        {
+                            Console.WriteLine($"i = {i} - tCurrent[{j}].SlidingAverageWork = {tCurrent[j].SlidingAverageWork}, tCurrent[{j}].SlidingVarianceWork = {tCurrent[j].SlidingVarianceWork}");
+                        }
+
                     }
                     // перед концом цикла занести текущий отчёт в Т предыдущее
                     tPrev = tCurrent;
@@ -727,7 +744,7 @@ namespace BackgroundDispatcher.Services
         }
 
         // метод выводит таблицу списка отчетов 
-        private bool ViewListOfReportsInConsole(ConstantsSet constantsSet, string description, int testScenario, List<TestReport> reportsListOfTheScenario)
+        public static bool ViewListOfReportsInConsole(ConstantsSet constantsSet, string description, int testScenario, List<TestReport> reportsListOfTheScenario)
         {
             //char ttt = '\u2588'; // █ \u2588 ▮ U+25AE ▯ U+25AF 
 
