@@ -46,6 +46,10 @@ namespace Shared.Library.Models
             [JsonProperty(PropertyName = "stageReportFieldCounter")]
             public int StageReportFieldCounter { get; set; }
 
+            // сохраненный номер шага для вычисления среднего и дисперсии - для упрощения передачи, когда нет внешнего списка
+            [JsonProperty(PropertyName = "stepNumberK")]
+            public int StepNumberK { get; set; }
+
             // серийный номер единичной цепочки теста - обработка одной книги от события From до создания ключа кафе
             [JsonProperty(PropertyName = "chainSerialNumber")]
             public int ChainSerialNumber { get; set; }

@@ -280,19 +280,45 @@ namespace BackgroundDispatcher.Services
                         reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
                     }
                 }
+                // сюда пришли или сразу из первого IF (>1) - или после второго, минуя третий и четвертый (совсем мало одинаковых) или после четвертого IF (много одинаковых, но мало для эталона)
+                // если перехватить здесь создание и запись отчёта, то внизу останется только вариант добавление первого отчёта к пустышке
+                // тут возможны следующие варианты - изначально отчётов много всегда (больше reportsCountToStartComparison),
+                // дальше их может быть (одинаоквых) или сразу меньше equalReportsCountToRemoveDifferents или лишние удалили,
+                // но всё равно всегда останется два или больше (настоящих, кроме пустышки)
+                // вычисляем текущие средние и дисперсию на основании предыдущих и текущих измерений времени
+                testTimingReportStagesList = CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList);
+                // и можно сделать более точные description ситуаций
+                string description_4 = $"4 - REGULAR report No: {reportsListOfTheScenarioCount} was added to the end of the list (without version)";
+                bool writeResult_4 = await CreateViewWriteReplenishedReportsList(constantsSet, description_4, false, -1, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
+                // запись в ключ произведена - return true
+                return true;
             }
-            // отчетов в списке нет вообще или
-            // отчетов без версий недостаточное количество для обработки (проведения сравнения хешей) и, возможно, по дороге удалили всех несогласных
-            // создаем и добавляем новый отчет в конец списка без версии
-            TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, -1, testTimingReportStagesList, testReportHash);
+
+            // добавляем в текущий отчет первые (предыдущие) среднее и дисперсию
+            testTimingReportStagesList = CalculateAverageVarianceDeviations(testTimingReportStagesList);
+            // отчетов в списке нет вообще - создаем и добавляем новый отчет в конец списка без версии
+            string description_5 = "5 - FIRST ACTUAL report was added to the end of the list (without version)";
+            bool writeResult = await CreateViewWriteReplenishedReportsList(constantsSet, description_5, false, -1, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
+
+            // запись в ключ произведена - return true
+            return true;
+        }
+
+        // объединили создание, добавление в список последнего отчёта и печать и запись списка в ключ, чтобы не повторяться во многих местах
+        private async Task<bool> CreateViewWriteReplenishedReportsList(ConstantsSet constantsSet, string description, bool isRef, int version, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
+        {
+            int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
+            int testScenario = reportsListOfTheScenario[reportsListOfTheScenarioCount - 1].TestScenarioNum;
+
+            TestReport theReportOfTheScenario = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, isRef, version, testTimingReportStagesList, testReportHash);
+            theReportOfTheScenario.StepNumberK = testTimingReportStagesList[0].StepNumberK;
             reportsListOfTheScenario.Add(theReportOfTheScenario);
 
-            string description_5 = "5 - add a new report to the end of the list without version";
-            bool resView_5 = ViewListOfReportsInConsole(constantsSet, description_5, testScenario, reportsListOfTheScenario);
+            bool resView = ViewListOfReportsInConsole(constantsSet, description, testScenario, reportsListOfTheScenario);
 
             bool writeResult = await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
-            // запись в ключ произведена
-            return true;
+            // запись в ключ произведена - return true
+            return writeResult;
         }
 
         // создание эталона
@@ -324,19 +350,13 @@ namespace BackgroundDispatcher.Services
                 Logs.Here().Information("isRefExisted = {0} and maxVersion was set {1}.", isRefExisted, maxVersion);
             }
 
-
-
-
-            // здесь надо посчитать все средние, отклонения и прочие
+            // здесь надо посчитать все средние, отклонения и прочие - уже нет
             // здесь уже известно, что отчётов достаточно для эталона, но надо выбрать нужные - без версий и с правильным хешем
             // здесь уже много отчётов, а весь смысл был, чтобы считать постепенно, по мере появления новых
             // надо перенести в другое место и правильно искать предыдущие значения для вычислений
-            reportsListOfTheScenario = CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
-
-
-
-
-
+            //reportsListOfTheScenario = CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
+            // теперь только вычисляем текущие средние и дисперсию на основании предыдущих и текущих измерений времени
+            testTimingReportStagesList = CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList);
 
             // создаем новый эталон
             TestReport theScenarioReportRef = CreateNewTestReport(testScenario, 0, true, maxVersion, testTimingReportStagesList, testReportHash);
@@ -350,23 +370,25 @@ namespace BackgroundDispatcher.Services
             //вот тут удалить всех несогласных и децимировать согласных
             reportsListOfTheScenario.RemoveAll(r => !r.IsThisReportTheReference);
 
-            // создаем текущий отчет и записываем его в конец с версией нового эталона
-            TestReport theReportOfTheScenarioVerNewRef = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
-            reportsListOfTheScenario.Add(theReportOfTheScenarioVerNewRef);
+            // дальше типовое действие по записи в конец списка, а с эталоном не будем связываться, пусть остаётся как уже написан
+            string description_2e = "2e - (NEW) REFERENCE report was set in [0] and the same report was added at the end with the same version";
+            bool writeResult_2е = await CreateViewWriteReplenishedReportsList(constantsSet, description_2e, false, maxVersion, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
 
-            Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
+            //// создаем текущий отчет и записываем его в конец с версией нового эталона
+            //TestReport theReportOfTheScenarioVerNewRef = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
+            //reportsListOfTheScenario.Add(theReportOfTheScenarioVerNewRef);
 
-            string description_2e = "2e (NEW) reference report was set in [0] and current report was added at the end with the same version";
-            bool resView_2e = ViewListOfReportsInConsole(constantsSet, description_2e, testScenario, reportsListOfTheScenario);
+            //Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
 
-            // здесь вызвать запись в ключ и закончить (return true - запись в ключ произведена)
-            await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
+            ////string description_2e = "2e (NEW) reference report was set in [0] and current report was added at the end with the same version";
+            ////bool resView_2e = ViewListOfReportsInConsole(constantsSet, description_2e, testScenario, reportsListOfTheScenario);
 
+            //// здесь вызвать запись в ключ и закончить (return true - запись в ключ произведена)
+            //await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
+
+            // запись в ключ произведена - return true
             return true;
         }
-
-
-
 
         // план работ  -
         // 1. поставить константы на много отчётов, сделать ключ на десяток отчётов со средними и выгрузить его в файл,
@@ -383,16 +405,46 @@ namespace BackgroundDispatcher.Services
         // а может и передать цикл от 1 до конца, а не наоборот, как сейчас, хотя, это вроде нормально - всё вкусное всё равно в конце
         // 8. файл с данными для теста потом расшифровать и посчитать в Экселе - можно все вывести на экран методом, который рисует таблицы и скопировать с экрана
 
+        // перегрузка метода для первого шага вычисления среднего и остальных - если в списке List<TestReport> reportsListOfTheScenario одна пустышка в нуле
+        public List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport.TestReportStage> testTimingReportStagesList)
+        {
+            // ещё рассмотреть вариант, если это первый шаг и К ещё нет в списке
+            // очевидно, это будет если в списке только пустышка и сейчас создаётся первый отчёт
+            // тогда в создаваемый отчёт вписать время в среднее и 0 в дисперсию
+            int testTimingReportStagesListCount = testTimingReportStagesList.Count;
+
+            for (int j = 0; j < testTimingReportStagesListCount; j++)
+            {
+                // это Mk-1
+                double averageMkPrev = (double)testTimingReportStagesList[j].TsWork;
+
+                // это Sk-1
+                double varianceSkPrev = 0;
+
+                // добавить во внутренний список М и S
+                testTimingReportStagesList[j].SlidingAverageWork = averageMkPrev;
+                testTimingReportStagesList[j].SlidingVarianceWork = varianceSkPrev;
+                testTimingReportStagesList[j].StepNumberK = 1;
+
+                if (j == 0)
+                {
+                    Console.WriteLine($"K = {testTimingReportStagesList[j].StepNumberK} - testTimingReportStagesList[{j}].SlidingAverageWork = {testTimingReportStagesList[j].SlidingAverageWork}, testTimingReportStagesList[{j}].SlidingVarianceWork = {testTimingReportStagesList[j].SlidingVarianceWork}");
+                }
+            }
+
+            return testTimingReportStagesList;
+        }
+
+
 
 
         // перегрузка метода для одного шага вычисления среднего и остальных
         // для него нужен метод, который приготовит правильный последний отчёт из сохранённых - с максимальным К, без версии и с совпадающим хешем
         // но пока можно всё в одном сделать - фактически он знаменит метод создания нового отчёта, точнее, вызовет его внутри себя
-        public TestReport CalculateAverageVarianceDeviations(int testScenario, bool isRef, int version, List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList, string testReportHash)
+        public List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList)
         {
+            // можно вместо всего списка передавать сюда К и последний внутренний список (и в нём тоже есть К)
             int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;
-            bool isThisReportTheReference = isRef;
-            int maxVersion = version;
 
             // сначала найти предыдущий шаг (с максимальным К), по идее, это должен быть последний отчёт в списке
             // для начала его и возьмём, а если лапти, тогда уже будет проверять как следует
@@ -430,21 +482,15 @@ namespace BackgroundDispatcher.Services
                 // добавить во внутренний список М и S
                 testTimingReportStagesList[j].SlidingAverageWork = averageMk;
                 testTimingReportStagesList[j].SlidingVarianceWork = varianceSk;
+                testTimingReportStagesList[j].StepNumberK = stepNumberK;
 
                 if (j == 0)
                 {
                     Console.WriteLine($"K = {stepNumberK} - testTimingReportStagesList[{j}].SlidingAverageWork = {testTimingReportStagesList[j].SlidingAverageWork}, testTimingReportStagesList[{j}].SlidingVarianceWork = {testTimingReportStagesList[j].SlidingVarianceWork}");
                 }
-
             }
-            
 
-
-
-
-            TestReport theReportOfTheScenarioFromStageList = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, isThisReportTheReference, maxVersion, testTimingReportStagesList, testReportHash);
-            // не забыть записать К - или добавить его а метод создания нового отчёта
-            return theReportOfTheScenarioFromStageList;
+            return testTimingReportStagesList;
         }
 
 
@@ -609,6 +655,7 @@ namespace BackgroundDispatcher.Services
             return (reportsWOversionsCount, equalReportsCount);
         }
 
+        // этот метод обрабатывает вариант с действующим эталоном, если эталона нет, он сразу заканчивается
         // check for the reference to assign version
         // сначала можно проверить нулевой индекс - есть ли там эталон
         // если эталон есть, надо сравнить хеш нового отчета и эталона
@@ -642,17 +689,25 @@ namespace BackgroundDispatcher.Services
                     // здесь надо проверить весь список на наличие отчетов без признака эталона и все их надо удалить
                     reportsListOfTheScenario.RemoveAll(r => !r.IsThisReportTheReference);
 
-                    // создаем и добавляем новый отчет с версией эталона в конец списка
-                    TestReport theReportOfTheScenarioRefVer = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
-                    reportsListOfTheScenario.Add(theReportOfTheScenarioRefVer);
+                    testTimingReportStagesList = CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList);
 
-                    Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
+                    // дальше типовое действие по записи в конец списка, а с эталоном не будем связываться, пусть остаётся как уже написан
+                    string description_3e = "3e - PRESENT REFERENCE is actual, current report was added to the end with the version of this reference";
+                    bool writeResult_3е = await CreateViewWriteReplenishedReportsList(constantsSet, description_3e, false, maxVersion, reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
 
-                    string description_3e = "3e - the current ref is actual, we will write the current report to the end with the version of this ref";
-                    bool resView_3e = ViewListOfReportsInConsole(constantsSet, description_3e, testScenario, reportsListOfTheScenario);
+                    //// создаем и добавляем новый отчет с версией эталона в конец списка
+                    //TestReport theReportOfTheScenarioRefVer = CreateNewTestReport(testScenario, reportsListOfTheScenarioCount, false, maxVersion, testTimingReportStagesList, testReportHash);
+                    //reportsListOfTheScenario.Add(theReportOfTheScenarioRefVer);
+
+                    //Logs.Here().Information("theReportOfTheScenario was added with version {0}.", maxVersion);
+
+                    //string description_3e = "3e - the current ref is actual, we will write the current report to the end with the version of this ref";
+                    //bool resView_3e = ViewListOfReportsInConsole(constantsSet, description_3e, testScenario, reportsListOfTheScenario);
 
                     // здесь вызвать запись в ключ и закончить (return true - запись в ключ произведена)
-                    await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
+                    //await WriteTestScenarioReportsList(constantsSet, testScenario, reportsListOfTheScenario);
+
+                    //return true - запись в ключ произведена
                     return true;
                 }
                 // здесь находимся, потому что эталон есть, но он устарел - новый отчет(ы) с ним не совпадает, надо узнавать насчет создания нового - так же return false
@@ -845,10 +900,10 @@ namespace BackgroundDispatcher.Services
             char screenFullWidthTopLineChar = '-';
             char screenFullWidthBetweenLineChar = '\u1C79'; // Ol Chiki Gaahlaa Ttuddaag --> ᱹ
 
-            Console.WriteLine($"\n  Timing imprint report List on testScenario No: {testScenario,-3:d} | List report count = {reportsListOfTheScenario.Count,-4:d} | {description}."); // \t
+            Console.WriteLine($"\n {description} | Timing imprint report List on testScenario No: {testScenario,-3:d} | List report count = {reportsListOfTheScenario.Count,-4:d} | ."); // \t
 
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
-            Console.WriteLine("| {0,5} | {1,5} | {2,5} | {3,5} | {4,37} | {5,6} | {6,5} |", "scnrm", "index", "ver.N", "isRef", "this report hash", "stages", "i");
+            Console.WriteLine("| {0,5} | {1,5} | {2,5} | {3,5} | {4,5} | {5,5} | {6,37} | {7,6} | {8,5} |", "scnrm", "index", "--i--", "ver.N", "isRef", "stepK", "this report hash", "stages", "ave0");
             Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
 
             for (int i = 0; i < reportsListOfTheScenarioCount; i++) //
@@ -858,10 +913,12 @@ namespace BackgroundDispatcher.Services
                 int r02 = stage.TheScenarioReportsCount;
                 int r03 = stage.ThisReporVersion;
                 bool r04 = stage.IsThisReportTheReference;
-                string r05 = stage.ThisReportHash;
-                int r06 = stage.TestReportStages.Count;
+                int r05 = stage.StepNumberK;
+                string r06 = stage.ThisReportHash;
+                int r07 = stage.TestReportStages.Count;
+                int r08 = (int)stage.TestReportStages[0].SlidingAverageWork;
 
-                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,5:d} | {3,5} | {4,37} | {5,6:d} | {6,5:d} |", r01, r02, r03, r04, r05, r06, i);
+                Console.WriteLine("| {0,5:d} | {1,5:d} | {2,5:d} | {3,5:d} | {4,5} | {5,5:d} | {6,37} | {7,6:d} | {8,5:d} |", r01, r02, i, r03, r04, r05, r06, r07, r08);
                 Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthBetweenLineChar));
             }
 
