@@ -28,6 +28,10 @@ namespace Shared.Library.Models
         [JsonProperty(PropertyName = "thisReporVersion")]
         public int ThisReporVersion { get; set; }
 
+        // сохраненный номер шага для вычисления среднего и дисперсии
+        [JsonProperty(PropertyName = "stepNumberK")]
+        public int StepNumberK { get; set; }
+
         // список всех шагов в отчёте о тесте
         [JsonProperty(PropertyName = "testReportStages")]
         public List<TestReportStage> TestReportStages { get; set; }
@@ -62,9 +66,13 @@ namespace Shared.Library.Models
             [JsonProperty(PropertyName = "slidingAverageWork")]
             public double SlidingAverageWork { get; set; }
 
-            // вычисляемая в потоке скользящая дисперсия
+            // вычисляемая в потоке скользящая (выборочная) дисперсия
             [JsonProperty(PropertyName = "slidingVarianceWork")]
             public double SlidingVarianceWork { get; set; }
+
+            // стандартное отклонение - корень из выборочной дисперсии
+            [JsonProperty(PropertyName = "standardDeviation")]
+            public double StandardDeviation { get; set; }
 
             // отметка времени от начала теста
             [JsonProperty(PropertyName = "tsTest")]

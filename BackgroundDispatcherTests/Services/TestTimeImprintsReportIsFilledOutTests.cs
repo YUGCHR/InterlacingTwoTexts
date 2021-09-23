@@ -22,8 +22,6 @@ namespace BackgroundDispatcher.Services.Tests
             double[] variance = new double[] { 522.1, 456.22, 455.875, 455.7143, 432.833, 203.2, 131, 34.67, 18, 0 };
             string hashesInList = "ff";
 
-            //Console.WriteLine($"{hashesInList} - {r0[0]} - {r1[0]} - {r2[0]} - {r3[0]} - {r4[0]} - {r5[0]} - {r6[0]} - {r7[0]} - {r8[0]} - {r9[0]} -");
-
             List<TestReport> reportsListOfTheScenario = new();
             List<TestReport> referencesList = new();
             List<TestReport.TestReportStage> testTimingReportStagesList = new();
@@ -80,22 +78,7 @@ namespace BackgroundDispatcher.Services.Tests
                 referencesList.Add(referenceList);
             }
 
-            //ConstantsSet constantsSet = new();
-            //string description = "source reportsListOfTheScenario is ready";
-            //TestTimeImprintsReportIsFilledOut.ViewListOfReportsInConsole(constantsSet, description, 1, reportsListOfTheScenario);
-
-            string testReportHash = hashesInList;
-            //for (int i = 0; i < averageLength; i++)
-            //{
-            //    var report = reportsListOfTheScenario[i];
-
-            //    for (int j = 0; j < r0.Length; j++)
-            //    {
-            //        var tsWork = report.TestReportStages[j].TsWork;
-            //        var slidingAverageWork = report.TestReportStages[j].SlidingAverageWork;
-            //        Console.WriteLine($"j = {j}, tsWork = {tsWork}, average = { slidingAverageWork}");
-            //    }
-            //}
+            string testReportHash = hashesInList;            
 
             List<TestReport> resultsList = TestTimeImprintsReportIsFilledOut.CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
             double[] averagesResult = new double[averageLength];
@@ -107,12 +90,7 @@ namespace BackgroundDispatcher.Services.Tests
             {
                 averagesResult[i] = resultsList[i].TestReportStages[0].SlidingAverageWork;
                 diffAverage += Math.Abs(Math.Abs(averagesResult[i]) - Math.Abs(average[i]));
-                //for (int j = 0; j < r0.Length; j++)
-                //{
-                //    var slidingAverageWork = resultsList[i].TestReportStages[j].SlidingAverageWork;
-                //    Console.WriteLine($"i = {i} / j = {j}, average = {slidingAverageWork}");
-                //}
-
+                
                 variancesResult[i] = resultsList[i].TestReportStages[0].SlidingVarianceWork;
                 diffVariance += Math.Abs(Math.Abs(variancesResult[i]) - Math.Abs(variance[i]));
 
