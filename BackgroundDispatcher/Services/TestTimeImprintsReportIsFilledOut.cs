@@ -406,7 +406,7 @@ namespace BackgroundDispatcher.Services
         // 8. файл с данными для теста потом расшифровать и посчитать в Экселе - можно все вывести на экран методом, который рисует таблицы и скопировать с экрана
 
         // перегрузка метода для первого шага вычисления среднего и остальных - если в списке List<TestReport> reportsListOfTheScenario одна пустышка в нуле
-        public List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport.TestReportStage> testTimingReportStagesList)
+        public static List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport.TestReportStage> testTimingReportStagesList)
         {
             // ещё рассмотреть вариант, если это первый шаг и К ещё нет в списке
             // очевидно, это будет если в списке только пустышка и сейчас создаётся первый отчёт
@@ -441,7 +441,7 @@ namespace BackgroundDispatcher.Services
         // перегрузка метода для одного шага вычисления среднего и остальных
         // для него нужен метод, который приготовит правильный последний отчёт из сохранённых - с максимальным К, без версии и с совпадающим хешем
         // но пока можно всё в одном сделать - фактически он знаменит метод создания нового отчёта, точнее, вызовет его внутри себя
-        public List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList)
+        public static List<TestReport.TestReportStage> CalculateAverageVarianceDeviations(List<TestReport> reportsListOfTheScenario, List<TestReport.TestReportStage> testTimingReportStagesList)
         {
             // можно вместо всего списка передавать сюда К и последний внутренний список (и в нём тоже есть К)
             int reportsListOfTheScenarioCount = reportsListOfTheScenario.Count;

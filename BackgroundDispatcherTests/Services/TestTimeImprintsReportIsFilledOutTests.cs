@@ -6,6 +6,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Shared.Library.Models;
+using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace BackgroundDispatcher.Services.Tests
 {
@@ -78,7 +81,7 @@ namespace BackgroundDispatcher.Services.Tests
                 referencesList.Add(referenceList);
             }
 
-            string testReportHash = hashesInList;            
+            string testReportHash = hashesInList;
 
             List<TestReport> resultsList = TestTimeImprintsReportIsFilledOut.CalculateAverageVarianceDeviations(reportsListOfTheScenario, testTimingReportStagesList, testReportHash);
             double[] averagesResult = new double[averageLength];
@@ -86,17 +89,17 @@ namespace BackgroundDispatcher.Services.Tests
             double diffAverage = 0;
             double diffVariance = 0;
             double diffTotal = 0;
+
             for (int i = 1; i < averageLength; i++)
             {
                 averagesResult[i] = resultsList[i].TestReportStages[0].SlidingAverageWork;
                 diffAverage += Math.Abs(Math.Abs(averagesResult[i]) - Math.Abs(average[i]));
-                
+
                 variancesResult[i] = resultsList[i].TestReportStages[0].SlidingVarianceWork;
                 diffVariance += Math.Abs(Math.Abs(variancesResult[i]) - Math.Abs(variance[i]));
 
                 diffTotal += diffAverage + diffVariance;
                 Console.WriteLine($"i = {i} from {averageLength}, average = {average[i]}, averagesResult = {averagesResult[i]}");
-
             }
 
             Assert.AreEqual(0, (int)diffTotal);
@@ -117,5 +120,43 @@ namespace BackgroundDispatcher.Services.Tests
             9 => a9,
             _ => throw new ArgumentOutOfRangeException(nameof(arrayNum), $"Not expected direction value: {arrayNum}"),
         };
+
+        [TestMethod()]
+        // 
+        [DataRow("key-test-reports-timing-imprints-list-11.json", null)]
+        //[DataRow("testJsonAppSettings.json", null)]
+
+        public void CalculateAverageVarianceDeviationsTestWithDataFromFile(string dataFileName, string dataFilePath)
+        {
+            List<TestReport> reportsListOfTheScenario = new();
+            //List<TestReport> jsonTestModel = new();
+
+            Console.WriteLine($"dataFileName - {dataFileName}");
+
+            StreamReader file = File.OpenText(@dataFileName);
+            TextReader textReader = file;
+            string all = textReader.ReadToEnd();
+            //JsonTextReader reader = new JsonTextReader(file);
+            {
+                JsonSerializer serializer = new JsonSerializer();
+                //reportsListOfTheScenario = (List<TestReport>)serializer.Deserialize(file, typeof(List<TestReport>));                
+                reportsListOfTheScenario = JsonConvert.DeserializeObject<List<TestReport>>(all);
+            }
+
+            int jsonTestModelCount = reportsListOfTheScenario.Count;
+
+            string jsonStructureIntegrityBegin = reportsListOfTheScenario[0].Guid;
+            string jsonStructureIntegrityEnd = reportsListOfTheScenario[jsonTestModelCount - 1].Guid;
+
+            Console.WriteLine($"dataFileName - {dataFileName}, Begin - {jsonStructureIntegrityBegin}");
+            Console.WriteLine($"dataFileName - {dataFileName}, Final - {jsonStructureIntegrityEnd}");
+
+            ConstantsSet constantsSet = new();
+            string description = $" TEST with JSON data from file {dataFileName} - List<TestReport> reportsListOfTheScenario";
+            int testScenario = 100;
+            bool res = TestTimeImprintsReportIsFilledOut.ViewListOfReportsInConsole(constantsSet, description, testScenario, reportsListOfTheScenario);
+
+            Assert.AreEqual(jsonStructureIntegrityBegin, jsonStructureIntegrityEnd);
+        }
     }
 }

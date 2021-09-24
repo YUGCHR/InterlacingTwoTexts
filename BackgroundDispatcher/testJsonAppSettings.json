@@ -1,0 +1,370 @@
+{
+  "ConstantsLoadingSelfTestBegin": {
+    "Description": "Constant to check the constants loading accuracy - source",
+    "Value": "CfDJ8IXYN8RNlKBT1MxF7AIG16DR33A01UHTVXNbJ87CDSXHRd1AlU2J8WV5PFIKFKtiSdBEO5F",
+    "LifeTime": 0.8715489715897
+  },
+  "IntegerConstant": {
+    "BackgroundDispatcherConstant": {
+      "CountTrackingStart": {
+        "Description": "CountTrackingStart",
+        "Value": 2,
+        "LifeTime": -1
+      },
+      "CountDecisionMaking": {
+        "Description": "CountDecisionMaking",
+        "Value": 6,
+        "LifeTime": -1
+      },
+      "Reserved01": {
+        "Description": "Reserved 01",
+        "Value": 0,
+        "LifeTime": -1
+      }
+    },
+    "IntegrationTestConstant": {
+      "DelayTimeForTest1": {
+        "Description": "while (!isTestResultAppeared) await Task.Delay(delayTimeForTest1) (in msec)",
+        "Value": 1000,
+        "LifeTime": -1
+      },
+      "TestScenario1": {
+        "Description": "1 - test of timer",
+        "Value": 1,
+        "LifeTime": -1
+      },
+      "TestScenario2": {
+        "Description": "2 - concurrent test of timer vs counter",
+        "Value": 2,
+        "LifeTime": -1
+      },
+      "TestScenario3": {
+        "Description": "3 - load test of the second stream",
+        "Value": 3,
+        "LifeTime": -1
+      },
+      "ResultTest1Passed": {
+        "Description": "1 - Test was passed",
+        "Value": 1,
+        "LifeTime": -1
+      }
+    }
+  },
+  "RecordActualityLevel": {
+    "Description": "current model version of Db data structure (LifeTime -1 - the property is not used)",
+    "Value": 6,
+    "LifeTime": -1
+  },
+  "TaskEmulatorDelayTimeInMilliseconds": {
+    "Description": "delay time to emulate upload of a real book",
+    "Value": 300,
+    "LifeTime": -1
+  },
+  "TimerIntervalInMilliseconds": {
+    "Description": "Timer interval in milliseconds in BackgroundDispatcher OnKeysEventsSubscribeService",
+    "Value": 5000,
+    "LifeTime": -1
+  },
+  "RandomRangeExtended": {
+    "Description": "int diceRollRow = RandomProvider.Next(0, RandomRangeExtended)",
+    "Value": 1000000,
+    "LifeTime": -1
+  },
+  "BalanceOfTasksAndProcesses": {
+    "Description": "tasks number / processes ratio for the back-servers execution ",
+    "Value": 2,
+    "LifeTime": -1
+  },
+  "MaxProcessesCountOnServer": {
+    "Description": "maximum processes number on back-servers (min = 1)",
+    "Value": 3,
+    "LifeTime": -1
+  },
+  "MinBackProcessesServersCount": {
+    "Description": "minimum number of back-servers at the start of the front-server",
+    "Value": 2,
+    "LifeTime": -1
+  },
+  "ChapterFieldsShiftFactor": {
+    "Description": "shift chapter numbers of the second language (fieldBookIdWithLanguageId = bookId + languageId * chapterFieldsShiftFactor)",
+    "Value": 1000000,
+    "LifeTime": -1
+  },
+  "Prefix": {
+    "BackgroundDispatcherPrefix": {
+      "TaskPackage": {
+        "Description": "TaskPackage + Guid",
+        "Value": "taskPackage",
+        "LifeTime": 0.01
+      },
+      "EventKeyFrontGivesTask": {
+        "Description": "key for tasks cafe",
+        "Value": "key-event-front-server-gives-task-package",
+        "LifeTime": 0.999
+      },
+      "EternalBookPlainTextHashesLog": {
+        "Description": "storage key with all book plain texts hashes and calculated versions with very long life time",
+        "Value": "key-book-plain-texts-hashes-versions-list",
+        "LifeTime": 1000
+      }
+    },
+    "IntegrationTestPrefix": {
+      "KeyStartTestEvent": {
+        "Description": "send the key (hset test test 1) from Redis console",
+        "Value": "test",
+        "LifeTime": 0.01
+      },
+      "FieldStartTest": {
+        "Description": "this command will be created by controller later",
+        "Value": "test",
+        "LifeTime": 0
+      },
+      "SettingKey1": {
+        "Description": "Setting of test depth (LifeTime - approximately 1 min.)",
+        "Value": "testSettingKey1",
+        "LifeTime": 0.007
+      },
+      "TestScenarioSequenceKey": {
+        "Description": "Setting of test scenario sequence (Fields = int index, Values = int action, LifeTime - approximately 1 min.)",
+        "Value": "test-scenario-sequence",
+        "LifeTime": 0.01
+      },
+      "SettingField1": {
+        "Description": "Setting of test depth - what method will be the end of the test",
+        "Value": "f1",
+        "LifeTime": 0
+      },
+      "CurrentTestReportKey": {
+        "Description": "Storage Key for current test report",
+        "Value": "storage-key-for-current-test-report",
+        "LifeTime": 0.01
+      },
+      "DepthValue2": {
+        "Description": "Last method of the test will be DistributeTaskPackageInCafee",
+        "Value": "DistributeTaskPackageInCafee",
+        "LifeTime": 0
+      },
+      "EternalTestTimingStagesReportsLog": {
+        "Description": "storage key with all test reports and selected reference timing imprint with very long life time",
+        "Value": "key-test-reports-timing-imprints-list",
+        "LifeTime": 1000
+      },
+      "AssertProcessedBookAreEqualControl": {
+        "Description": "Assert that processed book fields are equal to control books",
+        "Value": "assert-that-processed-book-fields-are-equal-to-control-books",
+        "LifeTime": 0.007
+      },
+      "RemaindedFieldsCount": {
+        "Description": "field-1 with test results for key testResultsKey1",
+        "ValueInt": 1,
+        "ValueString": "remainded-fields-count",
+        "LifeTime": 0
+      },
+      "ResultsField2": {
+        "Description": "field-2 with test results for key testResultsKey1",
+        "ValueInt": 2,
+        "ValueString": "test-results-field-2",
+        "LifeTime": 0
+      },
+      "ResultsField3": {
+        "Description": "field-3 with test results for key testResultsKey1",
+        "ValueInt": 3,
+        "ValueString": "test-results-field-3",
+        "LifeTime": 0
+      },
+      "ControlListOfTestBookFieldsKey": {
+        "Description": "Key with control list of test book fields (fields - steps numbers)",
+        "Value": "control-list-of-test-book-fields-key",
+        "LifeTime": 0.01
+      }
+    }
+  },
+  "EventKeyFrom": {
+    "Description": "key to fetch task package from controller/emulator",
+    "Value": "subscribeOnFrom",
+    "LifeTime": 0.999
+  },
+  "EventKeyBackReadiness": {
+    "Description": "key for back-servers registration",
+    "Value": "key-event-back-processes-servers-readiness-list",
+    "LifeTime": 0.999
+  },
+  "EventKeyFrontGivesTask": {
+    "Description": "key for tasks cafe",
+    "Value": "key-event-front-server-gives-task-package",
+    "LifeTime": 0.999
+  },
+  "EventKeyUpdateConstants": {
+    "Description": "key to send new constants values, lifeTime - delay (FromMilliseconds) that determines the maximum update rate of the constants",
+    "Value": "update",
+    "LifeTime": 1000
+  },
+  "EventKeyBacksTasksProceed": {
+    "Description": "key ",
+    "Value": "key-event-backs-servers-tasks-packages-proceed",
+    "LifeTime": 0.999
+  },
+  "PrefixRequest": {
+    "Description": "key ",
+    "Value": "request",
+    "LifeTime": 0.999
+  },
+  "PrefixPackage": {
+    "Description": "key ",
+    "Value": "package",
+    "LifeTime": 0.999
+  },
+  "PrefixPackageControl": {
+    "Description": "key ",
+    "Value": "control",
+    "LifeTime": 0.999
+  },
+  "PrefixPackageCompleted": {
+    "Description": "key ",
+    "Value": "completed",
+    "LifeTime": 0.999
+  },
+  "PrefixTask": {
+    "Description": "key ",
+    "Value": "task",
+    "LifeTime": 0.999
+  },
+  "PrefixDataServer": {
+    "Description": "Prefix for dataServerPrefixGuid:_guid - to ConstantsVersionBase",
+    "Value": "constant:data",
+    "LifeTime": 0.999
+  },
+  "PrefixBackServer": {
+    "Description": "key ",
+    "Value": "backserver:num",
+    "LifeTime": 0.999
+  },
+  "PrefixProcessAdd": {
+    "Description": "key ",
+    "Value": "process:add",
+    "LifeTime": 0.999
+  },
+  "PrefixProcessCancel": {
+    "Description": "key ",
+    "Value": "process:cancel",
+    "LifeTime": 0.999
+  },
+  "PrefixProcessCount": {
+    "Description": "key ",
+    "Value": "process:count",
+    "LifeTime": 0.999
+  },
+  "FinalPropertyToSet": {
+    "Description": "ConstantsSet.ConstantType.Value",
+    "Value": "Value",
+    "LifeTime": 0.999
+  },
+  "EventFieldFrom": {
+    "Description": "field ",
+    "Value": "count",
+    "LifeTime": 0
+  },
+  "EventFieldBack": {
+    "Description": "field ",
+    "Value": "ttt",
+    "LifeTime": 0
+  },
+  "EventFieldFront": {
+    "Description": "field ",
+    "Value": "ttt",
+    "LifeTime": 0
+  },
+  "BookTextSplitConstant": {
+    "Prefix": {
+      "Description": "BookTextSplit front server Prefix ",
+      "Value": "bookTextSplit:frontServer",
+      "LifeTime": 0.999
+    },
+    "Guid": {
+      "Description": "BookTextSplit front server Guid - will be assigned Later",
+      "Value": "will be assigned Later",
+      "LifeTime": 0
+    },
+    "PrefixGuid": {
+      "Description": "BookTextSplit front server PrefixGuid - will be assigned Later",
+      "Value": "will be assigned Later",
+      "LifeTime": 0
+    }
+  },
+  "BookPlainTextConstant": {
+    "KeyPrefix": {
+      "Description": "key prefix for book text pass to back server",
+      "Value": "bookPlainTexts:bookSplitGuid",
+      "LifeTime": 0.999
+    },
+    "FieldPrefix": {
+      "Description": "field prefix for book text pass to back server ",
+      "Value": "bookText:bookGuid",
+      "LifeTime": 0.999
+    },
+    "KeyPrefixGuid": {
+      "Description": "bookPlainTexts:bookSplitGuid: + BookTextSplit Guid - will be assigned Later",
+      "Value": "will be assigned Later",
+      "LifeTime": 0
+    }
+  },
+  "BookTableConstant": {
+    "KeyPrefix": {
+      "Description": "this prefix + bookId is the key of all version of this bookId ",
+      "Value": "bookTables:bookId",
+      "LifeTime": 0.999
+    }
+  },
+  "TextSentenceConstant": {
+    "KeyPrefixId": {
+      "Description": "chapters key prefix part 1 (part1 + bookId + part2 + uploadVersion)",
+      "Value": "textSentences:bookId",
+      "LifeTime": 0.999
+    },
+    "KeyPrefixVer": {
+      "Description": "prefix part 2 - uploadVersion",
+      "Value": "uploadVersion",
+      "LifeTime": 0.999
+    }
+  },
+  "BackgroundDispatcherConstant": {
+    "Prefix": {
+      "Description": "BackgroundDispatcher prefix",
+      "Value": "background:dispatcher",
+      "LifeTime": 0.999
+    },
+    "TempTest": {
+      "Description": "TempTest",
+      "Value": "TempTest",
+      "LifeTime": 0.999
+    },
+    "Guid": {
+      "Description": "BackgroundDispatcher Guid - will be assigned Later",
+      "Value": "will be assigned Later",
+      "LifeTime": 0
+    },
+    "PrefixGuid": {
+      "Description": "BackgroundDispatcher Prefix:Guid - will be assigned Later",
+      "Value": "will be assigned Later",
+      "LifeTime": 0
+    }
+  },
+  "ConstantsLoadingSelfTestEnd": {
+    "Description": "Constant to check the constants loading accuracy - control",
+    "Value": "CfDJ8IXYN8RNlKBT1MxF7AIG16DR33A01UHTVXNbJ87CDSXHRd1AlU2J8WV5PFIKFKtiSdBEO5F",
+    "LifeTime": 0.8715489715897
+  }
+},
+"Logging": {
+  "LogLevel": {
+    "Default": "Information",
+    "Microsoft": "Warning",
+    "Microsoft.Hosting.Lifetime": "Information"
+  }
+},
+"MailSettings": {
+  "Description": "for testing",
+  "Server": "https://mail.yourdomain.com",
+  "Port": "25",
+  "From": "info@yourdomain.com"
+}
