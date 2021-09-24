@@ -1,0 +1,124 @@
+@startuml
+
+state TestTimeImprintsReportIsFilledOut #OrangeRed {
+    state IntegrationTestStart #lightgray
+    IntegrationTestStart : (constantsSet, testScenario, tsTest99)
+
+    state ConvertDictionaryWithReportToList #lightgreen
+    ConvertDictionaryWithReportToList : take reportsListOfTheScenario and \nperhaps create empty element[0]
+
+    state LooksScenarioReportsListToAddCurrent #lightgreen{
+
+    }
+    LooksScenarioReportsListToAddCurrent : take reportsListOfTheScenario and \nperhaps create empty element[0]
+
+    state CheckReferenceToAssignVersion #lightgreen
+    CheckReferenceToAssignVersion : check for the reference to assign version
+
+    state CalculateAverageVarianceDeviations #lightgreen
+    CalculateAverageVarianceDeviations : check for the reference to assign version
+
+    state CreateViewWriteReplenishedReportsList #lightgreen
+    CreateViewWriteReplenishedReportsList : check for the reference to assign version
+
+
+
+
+
+    state ProcessReportsListFromSourceStages #lightgreen{
+        state entry1 <<entryPoint>>
+
+
+        state reportsCountToStartComparison #magenta
+        reportsCountToStartComparison : constant - necessary count of reports \nwithout version to start comparison
+        state equalReportsCountToRemoveDifferents #magenta
+        equalReportsCountToRemoveDifferents : constant - the number of consistent equal \nreports to remove any further mismatched ones
+
+        state testTimingReportStagesList_1 #yellow
+        testTimingReportStagesList_1 : new report stages
+        state testTimingReportStagesList_2 #yellow
+        testTimingReportStagesList_2 : new report stages
+        state testReportHash #yellow
+        testReportHash : new report hash
+        state reportsListOfTheScenario #yellow
+        reportsListOfTheScenario : list of existing reports
+
+        state writeResult_1 #yellow
+        state writeResult_1value <<choice>>
+        writeResult_1value -[#blue,bold]-> exitA : true
+        writeResult_1value -[#green,bold]-> reportsInListWOversionCount : false
+
+        state reportsListOfTheScenarioCount #yellow
+        state reportsListOfTheScenarioCount_M1 <<choice>>
+        reportsListOfTheScenarioCount_M1 -[#blue,bold]-> CheckReferenceToAssignVersion : > 1
+        reportsListOfTheScenarioCount_M1 -[#green,bold]-> CalculateAverageVarianceDeviations : <= 1
+
+        state PRL_1 #white
+        state PRL_2 #white
+        state PRL_3 #white
+        state PRL_4 #white
+        state PRL_5 #white
+        state PRL_6 #white
+        state PRL_7 #white
+        state PRL_8 #white
+        state PRL_9 #white
+        state PRL_10 #white
+        state PRL_11 #white
+        state PRL_12 #white
+        state exitA <<exitPoint>>
+    }
+    ProcessReportsListFromSourceStages : \
+    MAIN - processing reports, selecting a template, \
+    \ncreating and writing a list, printing a pivot table
+
+    IntegrationTestStart --> entry1
+    entry1 -down[hidden]-> PRL_1
+    PRL_1 -down[hidden]-> PRL_2
+    PRL_2 -down[hidden]-> PRL_3
+    PRL_3 -down[hidden]-> PRL_4
+    PRL_4 -down[hidden]-> PRL_5
+    PRL_5 -down[hidden]-> PRL_6
+    PRL_6 -down[hidden]-> PRL_7
+    PRL_7 -down[hidden]-> PRL_8
+    PRL_8 -down[hidden]-> PRL_9
+    PRL_9 -down[hidden]-> PRL_10
+    PRL_10 -down[hidden]-> PRL_11
+    PRL_11 -down[hidden]-> PRL_12
+    PRL_12 -down[hidden]-> exitA
+
+    testTimingReportStagesList_1 -down[hidden]-> testReportHash
+    testReportHash -down[hidden]-> reportsListOfTheScenario
+    reportsListOfTheScenario -down[hidden]-> reportsCountToStartComparison
+    reportsCountToStartComparison -down[hidden]-> equalReportsCountToRemoveDifferents
+
+    writeResult_1 --> writeResult_1value
+
+
+
+
+
+    CheckReferenceToAssignVersion --> writeResult_1
+
+
+    PRL_1 --> ConvertDictionaryWithReportToList
+    ConvertDictionaryWithReportToList --> testTimingReportStagesList_1
+    ConvertDictionaryWithReportToList --> testReportHash
+    PRL_2 --> LooksScenarioReportsListToAddCurrent
+    LooksScenarioReportsListToAddCurrent --> reportsListOfTheScenario
+
+    state ViewListOfReportsInConsole_0 #lightblue
+    ViewListOfReportsInConsole_0 : The List Before Time
+    PRL_3 --> ViewListOfReportsInConsole_0
+    reportsListOfTheScenario --> ViewListOfReportsInConsole_0
+
+    reportsListOfTheScenario --> reportsListOfTheScenarioCount
+
+
+
+    reportsListOfTheScenarioCount --> reportsListOfTheScenarioCount_M1
+    CalculateAverageVarianceDeviations --> testTimingReportStagesList_2
+    testTimingReportStagesList_2 --> CreateViewWriteReplenishedReportsList
+
+}
+
+@enduml

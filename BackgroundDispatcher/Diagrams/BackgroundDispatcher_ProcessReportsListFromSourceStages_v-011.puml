@@ -1,0 +1,190 @@
+@startuml
+
+state ProcessReportsListFromSourceStages #lightblue {
+    state comment_Analysis_1 #magenta
+    comment_Analysis_1 : analyse new report and \nlist of existing reports
+
+    state ConvertDictionaryWithReportToList #lightgreen
+    ConvertDictionaryWithReportToList : create testTimingReportStagesList and \ntestReportHash from key
+
+    state LooksScenarioReportsListToAddCurrent #lightgreen
+    LooksScenarioReportsListToAddCurrent : take reportsListOfTheScenario and \nperhaps create empty element[0]
+
+    state testTimingReportStagesList #YellowGreen
+    testTimingReportStagesList : new report
+
+    state reportsListOfTheScenario #YellowGreen
+    reportsListOfTheScenario : list of existing reports
+
+    state reportsListOfTheScenario_Count #lightgreen
+    reportsListOfTheScenario_Count : if (reportsListOfTheScenarioCount > 1)
+
+    state reportsListOfTheScenario_0 #lightgreen
+    reportsListOfTheScenario_0 : check is isRef property of \nreportsListOfTheScenario[0]
+
+    state testTimingReportStagesList_Hash #lightgreen
+    testTimingReportStagesList_Hash : check is new report hash identical to \nreportsListOfTheScenario[0]
+
+    state reportsInListWOversionCount #lightgreen
+    reportsInListWOversionCount : count reports without versions
+
+    state reportsInListWOreferenceRemove #lightgreen
+    reportsInListWOreferenceRemove : RemoveAll(r => !r.IsThisReportTheReference)
+
+    state reportsWOversionsCount #lightgreen
+    reportsWOversionsCount : reportsWOversionsCount++
+
+    state Block_Consistently #lightgreen
+    Block_Consistently : if (... && wereConsistentlyEqual)
+
+    state wereConsistentlyEqual #lightgreen
+    wereConsistentlyEqual : set false to stop count
+
+    state equalReportsCount #lightgreen
+    equalReportsCount : equalReportsCount++;
+
+    state CountingResults #lightgreen
+    CountingResults : reportsWOversionsCount \nequalReportsCount
+
+    state isThisReporWOVersion #lightgreen
+    isThisReporWOVersion : if (ThisReporVersion <= 0)
+
+    state reportsCountToStartComparison #lightgreen
+    reportsCountToStartComparison : number of reports to start comparison
+
+    state equalReportsCountToCreateReference #lightgreen
+    equalReportsCountToCreateReference : the number of consecutive matching reports \nto remove any further mismatched
+
+    state CreateNewReference #lightgreen
+    CreateNewReference : create the reference report
+
+    state equalReportsCountToRemoveDifferents #lightgreen
+    equalReportsCountToRemoveDifferents : similar reports are still not enough to seize power, \nbut already enough to suppress dissenting
+
+    state SavedEmptyElement0 #lightgreen
+    SavedEmptyElement0 : temporary saved empty element from [0]
+
+    state RestoreEmptyElement0 #lightgreen
+    RestoreEmptyElement0 : restore saved empty element in [0]
+
+    state reportsInListWOversionRemove #lightgreen
+    reportsInListWOversionRemove : RemoveAll(without version && the same hashes)
+
+    state isReferenceExistedIn0 #lightgreen
+    isReferenceExistedIn0 : is index[0] reference (or empty)
+
+    state maxVersionSet1 #lightgreen
+    maxVersionSet1 : maxVersion = 1
+
+    state maxVersionIncrement #lightgreen
+    maxVersionIncrement : maxVersion++
+
+    state RemoveEmptyIn0 #lightgreen
+    RemoveEmptyIn0 : RemoveAt(0)
+
+    state NewTestReportInsertIn0 #lightgreen
+    NewTestReportInsertIn0 : Insert(0, theScenarioReportRef)
+
+    state CalculateAverageVarianceDeviations #lightgreen
+    CalculateAverageVarianceDeviations : to calculate a moving cumulative \naverage (variance, deviations)
+    
+    state CreateViewWriteReplenishedReportsList #lightgreen
+    CreateViewWriteReplenishedReportsList : 
+    
+    state Return_TRUE #Red
+    Return_TRUE : return true - key was set
+
+    state comment_Action_0 #magenta
+    comment_Action_0 : add current report \nto the end of List
+
+    state comment_Action_1 #magenta
+    comment_Action_1 : remove all non-ref reports \nexcept the new one
+
+    state Cycle_1 #orange
+    Cycle_1 : for (i = last; i > 0; i--)
+
+    ConvertDictionaryWithReportToList --> testTimingReportStagesList
+    LooksScenarioReportsListToAddCurrent --> reportsListOfTheScenario
+
+    state isReportsListOfTheScenario_0_REF <<choice>>
+    isReportsListOfTheScenario_0_REF -[#blue,bold]-> testTimingReportStagesList_Hash : isRef = true
+    isReportsListOfTheScenario_0_REF -[#green,bold]-> reportsInListWOversionCount : isRef = false
+
+    state isReportsListOfTheScenario_Count_m1 <<choice>>
+    isReportsListOfTheScenario_Count_m1 -[#blue,bold]-> reportsListOfTheScenario_0 : Count > 1
+    isReportsListOfTheScenario_Count_m1 -[#green,bold]-> comment_Action_0 : Count = 1
+
+    reportsListOfTheScenario_0 --> isReportsListOfTheScenario_0_REF
+
+    state isNewHashIdenticalTo_0_REF <<choice>>
+    isNewHashIdenticalTo_0_REF -[#blue,bold]-> comment_Action_1 : the same
+    isNewHashIdenticalTo_0_REF -[#green,bold]-> reportsInListWOversionCount : different one
+
+    state reportsListOfTheScenario_i_version <<choice>>
+    reportsListOfTheScenario_i_version -[#blue,bold]-> none : with version
+    reportsListOfTheScenario_i_version -[#green,bold]-> reportsWOversionsCount : without
+
+    reportsWOversionsCount --> Block_Consistently
+
+    state reportsListOfTheScenario_i_hash <<choice>>
+    reportsListOfTheScenario_i_hash -[#blue,bold]-> equalReportsCount : same
+    reportsListOfTheScenario_i_hash -[#green,bold]-> wereConsistentlyEqual : different
+
+    state reportsCountEnoughToStartComparison <<choice>>
+    reportsCountEnoughToStartComparison -[#blue,bold]-> equalReportsCountToCreateReference : >=
+    reportsCountEnoughToStartComparison -[#green,bold]-> CalculateAverageVarianceDeviations : <
+
+    state equalReportsCountEnoughToRemoveDifferents <<choice>>
+    equalReportsCountEnoughToRemoveDifferents -[#blue,bold]-> CreateNewReference : >=
+    equalReportsCountEnoughToRemoveDifferents -[#green,bold]-> equalReportsCountToRemoveDifferents : <
+
+    state isRefExisted <<choice>>
+    isRefExisted -[#blue,bold]-> maxVersionIncrement : true
+    isRefExisted -[#green,bold]-> maxVersionSet1 : false
+
+    CreateNewReference --> isReferenceExistedIn0
+    isReferenceExistedIn0 --> isRefExisted
+    maxVersionSet1 --> RemoveEmptyIn0
+    wereConsistentlyEqual --> Block_Consistently
+
+    RemoveEmptyIn0 --> NewTestReportInsertIn0
+    maxVersionIncrement --> NewTestReportInsertIn0
+    NewTestReportInsertIn0 --> CalculateAverageVarianceDeviations
+
+    testTimingReportStagesList --> comment_Analysis_1
+    reportsListOfTheScenario --> comment_Analysis_1
+    comment_Analysis_1 --> reportsListOfTheScenario_Count
+    reportsListOfTheScenario_Count --> isReportsListOfTheScenario_Count_m1
+
+    testTimingReportStagesList_Hash --> isNewHashIdenticalTo_0_REF
+
+    comment_Action_0 --> CalculateAverageVarianceDeviations
+    reportsInListWOreferenceRemove --> CalculateAverageVarianceDeviations
+
+    comment_Action_1 --> reportsInListWOreferenceRemove
+    reportsInListWOversionCount --> Cycle_1
+
+    Cycle_1 --> isThisReporWOVersion
+    isThisReporWOVersion --> reportsListOfTheScenario_i_version
+    Block_Consistently --> reportsListOfTheScenario_i_hash
+
+    none -[#orange,bold]-> Cycle_1 : to new cycle
+    equalReportsCount -[#orange,bold]-> Cycle_1 : to new cycle
+
+    equalReportsCount --> CountingResults : after cycle ended
+    CountingResults --> reportsCountToStartComparison
+    reportsCountToStartComparison --> reportsCountEnoughToStartComparison
+
+    equalReportsCountToCreateReference --> equalReportsCountEnoughToRemoveDifferents
+    equalReportsCountToRemoveDifferents --> SavedEmptyElement0
+    SavedEmptyElement0 --> reportsInListWOversionRemove
+    reportsInListWOversionRemove --> RestoreEmptyElement0
+    
+    RestoreEmptyElement0 --> CalculateAverageVarianceDeviations
+    CalculateAverageVarianceDeviations --> CreateViewWriteReplenishedReportsList
+    CreateViewWriteReplenishedReportsList --> Return_TRUE
+
+
+}
+
+@enduml
