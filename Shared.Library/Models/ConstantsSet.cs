@@ -45,9 +45,10 @@ namespace Shared.Library.Models
             {
                 public ConstantType DelayTimeForTest1 { get; set; }
                 public ConstantType TestScenario1 { get; set; }
-                public ConstantType TestScenario2 { get; set; }
-                public ConstantType TestScenario3 { get; set; }
-                public ConstantType ResultTest1Passed { get; set; }
+                public ConstantType ReportsCountToStartComparison { get; set; }
+                public ConstantType EqualReportsCountToRemoveDifferents { get; set; }
+                public ConstantType TestsRunsCountInSequenceWithDeviationControl { get; set; }
+                public ConstantType RejectionTotalCountInSequenceTestsRuns { get; set; }
             }
         }
 
@@ -98,6 +99,7 @@ namespace Shared.Library.Models
                 public ConstantKeyType ResultsField2 { get; set; }
                 public ConstantKeyType ResultsField3 { get; set; }
                 public KeyType ControlListOfTestBookFieldsKey { get; set; }
+                public KeyType TestsCountInSequenceWithoutRejection { get; set; }
             }
         }
 

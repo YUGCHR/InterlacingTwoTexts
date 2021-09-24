@@ -66,6 +66,7 @@ namespace BackgroundDispatcher.Services
     public class OnKeysEventsSubscribeService : IOnKeysEventsSubscribeService
     {
         private readonly CancellationToken _cancellationToken;
+        private readonly ISettingConstantsService _constants;
         private readonly IKeyEventsProvider _keyEvents;
         private readonly ITestMainServiceOfComplexIntegrity _test;
         private readonly ITestTimeImprintsReportIsFilledOut _report;
@@ -74,6 +75,7 @@ namespace BackgroundDispatcher.Services
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
+            ISettingConstantsService constants,
             IKeyEventsProvider keyEvents,
             ITestMainServiceOfComplexIntegrity test,
             ITestTimeImprintsReportIsFilledOut report,
@@ -82,6 +84,7 @@ namespace BackgroundDispatcher.Services
             )
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
+            _constants = constants;
             _keyEvents = keyEvents;
             _test = test;
             _report = report;
@@ -210,6 +213,29 @@ namespace BackgroundDispatcher.Services
                     // 
                     _currentChainSerialNum = 0;
                     _callingNumOfEventKeyFrom = 0;
+
+                    //---------------------------------------------------------------
+                    // обновление констант -
+                    // команда - hset update
+                    //---------------------------------------------------------------
+
+
+
+
+                    // тут определить, надо ли обновить константы
+                    bool isExistUpdatedConstants = _constants.IsExistUpdatedConstants();
+                    Logs.Here().Information("Is Exist Updated Constants = {0}.", isExistUpdatedConstants);
+
+                    if (isExistUpdatedConstants)
+                    {
+                        constantsSet = await _constants.ConstantInitializer(_cancellationToken); //EventKeyNames
+                        Logs.Here().Information("Updated Constant = {0}.", constantsSet.TaskEmulatorDelayTimeInMilliseconds.Value);
+                    }
+
+
+
+
+
 
                     // ещё проверить счётчик и если не нулевой, ждать обнуления
                     // за ним придётся ходить в следующий класс

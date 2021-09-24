@@ -55,7 +55,7 @@ namespace ConstantData.Services
         {
             // проверять, что константы может обновлять только админ
 
-            string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value;
+            string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value; // update
             Logs.Here().Debug("CheckKeyUpdateConstants started with key {0}.", eventKeyUpdateConstants);
 
             IDictionary<string, int> updatedConstants = await _cache.FetchUpdatedConstantsAndDeleteKey<string, int>(eventKeyUpdateConstants); ;
@@ -90,7 +90,7 @@ namespace ConstantData.Services
         public static (bool, ConstantsSet) UpdatedValueAssignsToProperty(ConstantsSet constantsSet, IDictionary<string, int> updatedConstants)
         {
             bool setWasUpdated = false;
-            string finalPropertyToSet = constantsSet.FinalPropertyToSet.Value;
+            string finalPropertyToSet = constantsSet.FinalPropertyToSet.Value; // Value
             // foreach перенесли внутрь метода, чтобы лишний раз не переписывать набор, если обновление имеет такое же значение
             // возможно, что со страницы всегда будет приезжать весь набор полей только с одним/несколькими изменёнными
             foreach (KeyValuePair<string, int> updatedConstant in updatedConstants)

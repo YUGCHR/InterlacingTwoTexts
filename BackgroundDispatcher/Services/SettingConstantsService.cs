@@ -10,8 +10,9 @@ namespace BackgroundDispatcher.Services
 {
     public interface ISettingConstantsService
     {
-        public void SubscribeOnBaseConstantEvent();
-        public Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
+        bool IsExistUpdatedConstants();
+        void SubscribeOnBaseConstantEvent();
+        Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken);
     }
 
     public class SettingConstantsService : ISettingConstantsService
@@ -30,9 +31,9 @@ namespace BackgroundDispatcher.Services
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<SettingConstantsService>();
 
         private ConstantsSet constantsSet = new();
-        private bool isConstantsSet = false;
+        private bool _isConstantsSet = false;
 
-        private bool IsExistUpdatedConstants()
+        public bool IsExistUpdatedConstants()
         {
             return _data.IsExistUpdatedConstants();
         }
@@ -45,22 +46,22 @@ namespace BackgroundDispatcher.Services
         // инициализация констант для BookTextSplit
         public async Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken)
         {
-            Logs.Here().Information("ConstantInitializer started, isConstantsSet = {0}.", isConstantsSet);
+            Logs.Here().Information("ConstantInitializer started, isConstantsSet = {0}.", _isConstantsSet);
 
             if (IsExistUpdatedConstants())
             {
-                isConstantsSet = false;
+                _isConstantsSet = false;
             }
-            Logs.Here().Information("IsExistUpdatedConstants was chacked, isConstantsSet = {0}.", isConstantsSet);
+            Logs.Here().Information("IsExistUpdatedConstants was chacked, isConstantsSet = {0}.", _isConstantsSet);
 
-            if (!isConstantsSet)
+            if (!_isConstantsSet)
             {
                 constantsSet = await _data.DeliveryOfUpdatedConstants(stoppingToken);
 
                 // здесь уже с константами
                 if (constantsSet != null)
                 {
-                    isConstantsSet = true;
+                    _isConstantsSet = true;
                     Logs.Here().Information("EventKeyNames fetched constants in EventKeyNames - {@D}.", new { CycleDelay = constantsSet.TaskEmulatorDelayTimeInMilliseconds.LifeTime });
                 }
                 else
@@ -69,7 +70,7 @@ namespace BackgroundDispatcher.Services
                     return null;
                 }
 
-                Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", isConstantsSet);
+                Logs.Here().Information("constantsSet was set, isConstantsSet = {0}.", _isConstantsSet);
 
                 string backgroundDispatcherGuid = _guid ?? throw new ArgumentNullException(nameof(_guid));
                 constantsSet.BackgroundDispatcherConstant.Guid.Value = backgroundDispatcherGuid;
