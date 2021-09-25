@@ -1,10 +1,13 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.Extensions.Hosting;
 using ConstantData.Services;
 using Shared.Library.Models;
 using Shared.Library.Services;
+using Newtonsoft.Json;
 
 namespace ConstantData
 {
@@ -44,22 +47,73 @@ namespace ConstantData
 
         public async Task ConstantsMountingMonitor()
         {
+            // тут заехали все константы из GetSection("SettingConstants").Bind(SettingConstants)
             ConstantsSet constantsSet = _collection.SettingConstants;
-            Logs.Here().Debug("ConstantCheck EventKeyFrontGivesTaskTimeDays = {0}.", constantsSet.EventKeyFrontGivesTask.LifeTime);
+            Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestBegin = {0}.", constantsSet.ConstantsLoadingSelfTestBegin.Value);
+            Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestEnd = {0}.", constantsSet.ConstantsLoadingSelfTestEnd.Value);
+
+            // выгружаем файл appsetting.json в текстовый массив
+            string dataFileName = "appsettings-Copy.json"; // @"D:\ActiveSolutions\ConstantData\appsetting.json";
+            StreamReader file = new StreamReader(@dataFileName);
+            // можно хранить Capacity в последней строке appsetting
+            int appsettingLinesCapacity = 400;
+            List<string> appsettingLines = new(appsettingLinesCapacity);
+            int lineCounter = 0;
+            string line;
+            Logs.Here().Information("Check dataFileName = {0}, appsettingLinesCapacity = {1}, lineCounter = {2}.", dataFileName, appsettingLinesCapacity, lineCounter);
+
+            while ((line = file.ReadLine()) != null)
+            {
+                appsettingLines.Add(line);
+                lineCounter++;
+            }
+            file.Close();
+
+            Logs.Here().Information("{@A}", new{List = appsettingLines});
+            int appsettingLinesCountWrite = appsettingLines.Count;
+            for(int i = 0; i< appsettingLinesCountWrite - 1; i++)
+            {
+                Console.WriteLine($"{appsettingLines[i]}");
+            }
+
+            // удаляем первую (не нулевую) - / "SettingConstants": { / и последнюю (образовалась лишняя } ) строки файла
+            int strNum = 1;
+            Logs.Here().Information("{0} strings was read from file {1} ans string[{2}] = {3} will be removed.", lineCounter, dataFileName, 1, appsettingLines[strNum]);
+            appsettingLines.RemoveAt(strNum);
+            
+            //int appsettingLinesCount0 = appsettingLines.Count;
+            //Logs.Here().Information("appsettingLines last - {0} - string {1} will be removed.", appsettingLinesCount0 - 1, appsettingLines[appsettingLinesCount0 - 1]);
+            //appsettingLines.RemoveAt(appsettingLinesCount0 - 1);
+            
+            int appsettingLinesCount1 = appsettingLines.Count;
+            // текстовый список констант appsettingLines готов к синтаксическому анализу
+            Logs.Here().Information("appsettingLines with {0} strings is ready to parse.", appsettingLinesCount1);
+
+            // тестовая сборка в класс
+            string constantSetFromText = String.Join(' ', appsettingLines.ToArray(), 0, appsettingLines.Count - 1);
+            Console.WriteLine($"\n{constantSetFromText}\n");
+            ConstantsSet constantsSetUpdated = new ConstantsSet();
+            constantsSetUpdated = JsonConvert.DeserializeObject<ConstantsSet>($"{constantSetFromText}");
+            Logs.Here().Information("\n {@C} \n", new { ConstantsSetUpdated = constantsSetUpdated });
+
+
+
+
+
 
             (string startConstantKey, string constantsStartLegacyField, string constantsStartGuidField) = _data.FetchBaseConstants();
 
             string dataServerPrefixGuid = $"{constantsSet.PrefixDataServer.Value}:{_guid}";
             double baseLifeTime = constantsSet.PrefixDataServer.LifeTime;
-            constantsSet.ConstantsVersionBase.Value = startConstantKey;
-            constantsSet.ConstantsVersionBase.LifeTime = baseLifeTime;
+            constantsSet.ConstantsVersionBaseKey.Value = startConstantKey;
+            constantsSet.ConstantsVersionBaseKey.LifeTime = baseLifeTime;
             constantsSet.ConstantsVersionBaseField.Value = constantsStartGuidField;
 
             // записываем константы в стартовый ключ и старое поле (для совместимости)
-            await _cache.SetStartConstants(constantsSet.ConstantsVersionBase, constantsStartLegacyField, constantsSet);
-            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBase.Value }, new { Field = constantsStartLegacyField });
+            await _cache.SetStartConstants(constantsSet.ConstantsVersionBaseKey, constantsStartLegacyField, constantsSet);
+            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartLegacyField });
 
-            Logs.Here().Information("\n ConstantsSet constantsSet is - {@C}.", new { ConstantsSet = constantsSet });
+            Logs.Here().Information("\n {@C} \n", new { ConstantsSet = constantsSet });
 
 
 
@@ -83,7 +137,7 @@ namespace ConstantData
 
 
             // проверяем наличие старого ключа гуид-констант и если он есть, удаляем его
-            string oldGuidConstants = await _cache.FetchHashedAsync<string>(constantsSet.ConstantsVersionBase.Value, constantsStartGuidField);
+            string oldGuidConstants = await _cache.FetchHashedAsync<string>(constantsSet.ConstantsVersionBaseKey.Value, constantsStartGuidField);
             if (oldGuidConstants != null)
             {
                 bool oldGuidConstantsWasDeleted = await _cache.DelKeyAsync(oldGuidConstants);
@@ -91,17 +145,17 @@ namespace ConstantData
             }
 
             // записываем в стартовый ключ и новое поле гуид-ключ обновляемых констант
-            await _cache.SetConstantsStartGuidKey(constantsSet.ConstantsVersionBase, constantsStartGuidField, dataServerPrefixGuid);
+            await _cache.SetConstantsStartGuidKey(constantsSet.ConstantsVersionBaseKey, constantsStartGuidField, dataServerPrefixGuid);
 
             // записываем в строку версии констант основной гуид-ключ
-            constantsSet.ConstantsVersionBase.Value = dataServerPrefixGuid;
+            constantsSet.ConstantsVersionBaseKey.Value = dataServerPrefixGuid;
 
             // записываем константы в новый гуид-ключ и новое поле (надо какое-то всем известное поле)
             // потом может быть будет поле-версия, а может будет меняться ключ
 
             // передавать переменную класса с временем жизни вместо строки
-            await _cache.SetStartConstants(constantsSet.ConstantsVersionBase, constantsStartGuidField, constantsSet);
-            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBase.Value }, new { Field = constantsStartGuidField });
+            await _cache.SetStartConstants(constantsSet.ConstantsVersionBaseKey, constantsStartGuidField, constantsSet);
+            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartGuidField });
 
             bool isSelfTestPassed = ConstantsLoadingSelfTest(constantsSet);
 
@@ -114,9 +168,9 @@ namespace ConstantData
                 Logs.Here().Error("ConstantData FAILED to load the constants correctly. \n (if you want details, they are above in the print of the whole class).");
             }
 
-            // подписываемся на ключ сообщения о необходимости обновления констант
-            _subscribe.SubscribeOnEventUpdate(constantsSet, constantsStartGuidField, _cancellationToken);
-            Logs.Here().Debug("SettingConstants ConstantsVersionBase = {0}, ConstantsVersionNumber = {1}.", constantsSet.ConstantsVersionBase.Value, constantsSet.ConstantsVersionNumber.Value);
+            // подписываемся на ключ сообщения о необходимости обновления констант, отдаем ему текстовый список констант appsettingLines
+            _subscribe.SubscribeOnEventUpdate(constantsSet, constantsStartGuidField, appsettingLines);
+            Logs.Here().Debug("SettingConstants ConstantsVersionBase = {0}, ConstantsVersionNumber = {1}.", constantsSet.ConstantsVersionBaseKey.Value, constantsSet.ConstantsVersionNumber.Value);
 
             while (true)
             {

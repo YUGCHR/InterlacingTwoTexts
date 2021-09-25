@@ -54,7 +54,7 @@ namespace BackgroundTasksQueue.Services
 
             string eventKeyFrontGivesTask = constantsSet.EventKeyFrontGivesTask.Value;
             Logs.Here().Debug("BackServer subscribed on EventKey. \n {@E}", new { EventKey = eventKeyFrontGivesTask });
-            Logs.Here().Information("Constants version is {0}:{1}.", constantsSet.ConstantsVersionBase.Value, constantsSet.ConstantsVersionNumber.Value);
+            Logs.Here().Information("Constants version is {0}:{1}.", constantsSet.ConstantsVersionBaseKey.Value, constantsSet.ConstantsVersionNumber.Value);
 
             // блокировка множественной подписки до специального разрешения повторной подписки
             _flagToBlockEventRun = true;

@@ -8,23 +8,24 @@ namespace Shared.Library.Services
 {
     public interface ICacheManagerService
     {
+        Task<int> SetStartConstants(string key, string field, ConstantsSet constantsSet, double keyLifeTime);
         public Task SetStartConstants(KeyType startConstantKey, string startConstantField, ConstantsSet constantsSet);
         public Task SetConstantsStartGuidKey(KeyType startConstantKey, string startConstantField, string constantsStartGuidKey);
         public Task<TV> FetchUpdatedConstant<TK, TV>(string key, TK field);
         public Task<IDictionary<TK, TV>> FetchUpdatedConstantsAndDeleteKey<TK, TV>(string key);
         public Task<bool> DeleteKeyIfCancelled(string startConstantKey);
-        public Task<bool> IsKeyExist(string key);
-        public Task<bool> DelKeyAsync(string key);
-        public Task<bool> DelFieldAsync(string key, string field);
-        public Task<bool> DelFieldAsync<TK>(string key, TK field);
-        public Task<int> DelFieldAsync<TK>(string key, List<TK> fields);
-        public Task<T> FetchHashedAsync<T>(string key, string field);
-        public Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
-        public Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
-        public Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl);
-        public Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl);
-        public Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key);
-        public Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key);
+        Task<bool> IsKeyExist(string key);
+        Task<bool> DelKeyAsync(string key);
+        Task<bool> DelFieldAsync(string key, string field);
+        Task<bool> DelFieldAsync<TK>(string key, TK field);
+        Task<int> DelFieldAsync<TK>(string key, List<TK> fields);
+        Task<T> FetchHashedAsync<T>(string key, string field);
+        Task<TV> FetchHashedAsync<TK, TV>(string key, TK field);
+        Task WriteHashedAsync<T>(string key, string field, T value, double ttl);
+        Task WriteHashedAsync<TK, TV>(string key, TK field, TV value, double ttl);
+        Task WriteHashedAsync<TK, TV>(string key, IEnumerable<KeyValuePair<TK, TV>> fieldValues, double ttl);
+        Task<IDictionary<string, T>> FetchHashedAllAsync<T>(string key);
+        Task<IDictionary<TK, TV>> FetchHashedAllAsync<TK, TV>(string key);
     }
 
     public class CacheManagerService : ICacheManagerService
@@ -48,6 +49,20 @@ namespace Shared.Library.Services
             }
             await _cache.SetHashedAsync<ConstantsSet>(keyTime.Value, field, constantsSet, SetLifeTimeFromKey(keyTime));
             Logs.Here().Debug("SetStartConstants set constants (EventKeyFrom for example = {0}) in key {1}.", constantsSet.EventKeyFrom.Value, keyTime.Value);
+        }
+        
+        public async Task<int> SetStartConstants(string key, string field, ConstantsSet constantsSet, double keyLifeTime)
+        {
+            if (field == constantsSet.ConstantsVersionBaseField.Value)
+            {
+                // обновлять версию констант при записи в ключ гуид
+                constantsSet.ConstantsVersionNumber.Value++;
+                Logs.Here().Information("ConstantsVersionNumber was incremented and become {0}.", constantsSet.ConstantsVersionNumber.Value);
+            }
+            await WriteHashedAsync<ConstantsSet>(key, field, constantsSet, keyLifeTime);
+            Logs.Here().Debug("SetStartConstants set constants (EventKeyFrom for example = {0}) in key {1}.", constantsSet.EventKeyFrom.Value, key);
+
+            return constantsSet.ConstantsVersionNumber.Value;
         }
 
         public async Task SetConstantsStartGuidKey(KeyType keyTime, string field, string constantsStartGuidKey)
@@ -75,7 +90,7 @@ namespace Shared.Library.Services
             // <typeparam name="TK">The field type</typeparam>
             // <typeparam name="TV">The value type</typeparam>
 
-            IDictionary<TK, TV> updatedConstants = await _cache.GetHashedAllAsync<TK, TV>(key);
+            IDictionary<TK, TV> updatedConstants = await FetchHashedAllAsync<TK, TV>(key);
             bool result = await _cache.RemoveAsync(key);
             if (result)
             {

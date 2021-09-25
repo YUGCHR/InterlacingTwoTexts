@@ -1,14 +1,14 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using BackgroundDispatcher.Services;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
+using System.IO;
 using System.Collections.Generic;
+using BackgroundDispatcher.Services;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Shared.Library.Models;
-using System.IO;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace BackgroundDispatcher.Services.Tests
 {
@@ -136,6 +136,7 @@ namespace BackgroundDispatcher.Services.Tests
             StreamReader file = File.OpenText(@dataFileName);
             TextReader textReader = file;
             string all = textReader.ReadToEnd();
+            file.Close();
             //JsonTextReader reader = new JsonTextReader(file);
             {
                 JsonSerializer serializer = new JsonSerializer();

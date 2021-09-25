@@ -43,7 +43,7 @@ namespace BackgroundDispatcher.Services
             _data.SubscribeOnBaseConstantEvent();
         }
 
-        // инициализация констант для BookTextSplit
+        // инициализация констант для BackgroundDispatcher
         public async Task<ConstantsSet> ConstantInitializer(CancellationToken stoppingToken)
         {
             Logs.Here().Information("ConstantInitializer started, isConstantsSet = {0}.", _isConstantsSet);
