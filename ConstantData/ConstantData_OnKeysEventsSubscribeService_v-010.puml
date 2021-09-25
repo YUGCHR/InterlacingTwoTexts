@@ -1,0 +1,60 @@
+@startuml
+state Redis #red {
+    state RedisKeyEventUpdate #coral
+}
+
+state ConstantData #lightgray {
+
+    state CheckKeyUpdateConstants #lightgreen
+    CheckKeyUpdateConstants : (eventKeyUpdateConstants)
+
+    state OnKeysEventsSubscribeService #lightblue{
+
+        state SubscribeOnEventUpdate #lightgreen{
+            state _EventsSubscribe_Update #lightgreen
+            _EventsSubscribe_Update : (eventKeyUpdateConstants)
+
+            state SetRemoveBlockToCall #orange
+            SetRemoveBlockToCall : block to twice call \nCheckKeyUpdateConstants
+            state BlockTwiceEventUpdate #orange
+            BlockTwiceEventUpdate : block to twice call \nCheckKeyUpdateConstants
+            state _flagToBlockEventUpdate <<choice>>
+            _flagToBlockEventUpdate -[#blue,bold]-> BlockTwiceEventUpdate : true
+            _flagToBlockEventUpdate -[#green,bold]-> SetRemoveBlockToCall : false
+
+        }
+        SubscribeOnEventUpdate : (constantsSet, constantsStartGuidField) \nподписываемся на ключ сообщения \nо появлении обновления констант
+        _EventsSubscribe_Update --> _flagToBlockEventUpdate
+        SetRemoveBlockToCall --> BlockTwiceEventUpdate
+        BlockTwiceEventUpdate --> CheckKeyUpdateConstants
+
+
+
+
+
+        state Return_TRUE #Red
+        Return_TRUE : return true - key was set
+
+        state comment_Action_0 #magenta
+        comment_Action_0 : add current report \nto the end of List
+
+
+
+        state Cycle_1 #orange
+        Cycle_1 : for (i = last; i > 0; i--)
+
+
+        state isRefExisted <<choice>>
+        isRefExisted -[#blue,bold]-> maxVersionIncrement : true
+        isRefExisted -[#green,bold]-> maxVersionSet1 : false
+    }
+    OnKeysEventsSubscribeService :
+
+RedisKeyEventUpdate --> _EventsSubscribe_Update
+
+
+
+
+}
+
+@enduml
