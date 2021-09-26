@@ -51,6 +51,8 @@ namespace ConstantData
             ConstantsSet constantsSet = _collection.SettingConstants;
             Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestBegin = {0}.", constantsSet.ConstantsLoadingSelfTestBegin.Value);
             Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestEnd = {0}.", constantsSet.ConstantsLoadingSelfTestEnd.Value);
+            bool constantsSetIsHealthy = AuxiliaryUtilsService.CheckConstantSet(constantsSet);
+            Logs.Here().Information("Constants health check result is {0}.", constantsSetIsHealthy);
 
             // выгружаем файл appsetting.json в текстовый массив
             string dataFileName = "appsettings-Copy.json"; // @"D:\ActiveSolutions\ConstantData\appsetting.json";
@@ -69,12 +71,12 @@ namespace ConstantData
             }
             file.Close();
 
-            Logs.Here().Information("{@A}", new{List = appsettingLines});
-            int appsettingLinesCountWrite = appsettingLines.Count;
-            for(int i = 0; i< appsettingLinesCountWrite - 1; i++)
-            {
-                Console.WriteLine($"{appsettingLines[i]}");
-            }
+            //Logs.Here().Information("{@A}", new{List = appsettingLines});
+            //int appsettingLinesCountWrite = appsettingLines.Count;
+            //for(int i = 0; i< appsettingLinesCountWrite - 1; i++)
+            //{
+            //    Console.WriteLine($"{appsettingLines[i]}");
+            //}
 
             // удаляем первую (не нулевую) - / "SettingConstants": { / и последнюю (образовалась лишняя } ) строки файла
             int strNum = 1;
@@ -91,11 +93,12 @@ namespace ConstantData
 
             // тестовая сборка в класс
             string constantSetFromText = String.Join(' ', appsettingLines.ToArray(), 0, appsettingLines.Count - 1);
-            Console.WriteLine($"\n{constantSetFromText}\n");
+            //Console.WriteLine($"\n{constantSetFromText}\n");
             ConstantsSet constantsSetUpdated = new ConstantsSet();
             constantsSetUpdated = JsonConvert.DeserializeObject<ConstantsSet>($"{constantSetFromText}");
-            Logs.Here().Information("\n {@C} \n", new { ConstantsSetUpdated = constantsSetUpdated });
-
+            //Logs.Here().Information("\n {@C} \n", new { ConstantsSetUpdated = constantsSetUpdated });
+            bool constantsSetIsHealthy2 = AuxiliaryUtilsService.CheckConstantSet(constantsSet);
+            Logs.Here().Information("Constants health check result is {0}.", constantsSetIsHealthy2);
 
 
 
@@ -111,9 +114,9 @@ namespace ConstantData
 
             // записываем константы в стартовый ключ и старое поле (для совместимости)
             await _cache.SetStartConstants(constantsSet.ConstantsVersionBaseKey, constantsStartLegacyField, constantsSet);
-            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartLegacyField });
+            //Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartLegacyField });
 
-            Logs.Here().Information("\n {@C} \n", new { ConstantsSet = constantsSet });
+            //Logs.Here().Information("\n {@C} \n", new { ConstantsSet = constantsSet });
 
 
 
@@ -155,7 +158,7 @@ namespace ConstantData
 
             // передавать переменную класса с временем жизни вместо строки
             await _cache.SetStartConstants(constantsSet.ConstantsVersionBaseKey, constantsStartGuidField, constantsSet);
-            Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartGuidField });
+            //Logs.Here().Information("ConstantData sent constants to {@K} / {@F}.", new { Key = constantsSet.ConstantsVersionBaseKey.Value }, new { Field = constantsStartGuidField });
 
             bool isSelfTestPassed = ConstantsLoadingSelfTest(constantsSet);
 

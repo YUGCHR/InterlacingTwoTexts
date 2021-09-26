@@ -22,15 +22,18 @@ namespace ConstantData.Services
         private readonly CancellationToken _cancellationToken;
         private readonly ICacheManagerService _cache;
         private readonly IKeyEventsProvider _keyEvents;
+        private readonly IAuxiliaryUtilsService _aux;
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
             IKeyEventsProvider keyEvents,
-            ICacheManagerService cache)
+            ICacheManagerService cache,
+            IAuxiliaryUtilsService aux)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
             _keyEvents = keyEvents;
             _cache = cache;
+            _aux = aux;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
@@ -50,21 +53,26 @@ namespace ConstantData.Services
                 if (cmd == constantsSet.EventCmd && flagToBlockEventUpdate)
                 {
                     flagToBlockEventUpdate = false;
-                    Logs.Here().Information("eventKeyUpdateConstants {0} was happened, CheckKeyUpdateConstants will be called, next call = {1}", eventKeyUpdateConstants, flagToBlockEventUpdate);
-
-                    flagToBlockEventUpdate = await CheckKeyUpdateConstants(constantsSet, constantsStartGuidField, appsettingLines);
+                    //Logs.Here().Information("eventKeyUpdateConstants {0} was happened, EventUpdateHandler will be called, next call = {1}", eventKeyUpdateConstants, flagToBlockEventUpdate);
+                    flagToBlockEventUpdate = await EventUpdateHandler(constantsSet, constantsStartGuidField, appsettingLines);
                 }
             });
         }
 
-        private async Task<bool> CheckKeyUpdateConstants(ConstantsSet constantsSet, string constantsStartGuidField, List<string> appsettingLines)
+        private async Task<bool> EventUpdateHandler(ConstantsSet constantsSet, string constantsStartGuidField, List<string> appsettingLines)
         {
             // проверять (в вебе), что константы может обновлять только админ
+            // добавить разрешённый диапазон для изменения констант (где его хранить?)
 
-            string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value; // update
-            Logs.Here().Information("CheckKeyUpdateConstants started with key {0}.", eventKeyUpdateConstants);
+            
+            // ключ, где брать обновления констант (и из веба тоже там будут)
+            string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value; // update                    
 
             // получили все обновленные константы (веб может загружать сразу много словарем)
+            // рассматриваем только обновления числовых констант, тестовые ключи и префиксы вряд ли имеет смысл менять
+            // но, если что, можно это делать таким же методом, только с другим типом данных
+            // вынесли сюда - (можно вынести словарь из метода и не вбок, а поставить до метода, чтобы CheckKeyUpdateConstants стал статическим)
+            // ответ для веба - принята его команда или нет, удалить ключ сразу после считывания в словарь
             IDictionary<string, int> updatedConstants = await _cache.FetchUpdatedConstantsAndDeleteKey<string, int>(eventKeyUpdateConstants);
             if (updatedConstants == null)
             {
@@ -72,13 +80,79 @@ namespace ConstantData.Services
                 return true;
             }
 
+            // создание нового набора констант подтверждения, что изменения были внесены
+            (bool setWasUpdated, ConstantsSet constantsSetUpdated) = CreateUpdatedConstantsSet(updatedConstants, appsettingLines);
+
+            // если какая-то из констант обновилась, записываем новый набор в ключ
+            if (setWasUpdated)
+            {
+                // версия констант обновится внутри SetStartConstants - new one
+                // значения ключей надо брать из новых констант или из старых?
+                string constantsVersionBaseKey = constantsSet.ConstantsVersionBaseKey.Value;
+                double constantsVersionBaseLifeTime = constantsSet.ConstantsVersionBaseKey.LifeTime;
+
+                // записываем обновленный набор констант constantsSetUpdated
+                await _cache.SetStartConstants(constantsVersionBaseKey, constantsStartGuidField, constantsSetUpdated, constantsVersionBaseLifeTime);
+            }
+
+            // задержка, определяющая максимальную частоту обновления констант
+            double timeToWaitTheConstants = constantsSet.EventKeyUpdateConstants.LifeTime;
+            Logs.Here().Information("Delay will happen on {0} msec.", timeToWaitTheConstants);
+            try
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(timeToWaitTheConstants), _cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                // Prevent throwing if the Delay is cancelled
+            }
+            Logs.Here().Information("Delay was happened on {0} msec.", timeToWaitTheConstants);
+            
+            // перед завершением обработчика разрешаем события подписки на обновления
+            return true;
+        }
+
+
+        // ****************************************************************************
+        // доделать обновление констант, проверить их с диспетчером и бэк-сервером
+        // сделать загрузку книги в кэш (и, может быть, отметку об этом в вечном логе)
+        // вернуться к чтению книг, сделать загрузку из кэша и собственно чтение
+        // сделать юнит-тесты на всю статику
+        // ****************************************************************************
+
+
+        public static (bool, ConstantsSet) CreateUpdatedConstantsSet(IDictionary<string, int> updatedConstants, List<string> appsettingLines)
+        {
+            //// проверять (в вебе), что константы может обновлять только админ
+            //// добавить разрешённый диапазон для изменения констант (где его хранить?)
+
+            //// ключ, где брать обновления констант (и из веба тоже там будут)
+            //string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value; // update
+            //bool setWasUpdated = false;
+
+            //// получили все обновленные константы (веб может загружать сразу много словарем)
+            //// рассматриваем только обновления числовых констант, тестовые ключи и префиксы вряд ли имеет смысл менять
+            //// но, если что, можно это делать таким же методом, только с другим типом данных
+            //// можно вынести словарь из метода и не вбок, а поставить до метода, чтобы стал этот статическим
+            //IDictionary<string, int> updatedConstants = await _cache.FetchUpdatedConstantsAndDeleteKey<string, int>(eventKeyUpdateConstants);
+            //if (updatedConstants == null)
+            //{
+            //    // разрешаем события подписки на обновления
+            //    return true;
+            //}
+            bool setWasUpdated = false;
+
+            ConstantsSet constantsSetUpdated = new ConstantsSet();
             int updatedConstantNameIndex = -1;
             foreach (KeyValuePair<string, int> updatedConstant in updatedConstants)
             {
+                // было бы хорошо сразу узнать, отличается новое значение от существующего, но это опять использовать Reflection
                 var (updatedConstantName, updatedConstantValue) = updatedConstant;
+                Logs.Here().Information("New value {0} for Property {1} was fetched.", updatedConstantValue, updatedConstantName);
 
                 // найти в списке строку, содержащую updatedConstantName 
                 updatedConstantNameIndex = appsettingLines.FindIndex(x => x.Contains(updatedConstantName));
+                Logs.Here().Information("Property {0} was found in [{1}] - {2}.", updatedConstantName, updatedConstantNameIndex, appsettingLines[updatedConstantNameIndex]);
 
                 // выйти и вернуть найденный updatedConstantNameIndex
 
@@ -89,6 +163,8 @@ namespace ConstantData.Services
                 // заголовок долой (и скобку тоже)
                 // превращаем их в один текст (там еще может быть запятая в конце)
                 // а еще бывает ConstantKeyType, но с ней пока не будем связываться
+                // заголовок не нужен и занятая тоже, берём три строки после найденного названия и это почти готовый json
+                // слить эти три элемента вместе и поставить по краям фигурные скобки - и можно конвертировать
                 int propsCountOfConstantType = 3;
                 string[] foundConstantClass = new string[propsCountOfConstantType];
                 for (int i = 0; i < propsCountOfConstantType; i++)
@@ -99,83 +175,88 @@ namespace ConstantData.Services
 
                 string textOfConstantTypeSource = String.Join(" ", foundConstantClass);
                 string textOfConstantType = $"{{{textOfConstantTypeSource}}}";
-                Logs.Here().Information("foundConstantClass was joined in {@T}.", new { ConstantKeyTypeText = textOfConstantType });
-                Console.WriteLine($"{textOfConstantType}");
-                JsonSerializer serializer = new JsonSerializer();
+
+                //Logs.Here().Information("foundConstantClass was joined in {@T}.", new { ConstantKeyTypeText = textOfConstantType });
+                //Console.WriteLine($"{textOfConstantType}");
+
+                //JsonSerializer serializer = new JsonSerializer();
                 ConstantType constantNameToUpdate = JsonConvert.DeserializeObject<ConstantType>(textOfConstantType);
                 Logs.Here().Information("old value = {0}, new value = {1} - in constantNameToUpdate {@K}.", constantNameToUpdate.Value, updatedConstantValue, new { ConstantKeyType = constantNameToUpdate });
 
-                constantNameToUpdate.Value = updatedConstantValue;
+                // обновляем значение и можно конвертировать обратно
+                if (constantNameToUpdate.Value != updatedConstantValue)
+                {
+                    constantNameToUpdate.Value = updatedConstantValue;
+                    // даже если одно значение изменили, всё равно уже true
+                    setWasUpdated = true;
+                }
+                    string jsonString = JsonConvert.SerializeObject(constantNameToUpdate);
+                
+                //Logs.Here().Information("Text (json) string was created - {@J}.", new { ConstantKeyTypeToString = jsonString });
+                //Console.WriteLine($"{jsonString}");
 
-                string jsonString = JsonConvert.SerializeObject(constantNameToUpdate);
-                Logs.Here().Information("Text (json) string was created - {@J}.", new { ConstantKeyTypeToString = jsonString });
-                Console.WriteLine($"{jsonString}");
                 string jsonStringBraces = jsonString.TrimStart('{').TrimEnd('}');
-                Console.WriteLine($"{jsonStringBraces}");
 
-                int screenFullWidthLinesCount = 228;
-                char screenFullWidthTopLineChar = '-';
+                //Console.WriteLine($"{jsonStringBraces}");
+                //int screenFullWidthLinesCount = 228;
+                //char screenFullWidthTopLineChar = '-';
 
                 int part1Start = 0;
                 int part1Lengh = updatedConstantNameIndex + 1;
                 string constantSetFromText0 = String.Join(' ', appsettingLines.ToArray(), part1Start, part1Lengh);
-                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
-                Console.WriteLine($"\n{constantSetFromText0}\n");
-                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
 
-                Console.WriteLine($"\n{jsonStringBraces}\n");
+                //Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+                //Console.WriteLine($"\n{constantSetFromText0}\n");
+                //Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+
+                //Console.WriteLine($"\n{jsonStringBraces}\n");
 
                 int part2Start = updatedConstantNameIndex + propsCountOfConstantType + 1;
                 int part2Lengh = appsettingLines.Count - (updatedConstantNameIndex + propsCountOfConstantType) - 1;
+                // откуда-то приплыла лишняя фигурная скобка в конце - надо разобраться
                 string constantSetFromText1 = String.Join(' ', appsettingLines.ToArray(), part2Start, part2Lengh).TrimEnd('}');
-                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
-                Console.WriteLine($"\n{constantSetFromText1}\n");
-                Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+
+                //Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
+                //Console.WriteLine($"\n{constantSetFromText1}\n");
+                //Console.WriteLine(("").PadRight(screenFullWidthLinesCount, screenFullWidthTopLineChar));
 
                 string constantSetFromTextUnited = $"{constantSetFromText0}{jsonStringBraces}{constantSetFromText1}";
-                Console.WriteLine($"\n{constantSetFromTextUnited}\n");
 
-                ConstantsSet constantsSetUpdated = new ConstantsSet();
+                //Console.WriteLine($"\n{constantSetFromTextUnited}\n");
+
+                
                 constantsSetUpdated = JsonConvert.DeserializeObject<ConstantsSet>(constantSetFromTextUnited);
-                Logs.Here().Information("\n {@C} \n.", new { ConstantsSetUpdated = constantsSetUpdated });
+                //Logs.Here().Information("\n {@C} \n.", new { ConstantsSetUpdated = constantsSetUpdated });
+                bool constantsSetIsHealthy = AuxiliaryUtilsService.CheckConstantSet(constantsSetUpdated);
+                Logs.Here().Information("Constants health check result is {0}.", constantsSetIsHealthy);
 
+                // вывести старое и новое значения (как это сделать для любого?)
+                // для печати взять заехавшее поле из подписки и заодно найденную строку из текста
+                // вызвать проверочный метод целостности набора констант
+                // проверить с несколькими обновлениями сразу
             }
 
-            // заглушка
-            bool setWasUpdated = false;
             // тут надо удалять поле, с которого считано обновление
             // или не удалять по одному, а на выходе всегда удалять ключ целиком - в любом случае
+            // здесь удалить ключ, чтобы веб узнал о принятии данных
+            //bool updateKeyWasRemoved = await _cache.DelKeyAsync(eventKeyUpdateConstants);
+            //Logs.Here().Information("Key update was removed with result {0}.", updateKeyWasRemoved);
+
+            //if (!updateKeyWasRemoved)
+            //{
+            //    _aux.SomethingWentWrong(updateKeyWasRemoved);
+            //}
+
             // тогда юнит-тест останется живой
 
-            // если какая-то из констант обновилась, записываем новый набор в ключ
-            if (setWasUpdated)
-            {
-                // версия констант обновится внутри SetStartConstants - new one
-                string constantsVersionBaseKey = constantsSet.ConstantsVersionBaseKey.Value;
-                double constantsVersionBaseLifeTime = constantsSet.ConstantsVersionBaseKey.LifeTime;
-                await _cache.SetStartConstants(constantsVersionBaseKey, constantsStartGuidField, constantsSet, constantsVersionBaseLifeTime);
-            }
-
-            // задержка, определяющая максимальную частоту обновления констант
-            double timeToWaitTheConstants = constantsSet.EventKeyUpdateConstants.LifeTime;
-            try
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(timeToWaitTheConstants), _cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // Prevent throwing if the Delay is cancelled
-            }
-
-            // перед завершением обработчика разрешаем события подписки на обновления
-            return true;
+            return (setWasUpdated, constantsSetUpdated);
         }
 
 
 
 
 
-
+        // --- LEGACY --
 
         private async Task<bool> CheckKeyUpdateConstants(ConstantsSet constantsSet, string constantsStartGuidField, CancellationToken stoppingToken) // Main of EventKeyFrontGivesTask key
         {

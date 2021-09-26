@@ -103,14 +103,15 @@ namespace ConstantData
                         throw;
                     }
                     services.AddSingleton<GenerateThisInstanceGuidService>();
+                    services.AddSingleton<MonitorLoop>();
                     services.AddSingleton<ICacheManagerService, CacheManagerService>();
                     services.AddSingleton<ISharedDataAccess, SharedDataAccess>();
+                    services.AddSingleton<IAuxiliaryUtilsService, AuxiliaryUtilsService>();
                     services.AddSingleton<IConstantsCollectionService, ConstantsCollectionService>();
                     services.AddSingleton<IOnKeysEventsSubscribeService, OnKeysEventsSubscribeService>();
                     //services.AddSingleton<ConstantNames, constants>();
                     //services.AddSingleton<IInitConstantsService, InitConstantsService>();
                     //services.AddSingleton<ISettingConstantsService, SettingConstantsServiceService>();
-                    services.AddSingleton<MonitorLoop>();
                 });
 
         public static void Main(string[] args)

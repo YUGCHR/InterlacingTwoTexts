@@ -50,17 +50,17 @@ namespace Shared.Library.Services
             await _cache.SetHashedAsync<ConstantsSet>(keyTime.Value, field, constantsSet, SetLifeTimeFromKey(keyTime));
             Logs.Here().Debug("SetStartConstants set constants (EventKeyFrom for example = {0}) in key {1}.", constantsSet.EventKeyFrom.Value, keyTime.Value);
         }
-        
+
         public async Task<int> SetStartConstants(string key, string field, ConstantsSet constantsSet, double keyLifeTime)
         {
             if (field == constantsSet.ConstantsVersionBaseField.Value)
             {
                 // обновлять версию констант при записи в ключ гуид
                 constantsSet.ConstantsVersionNumber.Value++;
-                Logs.Here().Information("ConstantsVersionNumber was incremented and become {0}.", constantsSet.ConstantsVersionNumber.Value);
+                Logs.Here().Information("Constants in Key {0} Field {1} verstio was incremented and become {2}.", key, field, constantsSet.ConstantsVersionNumber.Value);
             }
             await WriteHashedAsync<ConstantsSet>(key, field, constantsSet, keyLifeTime);
-            Logs.Here().Debug("SetStartConstants set constants (EventKeyFrom for example = {0}) in key {1}.", constantsSet.EventKeyFrom.Value, key);
+            Logs.Here().Information("SetStartConstants method wrote in {@K} / {@F} the following \n {@C}.", new { Key = key }, new { Fileld = field }, new { Constants = constantsSet });
 
             return constantsSet.ConstantsVersionNumber.Value;
         }

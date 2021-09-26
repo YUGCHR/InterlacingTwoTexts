@@ -1,8 +1,9 @@
-﻿using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
+﻿using System;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
+using System.Threading;
 using Shared.Library.Models;
 
 #region TestRawBookTextsStorageService description
@@ -32,11 +33,27 @@ namespace Shared.Library.Services
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<AuxiliaryUtilsService>();
 
+        // проверяем, что константы правильно считались в свой класс - начальное и конечное проверочные поля на своих местах
+        public static bool CheckConstantSet(ConstantsSet constantsSet, [CallerMemberName] string currentMethodName = "")
+        {
+            // need to compare two properties
+            bool constantsSetIsHealthy = String.Equals(constantsSet.ConstantsLoadingSelfTestBegin.Value, constantsSet.ConstantsLoadingSelfTestEnd.Value);
+            if (constantsSetIsHealthy)
+            {
+                return true;
+            }
+            
+            Logs.Here().Error("Constants in {0} Health Check is {1}.", currentMethodName, constantsSetIsHealthy);
+            Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestBegin = {0}.", constantsSet.ConstantsLoadingSelfTestBegin.Value);
+            Logs.Here().Information("ConstantCheck ConstantsLoadingSelfTestEnd = {0}.", constantsSet.ConstantsLoadingSelfTestEnd.Value);
+
+            return false;
+        }
 
 
 
         // можно сделать перегрузку с массивом на вход
-        // false !!! соответствует печали
+        // даже один false !!! в параметрах соответствует печали
         public bool SomethingWentWrong(bool result0, bool result1 = true, bool result2 = true, bool result3 = true, bool result4 = true, [CallerMemberName] string currentMethodName = "")
         { // return true if something went wrong!
             const int resultCount = 5;
