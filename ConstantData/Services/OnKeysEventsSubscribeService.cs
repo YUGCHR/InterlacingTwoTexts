@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +9,6 @@ using CachingFramework.Redis.Contracts;
 using CachingFramework.Redis.Contracts.Providers;
 using Shared.Library.Models;
 using Shared.Library.Services;
-using Newtonsoft.Json;
 
 namespace ConstantData.Services
 {
@@ -21,19 +21,19 @@ namespace ConstantData.Services
     {
         private readonly CancellationToken _cancellationToken;
         private readonly ICacheManagerService _cache;
-        private readonly IKeyEventsProvider _keyEvents;
-        private readonly IAuxiliaryUtilsService _aux;
+        private readonly IConstantsCollectionService _collection;
+        private readonly IKeyEventsProvider _keyEvents;        
 
         public OnKeysEventsSubscribeService(
             IHostApplicationLifetime applicationLifetime,
-            IKeyEventsProvider keyEvents,
             ICacheManagerService cache,
-            IAuxiliaryUtilsService aux)
+            IConstantsCollectionService collection,
+            IKeyEventsProvider keyEvents)
         {
             _cancellationToken = applicationLifetime.ApplicationStopping;
-            _keyEvents = keyEvents;
             _cache = cache;
-            _aux = aux;
+            _collection = collection;
+            _keyEvents = keyEvents;
         }
 
         private static Serilog.ILogger Logs => Serilog.Log.ForContext<OnKeysEventsSubscribeService>();
@@ -43,9 +43,6 @@ namespace ConstantData.Services
         {
             string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value;
 
-            Logs.Here().Information("ConstantsData subscribed on EventKey. \n {@E}", new { EventKey = eventKeyUpdateConstants });
-            Logs.Here().Information("Constants version is {0}:{1}.", constantsSet.ConstantsVersionBaseKey.Value, constantsSet.ConstantsVersionNumber.Value);
-
             bool flagToBlockEventUpdate = true;
 
             _keyEvents.Subscribe(eventKeyUpdateConstants, async (string key, KeyEvent cmd) =>
@@ -53,7 +50,6 @@ namespace ConstantData.Services
                 if (cmd == constantsSet.EventCmd && flagToBlockEventUpdate)
                 {
                     flagToBlockEventUpdate = false;
-                    //Logs.Here().Information("eventKeyUpdateConstants {0} was happened, EventUpdateHandler will be called, next call = {1}", eventKeyUpdateConstants, flagToBlockEventUpdate);
                     flagToBlockEventUpdate = await EventUpdateHandler(constantsSet, constantsStartGuidField, appsettingLines);
                 }
             });
@@ -88,8 +84,15 @@ namespace ConstantData.Services
             {
                 // версия констант обновится внутри SetStartConstants - new one
                 // значения ключей надо брать из новых констант или из старых?
-                string constantsVersionBaseKey = constantsSet.ConstantsVersionBaseKey.Value;
-                double constantsVersionBaseLifeTime = constantsSet.ConstantsVersionBaseKey.LifeTime;
+                // переписать из старых в новые!
+                constantsSetUpdated.ConstantsVersionGuidKey = constantsSet.ConstantsVersionGuidKey;
+                constantsSetUpdated.ConstantsVersionBaseKey = constantsSet.ConstantsVersionBaseKey;
+                constantsSetUpdated.ConstantsVersionBaseField = constantsSet.ConstantsVersionBaseField;
+                constantsSetUpdated.ConstantsStartLegacyField = constantsSet.ConstantsStartLegacyField;
+                constantsSetUpdated.ConstantsVersionNumber = constantsSet.ConstantsVersionNumber;
+
+                string constantsVersionBaseKey = constantsSetUpdated.ConstantsVersionGuidKey.Value;
+                double constantsVersionBaseLifeTime = constantsSetUpdated.ConstantsVersionGuidKey.LifeTime;
 
                 // записываем обновленный набор констант constantsSetUpdated
                 await _cache.SetStartConstants(constantsVersionBaseKey, constantsStartGuidField, constantsSetUpdated, constantsVersionBaseLifeTime);
@@ -97,7 +100,6 @@ namespace ConstantData.Services
 
             // задержка, определяющая максимальную частоту обновления констант
             double timeToWaitTheConstants = constantsSet.EventKeyUpdateConstants.LifeTime;
-            Logs.Here().Information("Delay will happen on {0} msec.", timeToWaitTheConstants);
             try
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(timeToWaitTheConstants), _cancellationToken);
@@ -106,7 +108,6 @@ namespace ConstantData.Services
             {
                 // Prevent throwing if the Delay is cancelled
             }
-            Logs.Here().Information("Delay was happened on {0} msec.", timeToWaitTheConstants);
             
             // перед завершением обработчика разрешаем события подписки на обновления
             return true;
@@ -120,29 +121,18 @@ namespace ConstantData.Services
         // сделать юнит-тесты на всю статику
         // ****************************************************************************
 
+        // проверить с несколькими обновлениями сразу - не работает! можно отлаживать в юнит-тесте?
+        // надо обновлять список строк в конце цикла - конвертировать класс обратно в список строк - но как!
+        // или лучше накапливать строки для измерений? измерить длину словаря и заготовить список такой длины
+        // похоже, очень сильно проще записать ключ и не разрешать сразу несколько обновлений
+
 
         public static (bool, ConstantsSet) CreateUpdatedConstantsSet(IDictionary<string, int> updatedConstants, List<string> appsettingLines)
-        {
-            //// проверять (в вебе), что константы может обновлять только админ
-            //// добавить разрешённый диапазон для изменения констант (где его хранить?)
-
-            //// ключ, где брать обновления констант (и из веба тоже там будут)
-            //string eventKeyUpdateConstants = constantsSet.EventKeyUpdateConstants.Value; // update
-            //bool setWasUpdated = false;
-
-            //// получили все обновленные константы (веб может загружать сразу много словарем)
-            //// рассматриваем только обновления числовых констант, тестовые ключи и префиксы вряд ли имеет смысл менять
-            //// но, если что, можно это делать таким же методом, только с другим типом данных
-            //// можно вынести словарь из метода и не вбок, а поставить до метода, чтобы стал этот статическим
-            //IDictionary<string, int> updatedConstants = await _cache.FetchUpdatedConstantsAndDeleteKey<string, int>(eventKeyUpdateConstants);
-            //if (updatedConstants == null)
-            //{
-            //    // разрешаем события подписки на обновления
-            //    return true;
-            //}
+        {            
             bool setWasUpdated = false;
 
-            ConstantsSet constantsSetUpdated = new ConstantsSet();
+            ConstantsSet constantsSetUpdated = new();
+            
             int updatedConstantNameIndex = -1;
             foreach (KeyValuePair<string, int> updatedConstant in updatedConstants)
             {
@@ -152,6 +142,9 @@ namespace ConstantData.Services
 
                 // найти в списке строку, содержащую updatedConstantName 
                 updatedConstantNameIndex = appsettingLines.FindIndex(x => x.Contains(updatedConstantName));
+
+                // а что, если нет такой строки? - проверить
+
                 Logs.Here().Information("Property {0} was found in [{1}] - {2}.", updatedConstantName, updatedConstantNameIndex, appsettingLines[updatedConstantNameIndex]);
 
                 // выйти и вернуть найденный updatedConstantNameIndex
@@ -223,9 +216,8 @@ namespace ConstantData.Services
                 string constantSetFromTextUnited = $"{constantSetFromText0}{jsonStringBraces}{constantSetFromText1}";
 
                 //Console.WriteLine($"\n{constantSetFromTextUnited}\n");
-
                 
-                constantsSetUpdated = JsonConvert.DeserializeObject<ConstantsSet>(constantSetFromTextUnited);
+                constantsSetUpdated = JsonConvert.DeserializeObject<ConstantsSet>(constantSetFromTextUnited);                
                 //Logs.Here().Information("\n {@C} \n.", new { ConstantsSetUpdated = constantsSetUpdated });
                 bool constantsSetIsHealthy = AuxiliaryUtilsService.CheckConstantSet(constantsSetUpdated);
                 Logs.Here().Information("Constants health check result is {0}.", constantsSetIsHealthy);
@@ -233,30 +225,13 @@ namespace ConstantData.Services
                 // вывести старое и новое значения (как это сделать для любого?)
                 // для печати взять заехавшее поле из подписки и заодно найденную строку из текста
                 // вызвать проверочный метод целостности набора констант
-                // проверить с несколькими обновлениями сразу
+                // проверить с несколькими обновлениями сразу - не работает!
             }
-
-            // тут надо удалять поле, с которого считано обновление
-            // или не удалять по одному, а на выходе всегда удалять ключ целиком - в любом случае
-            // здесь удалить ключ, чтобы веб узнал о принятии данных
-            //bool updateKeyWasRemoved = await _cache.DelKeyAsync(eventKeyUpdateConstants);
-            //Logs.Here().Information("Key update was removed with result {0}.", updateKeyWasRemoved);
-
-            //if (!updateKeyWasRemoved)
-            //{
-            //    _aux.SomethingWentWrong(updateKeyWasRemoved);
-            //}
-
-            // тогда юнит-тест останется живой
-
             return (setWasUpdated, constantsSetUpdated);
         }
 
 
-
-
-
-        // --- LEGACY --
+        // --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- 
 
         private async Task<bool> CheckKeyUpdateConstants(ConstantsSet constantsSet, string constantsStartGuidField, CancellationToken stoppingToken) // Main of EventKeyFrontGivesTask key
         {

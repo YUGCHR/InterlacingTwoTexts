@@ -53,14 +53,16 @@ namespace Shared.Library.Services
 
         public async Task<int> SetStartConstants(string key, string field, ConstantsSet constantsSet, double keyLifeTime)
         {
+            Logs.Here().Information("field {0}, constantsSet.ConstantsVersionBaseField.Value {1}.", field, constantsSet.ConstantsVersionBaseField.Value);
+
             if (field == constantsSet.ConstantsVersionBaseField.Value)
             {
                 // обновлять версию констант при записи в ключ гуид
                 constantsSet.ConstantsVersionNumber.Value++;
-                Logs.Here().Information("Constants in Key {0} Field {1} verstio was incremented and become {2}.", key, field, constantsSet.ConstantsVersionNumber.Value);
+                Logs.Here().Information("Constants version in Key {0} Field {1} was incremented and become {2}.", key, field, constantsSet.ConstantsVersionNumber.Value);
             }
             await WriteHashedAsync<ConstantsSet>(key, field, constantsSet, keyLifeTime);
-            Logs.Here().Information("SetStartConstants method wrote in {@K} / {@F} the following \n {@C}.", new { Key = key }, new { Fileld = field }, new { Constants = constantsSet });
+            //Logs.Here().Information("SetStartConstants method wrote in {@K} / {@F} the following \n {@C}.", new { Key = key }, new { Fileld = field }, new { Constants = constantsSet });
 
             return constantsSet.ConstantsVersionNumber.Value;
         }
