@@ -151,7 +151,7 @@ namespace ConstantData
             }
         }
 
-        private static (bool, List<string>) ConvertConstantsFileToList(string dataFileName)
+        public static (bool, List<string>) ConvertConstantsFileToList(string dataFileName)
         {
             StreamReader file = new StreamReader(@dataFileName);
             // можно хранить Capacity в последней строке appsetting
@@ -175,7 +175,7 @@ namespace ConstantData
             //    Console.WriteLine($"{appsettingLines[i]}");
             //}
 
-            // удаляем первую (не нулевую) - / "SettingConstants": { / и последнюю (образовалась лишняя } ) строки файла
+            // удаляем первую (не нулевую) - / "SettingConstants": { / и последнюю (образовалась лишняя } ) - (последнюю не удаляем )строки файла
             int strNum = 1;
             Logs.Here().Information("{0} strings was read from file {1} and string[{2}] = {3} will be removed.", lineCounter, dataFileName, 1, appsettingLines[strNum]);
             appsettingLines.RemoveAt(strNum);
@@ -199,6 +199,9 @@ namespace ConstantData
 
             return (successfulListCreation, appsettingLines);
         }
+
+
+        // --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- LEGACY --- 
 
         private static bool ConstantsLoadingSelfTest(ConstantsSet constantsSet)
         {

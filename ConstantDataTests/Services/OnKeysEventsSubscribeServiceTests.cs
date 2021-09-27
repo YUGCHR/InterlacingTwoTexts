@@ -91,3 +91,37 @@ namespace ConstantDataTests.Services
         }
     }
 }
+
+//public void ConvertConstantsFileToListTest(string assertingFileName, string testFileName)
+//{
+//    // сохранить создание контрольного образца, как отдельный метод
+//    // и ещё добавить создание из него класса - отдельным методом
+//    StreamReader file = new StreamReader(@assertingFileName);
+//    // можно хранить Capacity в последней строке appsetting
+//    int appsettingLinesCapacity = 400;
+//    List<string> assertingAppsettingLines = new(appsettingLinesCapacity);
+//    int lineCounter = 0;
+//    string line;
+//    Console.WriteLine("The following file {0} will be control for test asserting.", assertingFileName);
+
+//    while ((line = file.ReadLine()) != null)
+//    {
+//        assertingAppsettingLines.Add(line);
+//        lineCounter++;
+//    }
+//    file.Close();
+
+
+
+//    // выгружаем файл appsetting.json в текстовый массив            
+//    (bool constantsSetIsHealthy1, List<string> appsettingLines) = MonitorLoop.ConvertConstantsFileToList(assertingFileName);
+
+
+
+
+
+
+
+
+//    CollectionAssert.AreEqual();
+//}
