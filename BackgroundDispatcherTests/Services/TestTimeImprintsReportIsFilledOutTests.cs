@@ -16,9 +16,10 @@ namespace BackgroundDispatcher.Services.Tests
     public class TestTimeImprintsReportIsFilledOutTests
     {
         [TestMethod()]
-        [DataRow("QLGNAEKIRLRNGEAE", "KING")]
+        //[DataRow("QLGNAEKIRLRNGEAE", "KING")]
+        [DataRow("QLGNAEKIRLRNGEAE", "KING", new int[] { 1, 1, 0, 0 }, new int[] { 2, 3, 3, 2 })]
 
-        public void FindCellSequenceToBuildGivenWord(string sourceMatrixString, string givenWord)
+        public void FindCellSequenceToBuildGivenWord(string sourceMatrixString, string givenWord, int[] assertRow, int[] assertCol)
         {
             (char[,] string2Matrix, int matrixSideSize) = ConvertString2Matrix(sourceMatrixString);
             if (string2Matrix == null)
@@ -26,23 +27,43 @@ namespace BackgroundDispatcher.Services.Tests
                 Assert.Fail();
             }
 
-            //int rowPosition = -1;
-            //int columnPosition = -1;
-
             int givenWordLength = givenWord.Length;
-            for (int n = 0; n < givenWordLength; n++)
+            int[] currentLetterRow = new int[givenWordLength];
+            int[] currentLetterCol = new int[givenWordLength];
+
+            int sourceMatrixLength = sourceMatrixString.Length;
+            char firstLetter = givenWord[0];
+            int startPosition = 0;
+            int searchLength = sourceMatrixLength - 1;
+
+            (int rowPosition, int columnPosition) = FindZeroLetterRowCol(sourceMatrixString, firstLetter, matrixSideSize, startPosition, searchLength);
+            currentLetterRow[0] = rowPosition;
+            currentLetterCol[0] = columnPosition;
+            Console.WriteLine($"\n[0] Letter {firstLetter} was found in row {rowPosition} / col {columnPosition} of Matrix");
+
+            for (int n = 1; n < givenWordLength; n++)
             {
-                int sourceMatrixLength = sourceMatrixString.Length;
                 char currentLetter = givenWord[n];
-                int startPosition = 0;
-                int searchLength = sourceMatrixLength - 1;
-                (int rowPosition, int columnPosition) = FindRowColOfWordLetter(sourceMatrixString, currentLetter, matrixSideSize, startPosition, searchLength);
-                Console.WriteLine($" currentLetter {currentLetter} was found in row {rowPosition} / col {columnPosition} of Matrix");
+                (int foundLetterRow, int foundLetterCol) = FetchNextStepLettersSet(string2Matrix, currentLetter, matrixSideSize, n, rowPosition, columnPosition);
+                rowPosition = foundLetterRow;
+                columnPosition = foundLetterCol;
+                currentLetterRow[n] = foundLetterRow;
+                currentLetterCol[n] = foundLetterCol;
             }
 
+            Console.WriteLine($"\n *** Given word {givenWord} was found in string {sourceMatrixString} in the following positions:");
+            int rowControl = -1;
+            int colControl = -1;
+            for (int n = 0; n < givenWordLength; n++)
+            {
+                Console.WriteLine($"Letter[{n}] - {givenWord[n]} - in row [{currentLetterRow[n]},{currentLetterCol[n]}] column ->");
+                rowControl = currentLetterRow[n] - assertRow[n];
+                colControl = currentLetterCol[n] - assertCol[n];
+            }
 
+            int assertPos = rowControl + colControl;
 
-            Assert.AreEqual(1, 1);
+            Assert.AreEqual(assertPos, 0);
         }
 
         //currentLetter K was found in position 6, row 1 / col 2 of sourceMatriString
@@ -50,7 +71,56 @@ namespace BackgroundDispatcher.Services.Tests
         //currentLetter N was found in position 3, row 0 / col 3 of sourceMatriString
         //currentLetter G was found in position 2, row 0 / col 2 of sourceMatriString
 
-        private (int, int) FindRowColOfWordLetter(string sourceMatrixString, char currentLetter, int matrixSideSize, int startPosition, int searchLength)
+        private (int, int) FetchNextStepLettersSet(char[,] string2Matrix, char currentLetter, int matrixSideSize, int n, int rowPosition, int columnPosition)
+        {
+            int availableDirections = 4;
+            char[] nextStepLettersSet = new char[availableDirections];
+            int[] currentLetterRow = new int[availableDirections];
+            int[] currentLetterCol = new int[availableDirections];
+            int lastIndex = matrixSideSize - 1;
+
+            int colPosMinus = (columnPosition - 1 < 0) ? 0 : columnPosition - 1;
+            int colPosPlus = (columnPosition + 1 > lastIndex) ? lastIndex : columnPosition + 1;
+            int rowPosMinus = (rowPosition - 1 < 0) ? 0 : rowPosition - 1;
+            int rowPosPlus = (rowPosition + 1 > lastIndex) ? lastIndex : rowPosition + 1;
+            Console.WriteLine($"\n columnPosition {columnPosition} -> colPosMinus = {colPosMinus}, colPosPlus = {colPosPlus} / rowPosition {rowPosition} -> rowPosMinus = {rowPosMinus}, rowPosPlus = {rowPosPlus}");
+
+            currentLetterRow[0] = rowPosition;
+            currentLetterRow[1] = rowPosMinus;
+            currentLetterRow[2] = rowPosition;
+            currentLetterRow[3] = rowPosPlus;
+
+            currentLetterCol[0] = colPosMinus;
+            currentLetterCol[1] = columnPosition;
+            currentLetterCol[2] = colPosPlus;
+            currentLetterCol[3] = columnPosition;
+
+
+            nextStepLettersSet[0] = string2Matrix[rowPosition, colPosMinus];
+            nextStepLettersSet[1] = string2Matrix[rowPosMinus, columnPosition];
+            nextStepLettersSet[2] = string2Matrix[rowPosition, colPosPlus];
+            nextStepLettersSet[3] = string2Matrix[rowPosPlus, columnPosition];
+            Console.WriteLine($" nextStepLettersSet[0] {nextStepLettersSet[0]} [1] {nextStepLettersSet[1]} [2] {nextStepLettersSet[2]} [3] {nextStepLettersSet[3]} \n");
+
+            int foundLetterRow = -1;
+            int foundLetterCol = -1;
+            for (int i = 0; i < availableDirections; i++)
+            {
+                bool isLetterFound = currentLetter == string2Matrix[currentLetterRow[i], currentLetterCol[i]];
+                Console.WriteLine($" The {i} Letter comparsion -->  (currentLetter - {currentLetter} == {nextStepLettersSet[i]} - nextStepLettersSet[{i}]) is {isLetterFound}");
+                if (isLetterFound)
+                {
+                    foundLetterRow = currentLetterRow[i];
+                    foundLetterCol = currentLetterCol[i];
+                    Console.WriteLine($"[{n}] letter {currentLetter} was found in row = {foundLetterRow} and col = {foundLetterCol}");
+                    return (foundLetterRow, foundLetterCol);
+                }
+            }
+
+            return (-1, -1);
+        }
+
+        private (int, int) FindZeroLetterRowCol(string sourceMatrixString, char currentLetter, int matrixSideSize, int startPosition, int searchLength)
         {
             int indexOfcurrentLetter = sourceMatrixString.IndexOf(currentLetter, startPosition, searchLength);
             int rowPosition = (int)indexOfcurrentLetter / matrixSideSize;
@@ -58,6 +128,25 @@ namespace BackgroundDispatcher.Services.Tests
 
             return (rowPosition, columnPosition);
         }
+
+
+        //private (int, int) FindNextLettersRowCol(char[,] string2Matrix, char firstLetter, int startPosition, int searchLength)
+        //{
+        //    int matrixHigh = string2Matrix.GetLength(0);
+        //    int matrixWidth = string2Matrix.GetLength(1);
+        //    if (matrixHigh != matrixWidth)
+        //    {
+        //        return (-1, -1);
+        //    }
+        //    int indexOfcurrentLetter = sourceMatrixString.IndexOf(currentLetter, startPosition, searchLength);
+        //    int rowPosition = (int)indexOfcurrentLetter / matrixSideSize;
+        //    int columnPosition = indexOfcurrentLetter % matrixSideSize;
+
+        //    return (rowPosition, columnPosition);
+        //}
+
+
+
 
         private (char[,], int) ConvertString2Matrix(string sourceMatrixString)
         {
