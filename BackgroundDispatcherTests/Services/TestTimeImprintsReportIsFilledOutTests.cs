@@ -18,50 +18,116 @@ namespace BackgroundDispatcher.Services.Tests
         [TestMethod()]
         [DataRow("QLGNAEKIRLRNGEAE", "KING")]
 
-        public void FindCellSequenceToBuildGivenWord(string sourceMatriString, string givenWord)
-        { 
-            int sourceMatrixLength = sourceMatriString.Length;
-            int matrixSideSize = (int)Math.Sqrt((double)sourceMatrixLength);
-
-            if (matrixSideSize * matrixSideSize != sourceMatrixLength)
+        public void FindCellSequenceToBuildGivenWord(string sourceMatrixString, string givenWord)
+        {
+            (char[,] string2Matrix, int matrixSideSize) = ConvertString2Matrix(sourceMatrixString);
+            if (string2Matrix == null)
             {
-                Console.WriteLine($"Problem with Matrix size was found - sourceMatriString = {sourceMatriString}, matrixSideSize = {matrixSideSize}, matrixSideSize^2 = {matrixSideSize * matrixSideSize}");
+                Assert.Fail();
             }
-            else
-            {                
-                string[] numbersInRow = new string[matrixSideSize];
-                for (int j = 0; j < matrixSideSize; j++)
-                {
-                    numbersInRow[j] = j.ToString();
-                }
-                string row = String.Join("", numbersInRow);
-                Console.WriteLine($"Matrix from sourceMatriString = {sourceMatriString} has the following view, matrixSideSize = {matrixSideSize}");
-                Console.WriteLine($"  {row}");
 
-                for (int i = 0; i < matrixSideSize; i++)
-                {                    
-                    string currentMatrixRow = sourceMatriString.Substring(i * matrixSideSize, matrixSideSize);
-                    Console.WriteLine($"{i}-{currentMatrixRow}");
-                }
-            }
+            //int rowPosition = -1;
+            //int columnPosition = -1;
 
             int givenWordLength = givenWord.Length;
             for (int n = 0; n < givenWordLength; n++)
             {
+                int sourceMatrixLength = sourceMatrixString.Length;
                 char currentLetter = givenWord[n];
-                int indexOfcurrentLetter = sourceMatriString.IndexOf(currentLetter, 0, sourceMatrixLength - 1);
-                int rowPosition = (int)indexOfcurrentLetter / matrixSideSize;
-                int columnPosition = indexOfcurrentLetter % matrixSideSize;
-                Console.WriteLine($" currentLetter {currentLetter} was found in position {indexOfcurrentLetter}, row {rowPosition} / col {columnPosition} of sourceMatriString");
+                int startPosition = 0;
+                int searchLength = sourceMatrixLength - 1;
+                (int rowPosition, int columnPosition) = FindRowColOfWordLetter(sourceMatrixString, currentLetter, matrixSideSize, startPosition, searchLength);
+                Console.WriteLine($" currentLetter {currentLetter} was found in row {rowPosition} / col {columnPosition} of Matrix");
             }
 
 
 
-
-
-
-                Assert.AreEqual(1, 1);
+            Assert.AreEqual(1, 1);
         }
+
+        //currentLetter K was found in position 6, row 1 / col 2 of sourceMatriString
+        //currentLetter I was found in position 7, row 1 / col 3 of sourceMatriString
+        //currentLetter N was found in position 3, row 0 / col 3 of sourceMatriString
+        //currentLetter G was found in position 2, row 0 / col 2 of sourceMatriString
+
+        private (int, int) FindRowColOfWordLetter(string sourceMatrixString, char currentLetter, int matrixSideSize, int startPosition, int searchLength)
+        {
+            int indexOfcurrentLetter = sourceMatrixString.IndexOf(currentLetter, startPosition, searchLength);
+            int rowPosition = (int)indexOfcurrentLetter / matrixSideSize;
+            int columnPosition = indexOfcurrentLetter % matrixSideSize;
+
+            return (rowPosition, columnPosition);
+        }
+
+        private (char[,], int) ConvertString2Matrix(string sourceMatrixString)
+        {
+            int minStringLength = 4; // 2x2
+            int sourceMatrixLength = sourceMatrixString.Length;
+            if (sourceMatrixLength >= minStringLength)
+            {
+                int matrixSideSize = (int)Math.Sqrt((double)sourceMatrixLength);
+                int matrixSideSizePow = (int)Math.Pow(matrixSideSize, 2);
+                char[,] string2Matrix = new char[matrixSideSize, matrixSideSize];
+
+                if (matrixSideSizePow != sourceMatrixLength)
+                {
+                    Console.WriteLine($"Problem with Matrix size was found - sourceMatriString = {sourceMatrixString}, matrixSideSize = {matrixSideSize}, matrixSideSize^2 = {matrixSideSize * matrixSideSize}");
+                }
+                else
+                {
+                    string[] numbersInRow = new string[matrixSideSize];
+                    for (int k = 0; k < matrixSideSize; k++)
+                    {
+                        numbersInRow[k] = k.ToString();
+                    }
+                    string row = String.Join(" ", numbersInRow);
+                    Console.WriteLine($"Matrix from sourceMatriString = {sourceMatrixString} has the following view, matrixSideSize = {matrixSideSize}");
+                    Console.WriteLine($"    {row}");
+
+                    char[] string2Row = new char[matrixSideSize];
+
+                    for (int i = 0; i < matrixSideSize; i++)
+                    {
+                        string currentMatrixRow = sourceMatrixString.Substring(i * matrixSideSize, matrixSideSize);
+                        //Console.WriteLine($"{i}-{currentMatrixRow}");
+
+                        for (int j = 0; j < matrixSideSize; j++)
+                        {
+                            string2Row[j] = sourceMatrixString[i * matrixSideSize + j];
+                            string2Matrix[i, j] = sourceMatrixString[i * matrixSideSize + j];
+                        }
+                        string rowLetters = String.Join(" ", string2Row);
+                        Console.WriteLine($"{i} - {rowLetters}");
+
+                    }
+                }
+                return (string2Matrix, matrixSideSize);
+            }
+            return default;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
         [TestMethod()]
